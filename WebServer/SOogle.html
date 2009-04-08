@@ -1,0 +1,42 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>SOogle Page</title>
+
+    <script language="javascript" type="text/javascript">
+    function fGoogleLucky()
+    {
+        var startQuery = "http://209.85.171.103/search?hl=es&q=";
+        var endQuery = "&btnI=Voy+a+tener+suerte&meta=&aq=f&oq=";
+        var param = document.getElementById("txt2Search").value;
+        param = param.replace(" ", "+");
+        param = encodeURIComponent(param);
+        param = param.replace("%2B", "+");
+        window.self.location = startQuery + param + endQuery;
+    }
+    </script>
+
+</head>
+<body>
+    <form method="get" id="form1" runat="server">
+        <table id="mainTable">
+            <tr>
+                <td align="center" colspan="2"><img src="imgs/SOogle.jpg" id="imgSOogle" /></td>
+            </tr>
+            <tr>
+                <td align="center" colspan="2">
+                    <input id="txt2Search" type="text" size="200px" />
+                </td>
+            </tr>
+            <tr>
+                <td align="right">
+                    <input type="submit" value="Buscar con SOogle" size="100px" />
+                </td>
+                <td>
+                    <input type="button" value="Voy a tener suerte" onclick="fGoogleLucky()" size="100px" />
+                </td>
+            </tr>
+        </table>
+    </form>
+</body>
+</html>
