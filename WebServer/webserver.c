@@ -1,22 +1,30 @@
-#include <stdio.h>
-#include <process.h>
-#include <winsock2.h>
-#include <windows.h>
+#include "webserver.h"
+
+void rutinaDeError (char *error);
+void rutinaAtencionConsola (void *args);
+void rutinaAtencionCliente (void *sockCliente);	/* HACER Rutina de Atencion de Clientes*/
+SOCKET establecerConexionEscucha (const char* direccionIP, in_port_t nPort);
+generarLog(); /*HACER Genera archivo log con datos estadisticos obtenidos*/
 
 
-void rutinaDeError (char *error);										/*Atiende error cada vez que exista en alguna funcion*/
-void rutinaAtencionConsola (void *args);								/*Rutina de Atencion de Consola*/
-void rutinaAtencionCliente (void *sockCliente);							/*Rutina de Atencion de Clientes*/
-SOCKET establecerConexionEscucha (const char* direccionIP, int nPort)	/*Pone el Servidor Web a la escucha en un puerto*/
-generarLog																/*Genera archivo log con datos estadisticos obtenidos*/
+int codop = RUNNING;	/*
+						Codigo de Estado de Servidor.
+						0 = running
+						1 = finish
+						2 = out of service
+						*/
+
+configuracion config;		/*Estructura con datos del archivo de configuracion accesible por todos los Threads*/
+HANDLE LogFileMutex;		/*Semaforo de mutua exclusion MUTEX para escribir archivo Log*/
 
 
-int codop = 0;		/*
-					Codigo de Estado de Servidor.
-					0 = running
-					1 = finish
-					2 = out of service
-					*/
+
+/*      
+Descripcion: Provee de archivos a clientes solicitantes en la red.
+Autor: Scheinkman, Mariano
+Recibe: -
+Devuelve: ok? 0: 1
+ */
 
 int main() {
 
@@ -33,11 +41,11 @@ int main() {
 		rutinaDeError("WSAStartup");
 
 	/*Lectura de Archivo de Configuracion*/
-	if (leerArchivoConfiguracion() != 0)
+	if (leerArchivoConfiguracion(&config) != 0)
 		rutinaDeError("Lectura Archivo de configuracion");
 
 	/*Creacion de Thread de Atencion de Consola*/
-	hThreadConsola = (HANDLE) _beginthreadex (NULL, 1, rutinaAtencionConsola, NULL, 0, &uiThreadConsolaID);
+	hThreadConsola = (HANDLE) _beginthreadex (NULL, 1, (void*) rutinaAtencionConsola, NULL, 0, &uiThreadConsolaID);
 	if (hThreadConsola == 0)
 		rutinaDeError("Creacion de Thread");
 
@@ -49,33 +57,35 @@ int main() {
 
 /*------------------------Atencion de Clientes-------------------------*/
 
-	while (codop != 1)
+	while (codop != FINISH)
 	{
-		int nAddrSize = sizeof(dirCliente);
-
-		sockCliente = accept(ListeningSocket, (SOCKADDR_IN *)&dirCliente, &nAddrSize);
-			
-		if (sockRemoto != INVALID_SOCKET) 
+		if (codop != OUTOFSERVICE)
 		{
-			printf ("Conexion aceptada de %s:%d.\n", inet_ntoa(dirCliente.sin_addr), ntohs(dirCliente.sin_port));
+			int nAddrSize = sizeof(dirCliente);
 
-			/* 
-			CREAR NUEVO THREAD Y PONERLO EN LA COLA 
+			sockCliente = accept(ListeningSocket, (SOCKADDR_IN *)&dirCliente, &nAddrSize);
 			
-			Con la cola sabemos cuantos threads hay en ejecucion, y con eso podemos
-			controlar a los que van llegando.
+			if (sockRemoto != INVALID_SOCKET) 
+			{
+				printf ("Conexion aceptada de %s:%d.\n", inet_ntoa(dirCliente.sin_addr), ntohs(dirCliente.sin_port));
 
-			Ej COLA:  THREAD1   THREAD2  THREAD3	THREAD4  THREAD5
-					  runing	runing	 runing		wait	 wait
-			
-			Ni bien termina THREAD1, se elimina de la cola y THREAD4 pasa a ejecucion.
-			Antes de elminiar THREAD1 se guardan los datos estadisticos para el archivo Log.
-			
-			*/
+				/* 
+				CREAR NUEVO THREAD Y PONERLO EN LA COLA 
+				
+				Con la cola sabemos cuantos threads hay en ejecucion, y con eso podemos
+				controlar a los que van llegando.
+
+				Ej COLA:  THREAD1   THREAD2  THREAD3	THREAD4  THREAD5
+						  runing	runing	 runing		wait	 wait
+				
+				Ni bien termina THREAD1, se elimina de la cola y THREAD4 pasa a ejecucion.
+				Antes de elminiar THREAD1 se guardan los datos estadisticos para el archivo Log.
+				
+				*/
+			}
+			else
+				rutinaDeError("Accept");
 		}
-		else
-			rutinaDeError("Accept");
-		
 	}
 /*--------------------Fin de Atencion de Clientes----------------------*/
 
@@ -93,9 +103,16 @@ int main() {
 
 
 
+/*      
+Descripcion: Establece la conexion del servidor web a la escucha en un puerto y direccion ip.
+Autor: Scheinkman, Mariano
+Recibe: Direccion ip y puerto a escuchar.
+Devuelve: ok? Socket del servidor: socket invalido.
+ */
+
 SOCKET establecerConexionEscucha(const char* sDireccionIP, int nPort)
 {
-    u_long nDireccionIP = inet_addr(sDireccionIP);
+    in_addr_t nDireccionIP = inet_addr(sDireccionIP);
     SOCKET sockfd;
 	
 	if (nDireccionIP != INADDR_NONE) 
@@ -115,7 +132,7 @@ SOCKET establecerConexionEscucha(const char* sDireccionIP, int nPort)
             if (bind (sockfd, (SOCKADDR_IN *)&addrServidorWeb, sizeof(SOCKADDR_IN)) != SOCKET_ERROR) 
 			{
 				/*Pone el puerto a la escucha de conexiones entrantes*/
-                if (listen(sockfd, SOMAXCONN) == -1)
+                if (listen(sockfd, MAX_CONEXIONES) == -1)
 					rutinaDeError("Listen");
 				else
 					return sockfd;
@@ -124,33 +141,49 @@ SOCKET establecerConexionEscucha(const char* sDireccionIP, int nPort)
 				rutinaDeError("Bind");
         }
     }
-
+	else
+		rutinaDeError("Direccion IP invalida\n");
     return INVALID_SOCKET;
 }
 
 
 
+/*      
+Descripcion: Thread que atiende los ingresos de usuario por consola.
+Autor: Scheinkman, Mariano
+Recibe: -
+Devuelve: 0
+ */
 
 void rutinaAtencionConsola (void *args)
 {
-	char opcion[30];
+	char consola[30];
 
-	while (codop != 1)
+	while (codop != FINISH)
 	{
 		/*
 		ACTUAR DE ACUERDO A DISTINTOS INPUTS
 		Ej:
-			-help				te tira los inputs posibles			-> codop = 0
-			-queuestatus		te tira el estado de la cola		-> codop = 0
-			-run				vuelve al servicio el servidor		-> codop = 0
-			-finish				cierra el servidor					-> codop = 1
-			-outofservice		deja al server fuera de servicio	-> codop = 2
+			-help				te tira los inputs posibles			-> codop = RUNNING
+			-queuestatus		te tira el estado de la cola		-> codop = RUNNING
+			-run				vuelve al servicio el servidor		-> codop = RUNNING
+			-finish				cierra el servidor					-> codop = FINISH
+			-outofservice		deja al server fuera de servicio	-> codop = OUTOFSERVICE
 		*/
 	}
 	_endthreadex(0);
+	return 0;
 }
 
 
+
+
+/*      
+Descripcion: Atiende error cada vez que exista en alguna funcion y finaliza proceso.
+Autor: Scheinkman, Mariano
+Recibe: Error detectado.
+Devuelve: -
+ */
 
 void rutinaDeError (char* error) 
 {
