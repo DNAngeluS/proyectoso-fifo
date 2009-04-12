@@ -19,7 +19,7 @@
 #define STR_MSG_OUTOFSERVICE "Web Server fuera de servicio\n\n"
 #define STR_MSG_INVALID_OUTOFSERVICE "Web Server ya se encuentra fuera de servicio\n\n"
 #define STR_MSG_INVALID_INPUT "Comando invalido. Escriba -help para informacion de comandos\n\n"
-
+#define STR_MSG_WELCOME "----Web Server----\n--------------------\n\n"
 enum codop_t {RUNNING, FINISH, OUTOFSERVICE};
 
 typedef unsigned int in_addr_t;

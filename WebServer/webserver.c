@@ -54,7 +54,7 @@ int main() {
 	if ((sockWebServer = establecerConexionEscucha(config.dirIP, config.puerto) == INVALID_SOCKET)
 		rutinaDeError("Socket invalido");
 
-
+	printf("%s", STR_MSG_WELCOME);
 
 /*------------------------Atencion de Clientes-------------------------*/
 
