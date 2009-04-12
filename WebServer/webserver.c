@@ -6,7 +6,7 @@ void rutinaAtencionConsola (void *args);
 void rutinaAtencionCliente (void *sockCliente);	/* HACER Rutina de Atencion de Clientes*/
 SOCKET establecerConexionEscucha (const char* direccionIP, in_port_t nPort);
 generarLog(); /*HACER Genera archivo log con datos estadisticos obtenidos*/
-
+int AgregarThread(ptrListaThread *ths, HANDLE idHandle, unsigned int threadID);
 
 int codop = RUNNING;	/*
 						Codigo de Estado de Servidor.
@@ -15,9 +15,9 @@ int codop = RUNNING;	/*
 						2 = out of service
 						*/
 
-configuracion config;		/*Estructura con datos del archivo de configuracion accesible por todos los Threads*/
-HANDLE LogFileMutex;		/*Semaforo de mutua exclusion MUTEX para escribir archivo Log*/
-
+configuracion config;				/*Estructura con datos del archivo de configuracion accesible por todos los Threads*/
+HANDLE LogFileMutex;				/*Semaforo de mutua exclusion MUTEX para escribir archivo Log*/
+ptrListaThread listaThread = NULL;	/*Puntero de la lista de threads en ejecucion y espera*/
 
 
 /*      
@@ -46,7 +46,7 @@ int main() {
 		rutinaDeError("Lectura Archivo de configuracion");
 
 	/*Creacion de Thread de Atencion de Consola*/
-	hThreadConsola = (HANDLE) _beginthreadex (NULL, 1, (void*) rutinaAtencionConsola, NULL, 0, &uiThreadConsolaID);
+	hThreadConsola = (HANDLE) _beginthreadex (NULL, 1, (void *) rutinaAtencionConsola, NULL, 0, &uiThreadConsolaID);
 	if (hThreadConsola == 0)
 		rutinaDeError("Creacion de Thread");
 
@@ -70,6 +70,27 @@ int main() {
 			{
 				printf ("Conexion aceptada de %s:%d.\n", inet_ntoa(dirCliente.sin_addr), ntohs(dirCliente.sin_port));
 
+				unsigned int threadID;
+				HANDLE thread;
+
+				thread = (HANDLE) _beginthreadex (NULL, 1, (void *) rutinaAtencionCliente, (void *) sockCliente, 0, &threadID);
+				
+				if (thread == 0)
+				{
+					printf("Error al crear thread de comunicacion para usuario de %s:%d.\n", inet_ntoa(dirCliente.sin_addr),
+																							 ntohs(dirCliente.sin_port));
+					rutinaCerrarConexion(sockCliente);
+				}
+				else
+				{
+					if (AgregarThread(listaThread, thread, threadID) < 0)
+					{
+						printf("Memoria insuficiente para nuevo Usuario\n");
+						rutinaCerrarConexion(sockCliente);
+						/* FALTA GARANTIZAR QUE EL THREAD CREADO NO EJECUTE SI NO HAY MEMORIA */
+					}
+					
+				}
 				/* 
 				CREAR NUEVO THREAD Y PONERLO EN LA COLA 
 				
@@ -111,7 +132,7 @@ Recibe: Direccion ip y puerto a escuchar.
 Devuelve: ok? Socket del servidor: socket invalido.
  */
 
-SOCKET establecerConexionEscucha(const char* sDireccionIP, int nPort)
+SOCKET establecerConexionEscucha(const char* sDireccionIP, in_port_t nPort)
 {
     in_addr_t nDireccionIP = inet_addr(sDireccionIP);
     SOCKET sockfd;
@@ -233,4 +254,45 @@ void rutinaDeError (char* error)
 	printf("\nError: %s\n", error);
 	printf("Codigo de Error: %d\n\n", GetLastError());
 	exit(1);
+}
+
+int AgregarThread(ptrListaThread *ths, HANDLE idHandle, unsigned int threadID)
+{      
+	ptrListaThread nuevo, actual, anterior;
+       
+	if (idHandle == 0) 
+	{
+		printf("Error en _beginthreadex(): %d\n", GetLastError());
+		return -1;
+	}
+       
+	if ( (nuevo = HeapAlloc(GetProcessHeap(), 0, sizeof (struct thread))) == NULL)
+		return -1;
+	
+	nuevo->info.thread = idHandle;
+	nuevo->info.id = threadID;
+	GetSystemTime(nuevo->info.arrival);
+	nuevo->sgte = NULL;
+
+	anterior = NULL;
+	actual = *ths;
+
+	while (actual != NULL)
+	{
+		anterior = actual;
+		actual = actual->sgte;
+	}
+	
+	if (anterior == NULL)
+	{
+		nuevo->sgte = *ths
+		*ths = nuevo;
+	}
+	else
+	{
+		anterior->sgte = nuevo;
+		nuevo->sgte = actual;
+	}
+
+	return 0;
 }
