@@ -1,3 +1,4 @@
+#include "config.h"
 #include "webserver.h"
 
 void rutinaDeError (char *error);
@@ -170,6 +171,48 @@ void rutinaAtencionConsola (void *args)
 			-finish				cierra el servidor					-> codop = FINISH
 			-outofservice		deja al server fuera de servicio	-> codop = OUTOFSERVICE
 		*/
+		int centinela;
+	    
+		centinela = scanf("%s", consola);	
+		if (centinela == 1)
+			if (*consola == '-')
+			{
+				if (!lstrcmp(&consola[1], "queuestatus"))
+				{
+                     printf("%s", STR_MSG_QUEUESTATUS);
+                }
+                else if (!lstrcmp(&consola[1], "run"))
+                {
+                     if (codop != RUNNING)
+                     {
+                        printf("%s", STR_MSG_RUN);
+                        codop = RUNNING;
+                     }
+                     else
+                         printf("%s", STR_MSG_INVALID_RUN);
+                }
+                else if (!lstrcmp(&consola[1], "finish"))
+                {
+                     printf("%s", STR_MSG_FINISH);
+                     codop = FINISH;
+                }
+                else if (!lstrcmp(&consola[1], "outofservice"))
+                {
+                     if (codop != OUTOFSERVICE)
+                     {
+                        printf("%s", STR_MSG_OUTOFSERVICE);
+                        codop = OUTOFSERVICE;
+                     }
+                     else
+                         printf("%s", STR_MSG_INVALID_OUTOFSERVICE);
+                }
+                else if (!lstrcmp(&consola[1], "help"))
+				   printf("%s", STR_MSG_HELP);
+                else
+                    printf("%s", STR_MSG_INVALID_INPUT);
+            }
+            else
+                printf("%s", STR_MSG_INVALID_INPUT);
 	}
 	_endthreadex(0);
 	return 0;
