@@ -8,7 +8,6 @@ Modificado por: Scheinkman, Mariano
 ==================
 */
 
-#include <windows.h>
 #include "config.h"
 
 #define BUF_SIZE 4096   /* Maximo tamaño del archivo de configuracion */
@@ -24,5 +23,12 @@ Devuelve: ok? 0: -1
 int leerArchivoConfiguracion(configuracion *config)
 {
 	/*HACER*/
+	config->ip = INADDR_ANY;
+	config->puerto = 4444;
+	config->cantidadClientes = 3;
+	config->archivoLog = "c:\webserver";
+	/*config->directorioFiles = "c:\webserver\dirDescargas";*/
+	config->esperaMaxima = 10000;
+
 	return 0;
 }

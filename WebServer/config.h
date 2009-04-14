@@ -1,6 +1,10 @@
 #ifndef CONFIG
 #define CONFIG
 
+#include <stdio.h>
+#include <winsock2.h>
+#include <windows.h>
+
 typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
 

@@ -7,11 +7,10 @@
 #include <windows.h>
 
 #define WIN32_LEAN_AND_MEAN
-#define MAXCONEXIONES SOMAXCONN
 #define BUF_SIZE 4096
 #define MAX_HEAP 1024*1024
 
-enum estado_t {ESPERA, ATENDIDO}
+enum estado_t {ESPERA, ATENDIDO};
 
 enum codop_t {RUNNING, FINISH, OUTOFSERVICE};
 
