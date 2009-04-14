@@ -11,6 +11,7 @@
 #define BUF_SIZE 4096
 #define MAX_HEAP 1024*1024
 
+enum estado_t {ESPERA, ATENDIDO}
 
 enum codop_t {RUNNING, FINISH, OUTOFSERVICE};
 
@@ -26,13 +27,14 @@ typedef unsigned short in_port_t;
 #define STR_MSG_OUTOFSERVICE "Web Server fuera de servicio\n\n"
 #define STR_MSG_INVALID_OUTOFSERVICE "Web Server ya se encuentra fuera de servicio\n\n"
 #define STR_MSG_INVALID_INPUT "Comando invalido. Escriba -help para informacion de comandos\n\n"
-#define STR_MSG_WELCOME "----Web Server----\n--------------------\n\n"
+#define STR_MSG_WELCOME "----Web Server----\n------------------\n\n"
 
 /*Estructuras para la cola de threads*/
 struct thread {
-	unsigned int id;
-	HANDLE thread;
+	DWORD threadID;
+	HANDLE threadHandle;
 	SYSTEMTIME arrival;
+	BOOL estado;
 };
 
 typedef struct nodoListaThread{
@@ -42,5 +44,11 @@ typedef struct nodoListaThread{
 
 typedef NodoListaThread *ptrListaThread;
 
+/*Estructuras para el archivo Log*/
+typedef struct {
+	DWORD numRequests;
+	DWORD numBytes;
+	SYSTEMTIME arrival;
+} infoLogFile;
 
 #endif
