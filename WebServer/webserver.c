@@ -2,34 +2,33 @@
 #include "webserver.h"
 #include "http.h"
 
-void rutinaDeError (char *error);
-void rutinaAtencionConsola (LPVOID args);
-void rutinaAtencionCliente (LPVOID args);
+void rutinaDeError					(char *error);
+void rutinaAtencionConsola			(LPVOID args);
+void rutinaAtencionCliente			(LPVOID args);
 
-SOCKET rutinaConexionCliente(SOCKET sockWebServer, unsigned maxClientes);
-SOCKET establecerConexionEscucha (in_addr_t direccionIP, in_port_t nPort);
+SOCKET rutinaConexionCliente		(SOCKET sockWebServer, unsigned maxClientes);
+SOCKET establecerConexionEscucha	(in_addr_t direccionIP, in_port_t nPort);
 
-void imprimeLista(ptrListaThread ptr);
-int listaVacia(ptrListaThread listaThread);
-int AgregarThread(ptrListaThread *ths, SOCKET socket, SOCKADDR_IN dirCliente);
-void EliminarThread(SOCKET cli);
-unsigned cantidadThreadsLista(ptrListaThread listaThread);
+void imprimeLista					(ptrListaThread ptr);
+int listaVacia						(ptrListaThread listaThread);
+int AgregarThread					(ptrListaThread *ths, SOCKET socket, SOCKADDR_IN dirCliente);
+void EliminarThread					(SOCKET cli);
+unsigned cantidadThreadsLista		(ptrListaThread listaThread);
 
-int rutinaCrearThread(void (*funcion)(LPVOID), SOCKET sockfd);
-ptrListaThread BuscarThread(ptrListaThread listaThread, SOCKET sockfd);
-ptrListaThread BuscarProximoThread(ptrListaThread listaThread);
+int rutinaCrearThread				(void (*funcion)(LPVOID), SOCKET sockfd);
+ptrListaThread BuscarThread			(ptrListaThread listaThread, SOCKET sockfd);
+ptrListaThread BuscarProximoThread	(ptrListaThread listaThread);
 
 generarLog(); /*HACER Genera archivo log con datos estadisticos obtenidos*/
 
 
-
-
-configuracion config;				/*Estructura con datos del archivo de configuracion accesible por todos los Threads*/
+configuracion config;	/*Estructura con datos del archivo de configuracion*/
 
 infoLogFile infoLog;
-HANDLE logFileMutex;				/*Semaforo de mutua exclusion MUTEX para escribir archivo Log*/
+HANDLE logFileMutex;	/*Semaforo de mutua exclusion MUTEX para escribir archivo Log*/
 
-HANDLE threadListMutex;				/*Semaforo de mutua exclusion MUTEX para modificar la Lista de Threads*/
+HANDLE threadListMutex;	/*Semaforo de mutua exclusion MUTEX para modificar la Lista de Threads*/
+ptrListaThread listaThread = NULL;	/*Puntero de la lista de threads de usuarios en ejecucion y espera*/
 
 int codop = RUNNING;	/*
 							Codigo de Estado de Servidor.
@@ -38,7 +37,6 @@ int codop = RUNNING;	/*
 							2 = out of service
 						*/
 
-ptrListaThread listaThread = NULL;	/*Puntero de la lista de threads de usuarios en ejecucion y espera*/
 
 /*      
 Descripcion: Provee de archivos a clientes solicitantes en la red.
@@ -120,9 +118,7 @@ int main()
 			ptrListaThread ptrAux = NULL;
 
 			if (!listaVacia(listaThread))
-				WaitForSingleObject(threadListMutex, INFINITE);
 				ptrAux = listaThread;
-				ReleaseMutex(threadListMutex);
 
 				while (ptrAux != NULL)
 				{
@@ -176,7 +172,12 @@ int main()
 				ptrAux = ptrAux->sgte;
 			if (ptrAux == NULL)
 				rutinaDeError("Inconcistencia en lista o usuario no desconectado mal detectado");
+			
+			WaitForSingleObject(ptrAux->info.threadHandle, INFINITE);
 			GetExitCodeThread(ptrAux->info.threadHandle, &bytesTransferidos);
+			
+			printf("%s\n\n", bytesTransferidos == 0? "Hubo un error en el envio. Atencion de cliente insatisfactoria":
+														"Atencion de cliente satisfactoria");
 
 			infoLog.numBytes = infoLog.numBytes + (DWORD) bytesTransferidos;
 
@@ -282,12 +283,12 @@ void rutinaAtencionConsola (LPVOID args)
 	/*Mientras no se ingrese la finalizacion*/
 	while (codop != FINISH)
 	{
-		char consolaStdin[30];
+		char consolaStdin[MAX_INPUT_CONSOLA];
 		int centinela=0;	    
 
 /**------	Validaciones a la hora de ingresar comandos	------**/
 		
-		centinela = scanf("%s", consolaStdin);	
+		centinela = scanf_s("%s", consolaStdin, MAX_INPUT_CONSOLA);
 
 		if (centinela == 1)
 			if (*consolaStdin == '-')
@@ -420,9 +421,6 @@ void EliminarThread(SOCKET cli)
 	
 	if (ptrAux == NULL)
 		rutinaDeError("Inconcistencia de Threads");
-	
-	if (ptrAux->info.threadHandle != 0)
-		WaitForSingleObject(ptrAux->info.threadHandle, INFINITE);
 
 	closesocket(ptrAux->info.socket);
 	if (ptrAux->info.threadHandle != 0)
@@ -441,10 +439,9 @@ Devuelve: -
 
 void rutinaAtencionCliente (LPVOID args)
 {
-	char buf[BUF_SIZE];
-	int timedout = 0;
+	HANDLE file;
 	msgGet getInfo;
-	DWORD bytesEnviados = 0, recibidos = 0;
+	DWORD bytesEnviados = 0;
 
 	SOCKET sockCliente = (SOCKET) args;
 
@@ -452,10 +449,40 @@ void rutinaAtencionCliente (LPVOID args)
 	
 	/*RECIBIR HTTP GET, BUSCAR ARCHIVO Y ENVIAR RESPUESTA Y ARCHIVO*/
 
-	httpGet_recv(sockCliente, &getInfo);
-	printf("Filename: %s. Protocolo: %d \n", getInfo.filename, getInfo.protocolo);
+	if (httpGet_recv(sockCliente, &getInfo) < 0)
+		printf("Error al recibir HTTP GET. Se cierra conexion");
+	else
+	{
+		char *fileBuscado = pathUnixToWin(config.directorioFiles, getInfo.filename);
 
-	_endthreadex(bytesEnviados);	
+		printf("Filename: %s. Protocolo: %d \n", getInfo.filename, getInfo.protocolo);
+
+		file = BuscarArchivo(fileBuscado);
+		
+		if (file != INVALID_HANDLE_VALUE)
+		{
+			printf("Se encontro archivo en %s.\n\n", fileBuscado); 
+			if (httpOk_send() < 0)
+				printf("Error al enviar HTTP OK. Se cierra conexion.\n\n");
+			else
+			{
+				DWORD fileSize;
+
+				GetFileSize(file, &fileSize);
+				if ((bytesEnviados = EnviarArchivo(sockCliente, file)) != fileSize)
+					printf("Error al enviar archivo solicitado. Se cierra conexion.\n\n");
+				else
+					printf("Se envio archivo en %s.\n\n", fileBuscado);
+			}
+		}
+		else
+		{
+			printf("No se encontro archivo.\n\n");
+			if (httpNotFound_send() < 0)
+				printf("Error al enviar HTTP NOT FOUND. Se cierra conexion");
+		}
+	}
+	_endthreadex(bytesEnviados);
 }
 
 void imprimeLista(ptrListaThread ptr)

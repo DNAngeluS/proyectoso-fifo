@@ -27,7 +27,7 @@ int leerArchivoConfiguracion(configuracion *config)
 	config->puerto = 4444;
 	config->cantidadClientes = 3;
 	config->archivoLog = "c:\webserver";
-	/*config->directorioFiles = "c:\webserver\dirDescargas";*/
+	lstrcpy(config->directorioFiles, "c:\\webserver\\dirDescargas");
 	config->esperaMaxima = 3000;
 
 	return 0;

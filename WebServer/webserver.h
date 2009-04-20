@@ -13,6 +13,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define BUF_SIZE 4096
 #define MAX_HEAP 1024*1024
+#define MAX_INPUT_CONSOLA 30
 
 enum estado_t {ESPERA, ATENDIDO};
 
