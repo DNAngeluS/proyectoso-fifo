@@ -2,29 +2,42 @@
 #include "webserver.h"
 
 void rutinaDeError (char *error);
-void rutinaAtencionConsola (void *args);
-void rutinaAtencionCliente (void *sockCliente);	/* HACER Rutina de Atencion de Clientes*/
-SOCKET establecerConexionEscucha (in_addr_t direccionIP, in_port_t nPort);
-generarLog(); /*HACER Genera archivo log con datos estadisticos obtenidos*/
-int AgregarThread(ptrListaThread *ths, HANDLE idHandle, DWORD threadID);
-void EliminarThread(DWORD id);
-void imprimeLista(ptrListaThread ptr);
+void rutinaAtencionConsola (LPVOID args);
+void rutinaAtencionCliente (LPVOID args);
 
-int codop = RUNNING;	/*
-						Codigo de Estado de Servidor.
-						0 = running
-						1 = finish
-						2 = out of service
-						*/
+SOCKET rutinaConexionCliente(SOCKET sockWebServer, unsigned maxClientes);
+SOCKET establecerConexionEscucha (in_addr_t direccionIP, in_port_t nPort);
+
+void imprimeLista(ptrListaThread ptr);
+int listaVacia(ptrListaThread listaThread);
+int AgregarThread(ptrListaThread *ths, SOCKET socket, SOCKADDR_IN dirCliente);
+void EliminarThread(SOCKET cli);
+unsigned cantidadThreadsLista(ptrListaThread listaThread);
+
+int rutinaCrearThread(void (*funcion)(LPVOID), SOCKET sockfd);
+ptrListaThread BuscarThread(ptrListaThread listaThread, SOCKET sockfd);
+ptrListaThread BuscarProximoThread(ptrListaThread listaThread);
+
+generarLog(); /*HACER Genera archivo log con datos estadisticos obtenidos*/
+
+
+
 
 configuracion config;				/*Estructura con datos del archivo de configuracion accesible por todos los Threads*/
 
 infoLogFile infoLog;
 HANDLE logFileMutex;				/*Semaforo de mutua exclusion MUTEX para escribir archivo Log*/
 
-ptrListaThread listaThread = NULL;	/*Puntero de la lista de threads de usuarios en ejecucion y espera*/
 HANDLE threadListMutex;				/*Semaforo de mutua exclusion MUTEX para modificar la Lista de Threads*/
 
+int codop = RUNNING;	/*
+							Codigo de Estado de Servidor.
+							0 = running
+							1 = finish
+							2 = out of service
+						*/
+
+ptrListaThread listaThread = NULL;	/*Puntero de la lista de threads de usuarios en ejecucion y espera*/
 
 /*      
 Descripcion: Provee de archivos a clientes solicitantes en la red.
@@ -33,18 +46,24 @@ Recibe: -
 Devuelve: ok? 0: 1
 */
 
-int main() {
+int main() 
+{
 	
-	WSADATA wsaData;				/*Version del socket*/
-	SOCKET sockWebServer;			/*Socket del Web Server*/
-	SOCKET sockCliente;				/*Socket del cliente remoto*/
-	SOCKADDR_IN dirCliente;			/*Direccion de la conexion entrante*/
-	HANDLE hThreadConsola;			/*Thread handle de la atencion de Consola*/
-	DWORD nThreadConsolaID;			/*ID del thread de atencion de Consola*/
+	WSADATA wsaData;					/*Version del socket*/
+	SOCKET sockWebServer;				/*Socket del Web Server*/
 
-	
-	/*Tiempo de inicio de ejecucion del Servidor*/
+	HANDLE hThreadConsola;				/*Thread handle de la atencion de Consola*/
+	DWORD nThreadConsolaID;				/*ID del thread de atencion de Consola*/
+
+	fd_set fdLectura;
+	fd_set fdMaestro;
+
+	int fueradeservicio = 0;
+
+	/*Inicializo variable para archivo Log*/
 	GetLocalTime(&(infoLog.arrival)); 
+	infoLog.numBytes = 0;
+	infoLog.numRequests = 0;
 
 	/*Inicializacion de los Semaforos Mutex*/
 	if ((logFileMutex = CreateMutex(NULL, FALSE, NULL)) == NULL)
@@ -61,7 +80,7 @@ int main() {
 		rutinaDeError("Lectura Archivo de configuracion");
 
 	/*Creacion de Thread de Atencion de Consola*/
-	hThreadConsola = (HANDLE) _beginthreadex (NULL, 1, (void *) rutinaAtencionConsola, NULL, 0, &nThreadConsolaID);
+	hThreadConsola = (HANDLE) _beginthreadex (NULL, 1, (LPVOID) rutinaAtencionConsola, NULL, 0, &nThreadConsolaID);
 	if (hThreadConsola == 0)
 		rutinaDeError("Creacion de Thread");
 
@@ -71,49 +90,112 @@ int main() {
 
 	printf("%s", STR_MSG_WELCOME);
 
-
-
+	FD_ZERO(&fdMaestro);
+	FD_SET(sockWebServer, &fdMaestro);
 
 /*------------------------Atencion de Clientes-------------------------*/
 
 	/*Mientras no se indique la finalizacion*/
 	while (codop != FINISH)
 	{
-		/*Si el servidor No esta fuera de servicio puede atender clientes*/
-		if (codop != OUTOFSERVICE)
+		int numSockets;
+		struct timeval timeout;
+
+		timeout.tv_sec = 1;
+		timeout.tv_usec = 0;
+
+		FD_ZERO(&fdLectura);
+		memcpy(&fdLectura, &fdMaestro, sizeof(fdMaestro));
+
+		if ((numSockets = select(0, &fdLectura, 0, 0, &timeout)) < 0) 
 		{
-			int nAddrSize = sizeof(dirCliente);
+			rutinaDeError("Select failed");
+		}
+		
+		/*== No hubo actividad -> Select() timeout ==*/
+		if (numSockets == 0)
+		{
+			int cantAtendidos = 0;
+			ptrListaThread ptrAux = NULL;
 
-			/*Acepta la conexion entrante*/
-			sockCliente = accept(sockWebServer, (SOCKADDR *) &dirCliente, &nAddrSize);
-			
-			if (sockCliente != INVALID_SOCKET) 
-			{
-				DWORD threadID;
-				HANDLE threadHandle;
-				
-				printf ("Conexion aceptada de %s:%d.\n\n", inet_ntoa(dirCliente.sin_addr), ntohs(dirCliente.sin_port));
+			if (!listaVacia(listaThread))
+				WaitForSingleObject(threadListMutex, INFINITE);
+				ptrAux = listaThread;
+				ReleaseMutex(threadListMutex);
 
-				/*Se crea el thread encargado de agregar cliente en la cola y atenderlo*/
-				threadHandle = (HANDLE) _beginthreadex (NULL, 1, (void *) rutinaAtencionCliente, (void *) sockCliente, 0, &threadID);
-				
-
-				if (threadHandle == 0)
+				while (ptrAux != NULL)
 				{
-					printf("Error al crear thread de comunicacion para usuario de %s:%d.\n\n", inet_ntoa(dirCliente.sin_addr),
-																							 ntohs(dirCliente.sin_port));
-					/*rutinaCerrarConexion(sockCliente);*/
+					if (ptrAux->info.estado == ESPERA && 
+						(unsigned) difftime(time(NULL), ptrAux->info.arrival) > (config.esperaMaxima/1000))
+					{
+						ptrListaThread ptrSave = ptrAux->sgte;
+						SOCKET sock = ptrAux->info.socket;
+									
+						printf("Resquet de cliente timed out. Se envia Http Request Timeout\n\n");
+						/*ENVIAR HTTP REQUEST TIMEOUT a ptrAux->info.socket*/
+						EliminarThread(ptrAux->info.socket);
+						FD_CLR(sock, &fdMaestro);
+						ptrAux = ptrSave;
+					}
+					else
+						ptrAux = ptrAux->sgte;
 				}
+			continue;
+		}
+
+
+		/*== Hay usuario conectandose ==*/
+		if (FD_ISSET(sockWebServer, &fdLectura))
+		{
+			SOCKET sockCliente;
+
+			if ((sockCliente = rutinaConexionCliente(sockWebServer, config.cantidadClientes)) == -1 || sockCliente == -2)
+			{
+				printf("No se ha podido conectar cliente.%s\n", sockCliente == -2? 
+					" Servidor esta fuera de servicio\n":"\n");
+				
+				if (sockCliente == -1)
+					EliminarThread(sockCliente);
 			}
 			else
 			{
-				printf("Error en Accept: %d", GetLastError());
-                continue;
-            }
+				FD_SET(sockCliente, &fdMaestro);
+				infoLog.numRequests++;
+			}	
 		}
+
+		/*== Hay usuario desconectandose ==*/
 		else
 		{
-			printf ("No se acepta conexion de %s:%d.\nSERVIDOR FUERA DE SERVICIO -> ingrese -run para activar el servicio\n\n", inet_ntoa(dirCliente.sin_addr), ntohs(dirCliente.sin_port));
+			DWORD bytesTransferidos;
+			ptrListaThread ptrAux = listaThread;
+			SOCKET cli;
+
+			while (ptrAux != NULL && !FD_ISSET((cli = ptrAux->info.socket), &fdLectura))
+				ptrAux = ptrAux->sgte;
+			if (ptrAux == NULL)
+				rutinaDeError("Inconcistencia en lista o usuario no desconectado mal detectado");
+			GetExitCodeThread(ptrAux->info.threadHandle, &bytesTransferidos);
+
+			infoLog.numBytes = infoLog.numBytes + (DWORD) bytesTransferidos;
+
+			EliminarThread(cli);
+			FD_CLR(cli, &fdMaestro);
+			
+			/*Se trata de poner algun cliente en espera en atencion*/
+			if (cantidadThreadsLista(listaThread) <= config.cantidadClientes)
+			{
+				ptrListaThread ptr = BuscarProximoThread(listaThread);
+				if (ptr != NULL)
+				{
+					ptr->info.estado = ATENDIDO;
+					if (rutinaCrearThread(rutinaAtencionCliente, ptr->info.socket) != 0)
+					{
+						printf("No se pudo crear thread de Atencion de Cliente\n\n");
+						return -1;
+					}
+				}
+			}
 		}
 	}
 /*--------------------Fin de Atencion de Clientes----------------------*/
@@ -122,8 +204,6 @@ int main() {
 
 	WSACleanup();
 
-	/*Cierra el handle que uso para el thread de Atencion de Consola*/
-	CloseHandle(hThreadConsola);
 
 	/*Generar archivo Log*/
 	/*generarLog();*/
@@ -151,12 +231,18 @@ SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort)
 		sockfd = socket(AF_INET, SOCK_STREAM, 0);
         if (sockfd != INVALID_SOCKET) 
 		{
-            SOCKADDR_IN addrServidorWeb; /*Address del Web server*/
-            char yes=1;
-            
-            /*Impide el error "addres already in use"*/
-		    if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(int)) == -1)
-			   rutinaDeError("Setsockopt");
+			SOCKADDR_IN addrServidorWeb; /*Address del Web server*/
+			char yes = 1;
+			int NonBlock = 1;
+
+			/*Impide el error "addres already in use" y setea non blocking el socket*/
+			if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(int)) == -1)
+				rutinaDeError("Setsockopt");
+
+			/*if (ioctlsocket(sockfd, FIONBIO, &NonBlock) == SOCKET_ERROR)
+			{
+				rutinaDeError("ioctlsocket");
+			}*/
             
 			addrServidorWeb.sin_family = AF_INET;
             addrServidorWeb.sin_addr.s_addr = nDireccionIP;
@@ -190,39 +276,27 @@ Recibe: -
 Devuelve: 0
 */
 
-void rutinaAtencionConsola (void *args)
+void rutinaAtencionConsola (LPVOID args)
 {
-	char consola[30];
-	
 	/*Mientras no se ingrese la finalizacion*/
 	while (codop != FINISH)
 	{
-		/*
-		ACTUAR DE ACUERDO A DISTINTOS INPUTS
-		Ej:
-			-help				te tira los inputs posibles			-> codop = RUNNING
-			-queuestatus		te tira el estado de la cola		-> codop = RUNNING
-			-run				vuelve al servicio el servidor		-> codop = RUNNING
-			-finish				cierra el servidor					-> codop = FINISH
-			-outofservice		deja al server fuera de servicio	-> codop = OUTOFSERVICE
-		*/
-		int centinela;
-	    
+		char consolaStdin[30];
+		int centinela=0;	    
 
 /**------	Validaciones a la hora de ingresar comandos	------**/
-
-
-		centinela = scanf("%s", consola);	
+		
+		centinela = scanf("%s", consolaStdin);	
 
 		if (centinela == 1)
-			if (*consola == '-')
+			if (*consolaStdin == '-')
 			{
-				if (!lstrcmp(consola, "-queuestatus"))
+				if (!lstrcmp(consolaStdin, "-queuestatus"))
 				{
-                     printf("%s", STR_MSG_QUEUESTATUS);
-					 imprimeLista (listaThread);
+					printf("%s", STR_MSG_QUEUESTATUS);
+					imprimeLista (listaThread);
                 }
-                else if (!lstrcmp(&consola[1], "run"))
+                else if (!lstrcmp(&consolaStdin[1], "run"))
                 {
                      if (codop != RUNNING)
                      {
@@ -232,12 +306,12 @@ void rutinaAtencionConsola (void *args)
                      else
                          printf("%s", STR_MSG_INVALID_RUN);
                 }
-                else if (!lstrcmp(&consola[1], "finish"))
+                else if (!lstrcmp(&consolaStdin[1], "finish"))
                 {
                      printf("%s", STR_MSG_FINISH);
                      codop = FINISH;
                 }
-                else if (!lstrcmp(&consola[1], "outofservice"))
+                else if (!lstrcmp(&consolaStdin[1], "outofservice"))
                 {
                      if (codop != OUTOFSERVICE)
                      {
@@ -247,19 +321,17 @@ void rutinaAtencionConsola (void *args)
                      else
                          printf("%s", STR_MSG_INVALID_OUTOFSERVICE);
                 }
-                else if (!lstrcmp(&consola[1], "help"))
+                else if (!lstrcmp(&consolaStdin[1], "help"))
 				   printf("%s", STR_MSG_HELP);
                 else
                     printf("%s", STR_MSG_INVALID_INPUT);
             }
             else
                 printf("%s", STR_MSG_INVALID_INPUT);
+	 
 	}
 	_endthreadex(0);
 }
-
-
-
 
 /*      
 Descripcion: Atiende error cada vez que exista en alguna funcion y finaliza proceso.
@@ -283,23 +355,26 @@ Recibe: Puntero a la lista de threads, el handle del nuevo thread y su ID.
 Devuelve: ok? 0: -1
 */
 
-int AgregarThread(ptrListaThread *ths, HANDLE idHandle, DWORD threadID)
+int AgregarThread(ptrListaThread *ths, SOCKET socket, SOCKADDR_IN dirCliente)
 {      
 	ptrListaThread nuevo, actual, anterior;
        
-	if (idHandle == 0) 
+	if (socket == INVALID_SOCKET) 
 	{
 		printf("Error en _beginthreadex(): %d\n", GetLastError());
 		return -1;
 	}
        
-	if ( (nuevo = HeapAlloc(GetProcessHeap(), 0, sizeof (struct thread))) == NULL)
+	if ( (nuevo = HeapAlloc(GetProcessHeap(), 0, sizeof (struct nodoListaThread))) == NULL)
 		return -1;
-	
-	nuevo->info.threadHandle = idHandle;
-	nuevo->info.threadID = threadID;
+
+	nuevo->info.threadHandle = 0;
+	nuevo->info.socket = socket;
+	nuevo->info.direccion = dirCliente;
+	nuevo->info.threadID = 0;
 	nuevo->info.estado = ESPERA;
-	GetSystemTime(&(nuevo->info.arrival));
+	nuevo->info.bytesEnviados = 0;
+	nuevo->info.arrival = time(NULL);
 	nuevo->sgte = NULL;
 
 	anterior = NULL;
@@ -325,28 +400,34 @@ int AgregarThread(ptrListaThread *ths, HANDLE idHandle, DWORD threadID)
 	return 0;
 }
 
-void EliminarThread(DWORD id)
+void EliminarThread(SOCKET cli)
 {
 	ptrListaThread ptrAux = listaThread;
 	ptrListaThread ptrAnt = NULL;
 
 	/*Se busca el cliente en lista*/
-	while (ptrAux->info.threadID != id && ptrAux != NULL)
+	while (ptrAux->info.socket != cli && ptrAux != NULL)
 	{
 		ptrAnt = ptrAux;
 		ptrAux = ptrAux->sgte;
 	}
 
-	if (ptrAnt != NULL)
-		ptrAnt->sgte = ptrAux->sgte;
+	if (ptrAux == listaThread)
+		listaThread = listaThread->sgte;
 	else
-		listaThread = NULL;
+		ptrAnt->sgte = ptrAux->sgte;
+	
 	if (ptrAux == NULL)
 		rutinaDeError("Inconcistencia de Threads");
 	
-	CloseHandle(ptrAux->info.threadHandle);
-    HeapFree (GetProcessHeap(), 0, ptrAux);
+	if (ptrAux->info.threadHandle != 0)
+		WaitForSingleObject(ptrAux->info.threadHandle, INFINITE);
 
+	closesocket(ptrAux->info.socket);
+	if (ptrAux->info.threadHandle != 0)
+		CloseHandle(ptrAux->info.threadHandle);
+	ptrAux->sgte = NULL;
+	HeapFree (GetProcessHeap(), 0, ptrAux);
 }
 
 
@@ -357,106 +438,202 @@ Recibe: Socket del cliente
 Devuelve: -
 */
 
-void rutinaAtencionCliente (void *socket)
+void rutinaAtencionCliente (LPVOID args)
 {
-	int control;
 	char buf[BUF_SIZE];
-	ptrListaThread ptrAux = listaThread;
-	ptrListaThread ptrThreadActual = NULL;
-	unsigned cantClientesAtendidos = 0;
-	SOCKET sockCliente = (SOCKET ) socket; 
+	int timedout = 0;
+	DWORD bytesEnviados = 0;
 
-	/*Mutua exclusion para agregar el thread a la lista de threads global*/
-	WaitForSingleObject(threadListMutex, INFINITE);
-	control = AgregarThread(&listaThread, GetCurrentThread(), GetCurrentThreadId());
-	ReleaseMutex(threadListMutex);
+	SOCKET sockCliente = (SOCKET) args;
 
-	if (control < 0)
-	{
-		printf("Memoria insuficiente para nuevo Usuario\n");
-		/*rutinaCerrarConexion(sockCliente);*/
-		_endthreadex(1);
-	}
-	else
-		infoLog.numRequests++;
-
-	/*Se comprueba la cantidad de clientes atendidos y hace cuanto estan los que estan en espera, todo el tiempo*/
-	do
-	{
-		/*Si llega al final, volver a empezar*/
-		if (ptrAux == NULL)
-		{
-			ptrAux = listaThread;
-			cantClientesAtendidos = 0;
-			continue;
-		}
-		/*Si el thread esta atendido*/
-		if (ptrAux->info.estado = ATENDIDO)
-		{
-			cantClientesAtendidos++;
-			continue;
-		}
-		/*Si el thread esta en espera*/
-		if (ptrAux->info.estado = ESPERA)
-		{
-			/*
-			Comprobar que el (LOCALTIME - ptrAux->info.arrival) >= config.esperaMaxima.
-			Si es asi, eliminar de la lista (usar mutua exclusion), actualizar cantidadClientes, 
-			y enviar un request timeout y terminar thread con _endthreadex(0);
-			*/
-		}
-		ptrAux = ptrAux->sgte;
-		
-		/*Condicion de salida: si hay menos clientes atendidos de los que se permiten 
-		y a la vez no hay mas clientes que monitorear el estado en la lista */
-	} while ((cantClientesAtendidos < config.cantidadClientes) && ptrAux == NULL);
-
-	ptrThreadActual = listaThread;
-
-/*----Listo para atender al cliente----*/
-
-	/*Se busca el cliente en lista*/
-	while (ptrThreadActual->info.threadID != GetCurrentThreadId() && ptrThreadActual != NULL)
-		ptrThreadActual = ptrThreadActual->sgte;
+	/*----Listo para atender al cliente----*/	
 	
-	if (ptrThreadActual == NULL)
-		rutinaDeError("Inconcistencia de Threads");
-
-	/*Se actualiza estado de dicho cliente*/
-	ptrThreadActual->info.estado = ATENDIDO;	
-	
-	/*MENSAJEO HTTP Y ENVIO DE ARCHIVO*/
+	/*RECIBIR HTTP GET, BUSCAR ARCHIVO Y ENVIAR RESPUESTA Y ARCHIVO*/
 
 	recv(sockCliente, buf, sizeof(buf), 0);
 	printf("Mensaje: %s\n",buf);
 
-
-	/*Cuando termina mensajeo se encarga de borrarse de la lista y finaliza Thread*/
-	WaitForSingleObject(threadListMutex, INFINITE);
-	
-	EliminarThread(GetCurrentThreadId());
-
-	ReleaseMutex(threadListMutex);
-
-	_endthreadex(0);	
+	_endthreadex(bytesEnviados);	
 }
 
 void imprimeLista(ptrListaThread ptr)
-{
-	int threadName = 65;
-	
+{	
 	if (ptr == NULL)
-		printf("Lista esta vacia\n\n");
+		printf("La cola esta vacia\n\n");
 	else
 	{
 		printf("La lista es:\n");
          
 		while (ptr != NULL)
 		{
-			printf("Request %c -> ", threadName);
+			printf("Request %d -> ", ptr->info.socket);
 			ptr = ptr->sgte;
-			threadName++;
 		}
 		printf("NULL\n\n");
 	}
 }
+
+int rutinaCrearThread(void (*funcion)(LPVOID), SOCKET sockfd)
+{
+	HANDLE threadHandle;
+	DWORD threadID;
+	ptrListaThread ptr = NULL;
+
+	ptr = BuscarThread(listaThread, sockfd);
+	if (ptr == NULL)
+		rutinaDeError("Inconcistencia en la Lista");
+
+	printf ("Se comienza a atender Request de %s:%d.\n\n", inet_ntoa(ptr->info.direccion.sin_addr), ntohs(ptr->info.direccion.sin_port));
+
+	/*Se crea el thread encargado de atender cliente*/
+	threadHandle = (HANDLE) _beginthreadex (NULL, 1, (void *) rutinaAtencionCliente, (LPVOID) sockfd, 0, &threadID);
+	
+	/*Se actualiza el nodo*/
+	ptr->info.threadHandle = threadHandle;
+	ptr->info.threadID = threadID;
+
+		
+	if (threadHandle == 0)
+		return -1;
+	return 0;
+}
+
+SOCKET rutinaConexionCliente(SOCKET sockWebServer, unsigned maxClientes)
+{
+	SOCKET sockCliente;					/*Socket del cliente remoto*/
+	SOCKADDR_IN dirCliente;				/*Direccion de la conexion entrante*/
+
+	int nAddrSize = sizeof(dirCliente);
+
+	/*Acepta la conexion entrante*/
+	sockCliente = accept(sockWebServer, (SOCKADDR *) &dirCliente, &nAddrSize);
+	
+	
+
+	/*Si el servidor No esta fuera de servicio puede atender clientes*/
+	if (codop != OUTOFSERVICE)
+	{
+		if (sockCliente != INVALID_SOCKET) 
+		{
+			int control;
+
+			printf ("Conexion aceptada de %s:%d.\n\n", inet_ntoa(dirCliente.sin_addr), ntohs(dirCliente.sin_port));
+
+			/*Mutua exclusion para agregar el thread a la lista de threads global*/
+			control = AgregarThread(&listaThread, sockCliente, dirCliente);
+
+			if (control < 0)
+			{
+				printf("Memoria insuficiente para nuevo Usuario\n\n");
+				return -1;
+			}
+
+			if (cantidadThreadsLista(listaThread) <= maxClientes)
+			{
+				ptrListaThread ptr = BuscarThread(listaThread, sockCliente);
+				if (ptr != NULL)
+				{
+					ptr->info.estado = ATENDIDO;
+					if (rutinaCrearThread(rutinaAtencionCliente, sockCliente) != 0)
+					{
+						printf("No se pudo crear thread de Atencion de Cliente\n\n");
+						return -1;
+					}
+				}
+				else
+					rutinaDeError("Inconcistencia en Lista");
+			}
+			return sockCliente;
+		}
+		else
+		{
+			printf("Error en Accept: %d", GetLastError());
+			return -1;
+		}
+	}
+	else
+	{
+		closesocket(sockCliente);
+		return -2;
+	}
+
+}
+
+int listaVacia(ptrListaThread listaThread)
+{
+	int boolean;
+
+	if (listaThread == NULL)
+		boolean = 1;
+	else
+		boolean = 0;
+        
+	return boolean;
+}
+
+
+unsigned cantidadThreadsLista(ptrListaThread listaThread)
+{
+	ptrListaThread ptrAux = listaThread;
+	int contador = 0;
+
+	while (ptrAux != NULL)
+	{
+		contador++;
+		ptrAux = ptrAux->sgte;
+	}
+
+	return contador;
+}
+
+
+ptrListaThread BuscarThread(ptrListaThread listaThread, SOCKET sockfd)
+{
+	ptrListaThread ptr = listaThread;
+
+	while (ptr != NULL && ptr->info.socket != sockfd)
+		ptr = ptr->sgte;
+	return ptr;
+}
+
+ptrListaThread BuscarProximoThread(ptrListaThread listaThread)
+{
+	ptrListaThread ptr = listaThread;
+
+	while (ptr != NULL && ptr->info.estado != ESPERA)
+		ptr = ptr->sgte;
+	return ptr;
+}
+
+/*{
+	arrival = time(NULL);
+
+	do
+		{		
+		/* Si el tiempo desde que llego excede lo configurado o se detecta que se puede seguir */
+/*			if ((unsigned) difftime(time(NULL), arrival) > (config.esperaMaxima/1000))
+			{
+				/*ENVIAR MENSAJE REQUEST TIMEOUT*/
+/*				printf("Thread %l timed out.\n\n", GetCurrentThreadId());
+				_endthreadex(0);
+			}
+
+		/*Si llega al final de la cola, volver a empezar*/
+/*		if (ptrAux == NULL)
+		{
+			ptrAux = listaThread;
+			cantClientesAtendidos = 0;
+			continue;
+		}
+
+		/*Si el thread esta atendido seguir buscando*/
+/*		if (ptrAux->info.estado == ATENDIDO)
+			cantClientesAtendidos++;
+
+		ptrAux = ptrAux->sgte;
+
+		/*Condicion de salida: si hay menos clientes atendidos de los que se permiten 
+					y a la vez no hay mas clientes que monitorear el estado en la lista */
+/*		} while ((cantClientesAtendidos < config.cantidadClientes) && ptrAux == NULL);
+}*/
+

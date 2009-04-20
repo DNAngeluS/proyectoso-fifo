@@ -28,7 +28,7 @@ int leerArchivoConfiguracion(configuracion *config)
 	config->cantidadClientes = 3;
 	config->archivoLog = "c:\webserver";
 	/*config->directorioFiles = "c:\webserver\dirDescargas";*/
-	config->esperaMaxima = 10000;
+	config->esperaMaxima = 3000;
 
 	return 0;
 }
