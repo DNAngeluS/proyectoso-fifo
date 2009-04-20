@@ -1,5 +1,6 @@
 #include "config.h"
 #include "webserver.h"
+#include "http.h"
 
 void rutinaDeError (char *error);
 void rutinaAtencionConsola (LPVOID args);
@@ -152,7 +153,7 @@ int main()
 			if ((sockCliente = rutinaConexionCliente(sockWebServer, config.cantidadClientes)) == -1 || sockCliente == -2)
 			{
 				printf("No se ha podido conectar cliente.%s\n", sockCliente == -2? 
-					" Servidor esta fuera de servicio\n":"\n");
+					" Servidor esta fuera de servicio.\nIngrese -run para reanudar ejecucion.\n":"\n");
 				
 				if (sockCliente == -1)
 					EliminarThread(sockCliente);
@@ -442,7 +443,8 @@ void rutinaAtencionCliente (LPVOID args)
 {
 	char buf[BUF_SIZE];
 	int timedout = 0;
-	DWORD bytesEnviados = 0;
+	msgGet getInfo;
+	DWORD bytesEnviados = 0, recibidos = 0;
 
 	SOCKET sockCliente = (SOCKET) args;
 
@@ -450,8 +452,8 @@ void rutinaAtencionCliente (LPVOID args)
 	
 	/*RECIBIR HTTP GET, BUSCAR ARCHIVO Y ENVIAR RESPUESTA Y ARCHIVO*/
 
-	recv(sockCliente, buf, sizeof(buf), 0);
-	printf("Mensaje: %s\n",buf);
+	httpGet_recv(sockCliente, &getInfo);
+	printf("Filename: %s. Protocolo: %d \n", getInfo.filename, getInfo.protocolo);
 
 	_endthreadex(bytesEnviados);	
 }
