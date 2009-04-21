@@ -98,7 +98,7 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo)
 			
 			lstrcpy(filename, strtok(NULL, " "));
 			filename[strlen(filename)] = '\0';
-			filename++;
+			filename;
 			lstrcpy(getInfo->filename,filename);
 			
 			ptr = strtok(NULL, ".");
@@ -119,33 +119,28 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo)
 	else
 		return 0;
 }
-int httpOk_send(SOCKET sockfd, msgGet *getInfo){
+int httpOk_send(SOCKET sockfd, msgGet getInfo){
 	char buffer[BUF_SIZE];
 	int bytesSend = 0, error = 0;
 	
-	//Crea el Buffer con el protocolo
-	sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 200 OK\nContent-type: text/html\nContent-Disposition:attachment; filename=\"%s\"\n", getInfo->protocolo, getInfo->filename);
+	/*Crea el Buffer con el protocolo*/
+	sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 200 OK\nContent-type: text/html\nContent-Disposition:attachment; filename=\"%s\"\n", getInfo.protocolo, getInfo.filename);
 	
-	if (bytesSend = EnviarBloque(sockfd, sizeof(buffer), buffer) == -1)
+	/*Enviamos el buffer como stream (sin el \0)*/
+	if (EnviarBloque(sockfd, lstrlen(buffer), buffer) == -1)
 		error = 1;
 
-	//Si hay error vacia las estructuras
-	if (error)
-	{
-		getInfo->protocolo = -1;
-		lstrcpy(getInfo->filename, "");
-		return -1;
-	}
-	else
-		return bytesSend;
+	return error? -1: 0;
 }
 
-int httpNotFound_send(SOCKET sockfd, msgGet *getInfo){
+int httpNotFound_send(SOCKET sockfd, msgGet getInfo){
 	char buffer[BUF_SIZE];
 	
-	sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 404 Not Found\n\n<b>ERROR</b>: File %s was not found\n", getInfo->protocolo, getInfo->filename);
+	sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 404 Not Found\n\n<b>ERROR</b>: File %s was not found\n", getInfo.protocolo, getInfo.filename);
 	
-	if(EnviarBloque(sockfd, sizeof(buffer), buffer) == -1 );
+	
+	/*Enviamos el buffer como stream (sin el \0)*/
+	if (EnviarBloque(sockfd, lstrlen(buffer), buffer) == -1 )
 		return -1;
 	else
 		return 0;
@@ -153,8 +148,12 @@ int httpNotFound_send(SOCKET sockfd, msgGet *getInfo){
 
 int httpTimeout_send(SOCKET sockfd, int protocolo)
 {
+	char buffer[BUF_SIZE];
+
+	sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 408 Request Timeout\n\n", protocolo);
 	
-	if (EnviarBloque(sockfd, HTTP_TIMEOUT_SIZE, protocolo? HTTP_TIMEOUT_1: HTTP_TIMEOUT_0) == -1)
+	/*Enviamos el buffer como stream (sin el \0)*/
+	if (EnviarBloque(sockfd, lstrlen(buffer), buffer) == -1)
 		return -1;
 	else
 		return 0;
@@ -170,7 +169,7 @@ int EnviarArchivo(SOCKET sockRemoto, HANDLE fileHandle)
 	int bEnviadosAux, bEnviadosBloque, bAEnviar, bEnviadosTot;
 	int lenALeer, error = 0;
  
-	GetFileSize(fileHandle, &fileSize);
+	fileSize = GetFileSize(fileHandle, NULL);
 	cantBloques = fileSize / BUF_SIZE;
 	bUltBloque = fileSize % BUF_SIZE;
 	
@@ -237,6 +236,7 @@ char *pathUnixToWin(const char *dir, char *path)
     for (j = i = path; i < lim; ++i)
             if (*i == '/')
                     j = i;
+	*j = '\\';
     strcpy_s(filename, MAX_PATH, j);
     sprintf_s(path, MAX_PATH, "%s%s", dir, filename);
 

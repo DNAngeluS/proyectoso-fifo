@@ -176,9 +176,6 @@ int main()
 			WaitForSingleObject(ptrAux->info.threadHandle, INFINITE);
 			GetExitCodeThread(ptrAux->info.threadHandle, &bytesTransferidos);
 			
-			printf("%s\n\n", bytesTransferidos == 0? "Hubo un error en el envio. Atencion de cliente insatisfactoria":
-														"Atencion de cliente satisfactoria");
-
 			infoLog.numBytes = infoLog.numBytes + (DWORD) bytesTransferidos;
 
 			EliminarThread(cli);
@@ -462,14 +459,11 @@ void rutinaAtencionCliente (LPVOID args)
 		if (file != INVALID_HANDLE_VALUE)
 		{
 			printf("Se encontro archivo en %s.\n\n", fileBuscado); 
-			if (httpOk_send() < 0)
+			if (httpOk_send(sockCliente, getInfo) < 0)
 				printf("Error al enviar HTTP OK. Se cierra conexion.\n\n");
 			else
-			{
-				DWORD fileSize;
-
-				GetFileSize(file, &fileSize);
-				if ((bytesEnviados = EnviarArchivo(sockCliente, file)) != fileSize)
+			{	
+				if ((bytesEnviados = EnviarArchivo(sockCliente, file)) != GetFileSize(file, NULL))
 					printf("Error al enviar archivo solicitado. Se cierra conexion.\n\n");
 				else
 					printf("Se envio archivo en %s.\n\n", fileBuscado);
@@ -478,7 +472,7 @@ void rutinaAtencionCliente (LPVOID args)
 		else
 		{
 			printf("No se encontro archivo.\n\n");
-			if (httpNotFound_send() < 0)
+			if (httpNotFound_send(sockCliente, getInfo) < 0)
 				printf("Error al enviar HTTP NOT FOUND. Se cierra conexion");
 		}
 	}
