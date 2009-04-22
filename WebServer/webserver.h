@@ -56,7 +56,9 @@ typedef NodoListaThread *ptrListaThread;
 typedef struct {
 	DWORD numRequests;
 	DWORD numBytes;
-	SYSTEMTIME arrival;
+	SYSTEMTIME arrivalKernel;
+	SYSTEMTIME arrivalUser;
+	time_t arrival;
 } infoLogFile;
 
 #endif

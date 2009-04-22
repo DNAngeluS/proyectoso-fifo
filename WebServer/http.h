@@ -22,7 +22,7 @@ HANDLE BuscarArchivo	(char *filename);
 
 int httpOk_send			(SOCKET sockfd, msgGet getInfo);
 int httpGet_recv		(SOCKET sockfd, msgGet *getInfo);
-int httpTimeout_send	(SOCKET sockfd, int protocolo);
+int httpTimeout_send	(SOCKET sockfd, msgGet getInfo);
 int httpNotFound_send	(SOCKET sockfd, msgGet getInfo);
 
 char *pathUnixToWin		(const char *dir, char *path);

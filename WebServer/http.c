@@ -183,11 +183,11 @@ int httpNotFound_send(SOCKET sockfd, msgGet getInfo){
 		return 0;
 }
 
-int httpTimeout_send(SOCKET sockfd, int protocolo)
+int httpTimeout_send(SOCKET sockfd, msgGet getInfo)
 {
 	char buffer[BUF_SIZE];
 
-	sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 408 Request Timeout\n\n", protocolo);
+	sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 408 Request Timeout\r\n", getInfo.protocolo);
 	
 	/*Enviamos el buffer como stream (sin el \0)*/
 	if (EnviarBloque(sockfd, lstrlen(buffer), buffer) == -1)

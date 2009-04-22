@@ -19,15 +19,15 @@ int rutinaCrearThread				(void (*funcion)(LPVOID), SOCKET sockfd);
 ptrListaThread BuscarThread			(ptrListaThread listaThread, SOCKET sockfd);
 ptrListaThread BuscarProximoThread	(ptrListaThread listaThread);
 
-generarLog(); /*HACER Genera archivo log con datos estadisticos obtenidos*/
+reporteLogFin(); /*HACER Genera archivo log con datos estadisticos obtenidos*/
 
 
 configuracion config;	/*Estructura con datos del archivo de configuracion*/
 
 infoLogFile infoLog;
-HANDLE logFileMutex;	/*Semaforo de mutua exclusion MUTEX para escribir archivo Log*/
+/*HANDLE logFileMutex;	/*Semaforo de mutua exclusion MUTEX para escribir archivo Log*/
 
-HANDLE threadListMutex;	/*Semaforo de mutua exclusion MUTEX para modificar la Lista de Threads*/
+/*HANDLE threadListMutex;	/*Semaforo de mutua exclusion MUTEX para modificar la Lista de Threads*/
 ptrListaThread listaThread = NULL;	/*Puntero de la lista de threads de usuarios en ejecucion y espera*/
 
 int codop = RUNNING;	/*
@@ -60,14 +60,17 @@ int main()
 	int fueradeservicio = 0;
 
 	/*Inicializo variable para archivo Log*/
-	GetLocalTime(&(infoLog.arrival)); 
+	GetLocalTime(&(infoLog.arrivalUser));
+	GetSystemTime(&(infoLog.arrivalKernel));
+	infoLog.arrival = time (NULL);
+
 	infoLog.numBytes = 0;
 	infoLog.numRequests = 0;
 
 	/*Inicializacion de los Semaforos Mutex*/
-	if ((logFileMutex = CreateMutex(NULL, FALSE, NULL)) == NULL)
-		rutinaDeError("Error en CreateMutex()");
-	if ((threadListMutex = CreateMutex(NULL, FALSE, NULL)) == NULL)
+/*	if ((logFileMutex = CreateMutex(NULL, FALSE, NULL)) == NULL)
+		rutinaDeError("Error en CreateMutex()");*/
+/*	if ((threadListMutex = CreateMutex(NULL, FALSE, NULL)) == NULL)
 		rutinaDeError("Error en CreateMutex()");
 	
 	/*Inicializacion de los sockets*/
@@ -96,7 +99,7 @@ int main()
 
 	/*Mientras no se indique la finalizacion*/
 	while (codop != FINISH)
-	{
+	{	
 		int numSockets;
 		struct timeval timeout;
 
@@ -128,9 +131,14 @@ int main()
 						ptrListaThread ptrSave = ptrAux->sgte;
 						SOCKET sock = ptrAux->info.socket;
 									
-						printf("Resquet de cliente timed out. Se envia Http Request Timeout\n\n");
-						/*ENVIAR HTTP REQUEST TIMEOUT a ptrAux->info.socket*/
-						EliminarThread(ptrAux->info.socket);
+						printf("Resquet de cliente timed out. Se envia Http Request Timeout.\n\n");
+						if (httpTimeout_send(ptrAux->info.socket, ptrAux->info.getInfo) < 0)
+							printf("Error al enviar Http timeout a %s:%d.\n\n", 
+													inet_ntoa(ptrAux->info.direccion.sin_addr),
+													ntohs(ptrAux->info.direccion.sin_port));
+
+						closesocket(sock);
+						EliminarThread(sock);
 						FD_CLR(sock, &fdMaestro);
 						ptrAux = ptrSave;
 					}
@@ -142,7 +150,7 @@ int main()
 
 
 		/*== Hay usuario conectandose ==*/
-		if (FD_ISSET(sockWebServer, &fdLectura))
+		if (FD_ISSET(sockWebServer, &fdLectura) && codop != OUTOFSERVICE && codop != FINISH)
 		{
 			SOCKET sockCliente;
 
@@ -164,7 +172,6 @@ int main()
 		/*== Hay usuario desconectandose ==*/
 		else
 		{
-			DWORD bytesTransferidos;
 			ptrListaThread ptrAux = listaThread;
 			SOCKET cli;
 
@@ -174,10 +181,6 @@ int main()
 				rutinaDeError("Inconcistencia en lista o usuario no desconectado mal detectado");
 			
 			WaitForSingleObject(ptrAux->info.threadHandle, INFINITE);
-			GetExitCodeThread(ptrAux->info.threadHandle, &bytesTransferidos);
-			
-			infoLog.numBytes = infoLog.numBytes + (DWORD) bytesTransferidos;
-
 			EliminarThread(cli);
 			FD_CLR(cli, &fdMaestro);
 			
@@ -437,30 +440,35 @@ Devuelve: -
 void rutinaAtencionCliente (LPVOID args)
 {
 	HANDLE file;
-	
 	DWORD bytesEnviados = 0;
-
 	struct thread *dataThread = (struct thread *) args;
-
-	/*----Listo para atender al cliente----*/	
-	
 	char *fileBuscado = pathUnixToWin(config.directorioFiles, dataThread->getInfo.filename);
+	
+	DWORD a;
 
 	printf("Filename: %s. Protocolo: %d \n", dataThread->getInfo.filename, dataThread->getInfo.protocolo);
-
 	file = BuscarArchivo(fileBuscado);
 	
 	if (file != INVALID_HANDLE_VALUE)
 	{
-		printf("Se encontro archivo en %s.\n\n", fileBuscado); 
+		printf("Se encontro archivo en %s.\n\n", fileBuscado);
+		
+		if (codop == FINISH)
+		{
+			closesocket(dataThread->socket);
+			_endthreadex(0);
+		}
+
 		if (httpOk_send(dataThread->socket, dataThread->getInfo) < 0)
 			printf("Error al enviar HTTP OK. Se cierra conexion.\n\n");
 		else
 		{	
-			if ((bytesEnviados = EnviarArchivo(dataThread->socket, file)) != GetFileSize(file, NULL))
+			if ((bytesEnviados = EnviarArchivo(dataThread->socket, file)) < 0)
 				printf("Error al enviar archivo solicitado. Se cierra conexion.\n\n");
 			else
-				printf("Se envio archivo en %s.\n\n", fileBuscado);
+				printf("Se envio archivo %s correctamente a %s:%d.\n\n", fileBuscado, 
+																	inet_ntoa(dataThread->direccion.sin_addr),
+																	ntohs(dataThread->direccion.sin_port));
 		}
 	}
 	else
@@ -549,18 +557,20 @@ SOCKET rutinaConexionCliente(SOCKET sockWebServer, unsigned maxClientes)
 			if (httpGet_recv(sockCliente, &getInfo) < 0)
 			{
 				printf("Error al recibir HTTP GET. Se cierra conexion.\n\n");
+				closesocket(sockCliente);
 				return -2;
 			}
 			else
 			{
+
 				/*Mutua exclusion para agregar el thread a la lista de threads global*/
 				control = AgregarThread(&listaThread, sockCliente, dirCliente, getInfo);
 				if (control < 0)
 				{
 					printf("Memoria insuficiente para nuevo Usuario\n\n");
+					closesocket(sockCliente);
 					return -2;
 				}
-
 				if (cantidadThreadsLista(listaThread) <= maxClientes)
 				{
 					ptrListaThread ptr = BuscarThread(listaThread, sockCliente);
@@ -570,6 +580,7 @@ SOCKET rutinaConexionCliente(SOCKET sockWebServer, unsigned maxClientes)
 						if (rutinaCrearThread(rutinaAtencionCliente, sockCliente) != 0)
 						{
 							printf("No se pudo crear thread de Atencion de Cliente\n\n");
+							closesocket(sockCliente);
 							return -1;
 						}
 					}
