@@ -8,7 +8,7 @@
 #include <process.h>
 #include <winsock2.h>
 #include <windows.h>
-
+#include "http.h"
 
 #define WIN32_LEAN_AND_MEAN
 #define BUF_SIZE 4096
@@ -40,6 +40,7 @@ struct thread {
 	SOCKADDR_IN direccion;
 	HANDLE threadHandle;
 	time_t arrival;
+	msgGet getInfo;
 	DWORD bytesEnviados;
 	BOOL estado;
 };

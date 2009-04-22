@@ -1,8 +1,13 @@
+#ifndef HTTP
+#define HTTP
+
 #include <stdio.h>
 #include <winsock2.h>
 #include <windows.h>
 
 #define BUF_SIZE 4096
+
+enum filetype_t {HTML, IMAGEN, ARCHIVO};
 
 typedef struct {
 	char filename[MAX_PATH];
@@ -21,3 +26,6 @@ int httpTimeout_send	(SOCKET sockfd, int protocolo);
 int httpNotFound_send	(SOCKET sockfd, msgGet getInfo);
 
 char *pathUnixToWin		(const char *dir, char *path);
+int getFileType			(const char *nombre);
+
+#endif

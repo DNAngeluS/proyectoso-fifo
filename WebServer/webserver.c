@@ -11,7 +11,7 @@ SOCKET establecerConexionEscucha	(in_addr_t direccionIP, in_port_t nPort);
 
 void imprimeLista					(ptrListaThread ptr);
 int listaVacia						(ptrListaThread listaThread);
-int AgregarThread					(ptrListaThread *ths, SOCKET socket, SOCKADDR_IN dirCliente);
+int AgregarThread					(ptrListaThread *ths, SOCKET socket, SOCKADDR_IN dirCliente, msgGet getInfo);
 void EliminarThread					(SOCKET cli);
 unsigned cantidadThreadsLista		(ptrListaThread listaThread);
 
@@ -40,7 +40,7 @@ int codop = RUNNING;	/*
 
 /*      
 Descripcion: Provee de archivos a clientes solicitantes en la red.
-Autor: Scheinkman, Mariano
+Ultima modificacion: Scheinkman, Mariano
 Recibe: -
 Devuelve: ok? 0: 1
 */
@@ -215,7 +215,7 @@ int main()
 
 /*      
 Descripcion: Establece la conexion del servidor web a la escucha en un puerto y direccion ip.
-Autor: Scheinkman, Mariano
+Ultima modificacion: Scheinkman, Mariano
 Recibe: Direccion ip y puerto a escuchar.
 Devuelve: ok? Socket del servidor: socket invalido.
 */
@@ -270,7 +270,7 @@ SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort)
 
 /*      
 Descripcion: Thread que atiende los ingresos de usuario por consola.
-Autor: Scheinkman, Mariano
+Ultima modificacion: Scheinkman, Mariano
 Recibe: -
 Devuelve: 0
 */
@@ -334,7 +334,7 @@ void rutinaAtencionConsola (LPVOID args)
 
 /*      
 Descripcion: Atiende error cada vez que exista en alguna funcion y finaliza proceso.
-Autor: Scheinkman, Mariano
+Ultima modificacion: Scheinkman, Mariano
 Recibe: Error detectado.
 Devuelve: -
 */
@@ -349,12 +349,12 @@ void rutinaDeError (char* error)
 
 /*      
 Descripcion: Agrega Thread a la lista de threads, encolandolos.
-Autor: Scheinkman, Mariano
+Ultima modificacion: Scheinkman, Mariano
 Recibe: Puntero a la lista de threads, el handle del nuevo thread y su ID.
 Devuelve: ok? 0: -1
 */
 
-int AgregarThread(ptrListaThread *ths, SOCKET socket, SOCKADDR_IN dirCliente)
+int AgregarThread(ptrListaThread *ths, SOCKET socket, SOCKADDR_IN dirCliente, msgGet getInfo)
 {      
 	ptrListaThread nuevo, actual, anterior;
        
@@ -373,6 +373,7 @@ int AgregarThread(ptrListaThread *ths, SOCKET socket, SOCKADDR_IN dirCliente)
 	nuevo->info.threadID = 0;
 	nuevo->info.estado = ESPERA;
 	nuevo->info.bytesEnviados = 0;
+	nuevo->info.getInfo = getInfo;
 	nuevo->info.arrival = time(NULL);
 	nuevo->sgte = NULL;
 
@@ -419,7 +420,7 @@ void EliminarThread(SOCKET cli)
 	if (ptrAux == NULL)
 		rutinaDeError("Inconcistencia de Threads");
 
-	closesocket(ptrAux->info.socket);
+	/*closesocket(ptrAux->info.socket);*/
 	if (ptrAux->info.threadHandle != 0)
 		CloseHandle(ptrAux->info.threadHandle);
 	ptrAux->sgte = NULL;
@@ -429,54 +430,49 @@ void EliminarThread(SOCKET cli)
 
 /*      
 Descripcion: Thread que Atiende al cliente
-Autor: Scheinkman, Mariano
+Ultima modificacion: Scheinkman, Mariano
 Recibe: Socket del cliente
 Devuelve: -
 */
-
 void rutinaAtencionCliente (LPVOID args)
 {
 	HANDLE file;
-	msgGet getInfo;
+	
 	DWORD bytesEnviados = 0;
 
-	SOCKET sockCliente = (SOCKET) args;
+	struct thread *dataThread = (struct thread *) args;
 
 	/*----Listo para atender al cliente----*/	
 	
-	/*RECIBIR HTTP GET, BUSCAR ARCHIVO Y ENVIAR RESPUESTA Y ARCHIVO*/
+	char *fileBuscado = pathUnixToWin(config.directorioFiles, dataThread->getInfo.filename);
 
-	if (httpGet_recv(sockCliente, &getInfo) < 0)
-		printf("Error al recibir HTTP GET. Se cierra conexion");
-	else
+	printf("Filename: %s. Protocolo: %d \n", dataThread->getInfo.filename, dataThread->getInfo.protocolo);
+
+	file = BuscarArchivo(fileBuscado);
+	
+	if (file != INVALID_HANDLE_VALUE)
 	{
-		char *fileBuscado = pathUnixToWin(config.directorioFiles, getInfo.filename);
-
-		printf("Filename: %s. Protocolo: %d \n", getInfo.filename, getInfo.protocolo);
-
-		file = BuscarArchivo(fileBuscado);
-		
-		if (file != INVALID_HANDLE_VALUE)
-		{
-			printf("Se encontro archivo en %s.\n\n", fileBuscado); 
-			if (httpOk_send(sockCliente, getInfo) < 0)
-				printf("Error al enviar HTTP OK. Se cierra conexion.\n\n");
-			else
-			{	
-				if ((bytesEnviados = EnviarArchivo(sockCliente, file)) != GetFileSize(file, NULL))
-					printf("Error al enviar archivo solicitado. Se cierra conexion.\n\n");
-				else
-					printf("Se envio archivo en %s.\n\n", fileBuscado);
-			}
-		}
+		printf("Se encontro archivo en %s.\n\n", fileBuscado); 
+		if (httpOk_send(dataThread->socket, dataThread->getInfo) < 0)
+			printf("Error al enviar HTTP OK. Se cierra conexion.\n\n");
 		else
-		{
-			printf("No se encontro archivo.\n\n");
-			if (httpNotFound_send(sockCliente, getInfo) < 0)
-				printf("Error al enviar HTTP NOT FOUND. Se cierra conexion");
+		{	
+			if ((bytesEnviados = EnviarArchivo(dataThread->socket, file)) != GetFileSize(file, NULL))
+				printf("Error al enviar archivo solicitado. Se cierra conexion.\n\n");
+			else
+				printf("Se envio archivo en %s.\n\n", fileBuscado);
 		}
 	}
-	_endthreadex(bytesEnviados);
+	else
+	{
+		printf("No se encontro archivo.\n\n");
+		if (httpNotFound_send(dataThread->socket, dataThread->getInfo) < 0)
+			printf("Error al enviar HTTP NOT FOUND. Se cierra conexion.\n\n");
+	}
+
+	closesocket(dataThread->socket);
+	infoLog.numBytes += bytesEnviados;
+	_endthreadex(0);
 }
 
 void imprimeLista(ptrListaThread ptr)
@@ -501,15 +497,17 @@ int rutinaCrearThread(void (*funcion)(LPVOID), SOCKET sockfd)
 	HANDLE threadHandle;
 	DWORD threadID;
 	ptrListaThread ptr = NULL;
+	struct thread dataThread;
 
 	ptr = BuscarThread(listaThread, sockfd);
 	if (ptr == NULL)
 		rutinaDeError("Inconcistencia en la Lista");
 
-	printf ("Se comienza a atender Request de %s:%d.\n\n", inet_ntoa(ptr->info.direccion.sin_addr), ntohs(ptr->info.direccion.sin_port));
+	dataThread = ptr->info;
+	printf ("Se comienza a atender Request de %s:%d.\n\n", inet_ntoa(dataThread.direccion.sin_addr), ntohs(dataThread.direccion.sin_port));
 
 	/*Se crea el thread encargado de atender cliente*/
-	threadHandle = (HANDLE) _beginthreadex (NULL, 1, (void *) rutinaAtencionCliente, (LPVOID) sockfd, 0, &threadID);
+	threadHandle = (HANDLE) _beginthreadex (NULL, 1, (void *) rutinaAtencionCliente, (LPVOID) &dataThread, 0, &threadID);
 	
 	/*Se actualiza el nodo*/
 	ptr->info.threadHandle = threadHandle;
@@ -521,6 +519,12 @@ int rutinaCrearThread(void (*funcion)(LPVOID), SOCKET sockfd)
 	return 0;
 }
 
+/*      
+Descripcion: Recibe el http get del cliente y lo cuelga de la lista.
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket del servidor y el num maximo de clientes
+Devuelve: sockCliente si OK. -1 si hay error y agrego a lista. -2 si hay error y no agrego a lista
+*/
 SOCKET rutinaConexionCliente(SOCKET sockWebServer, unsigned maxClientes)
 {
 	SOCKET sockCliente;					/*Socket del cliente remoto*/
@@ -531,42 +535,49 @@ SOCKET rutinaConexionCliente(SOCKET sockWebServer, unsigned maxClientes)
 	/*Acepta la conexion entrante*/
 	sockCliente = accept(sockWebServer, (SOCKADDR *) &dirCliente, &nAddrSize);
 	
-	
-
 	/*Si el servidor No esta fuera de servicio puede atender clientes*/
 	if (codop != OUTOFSERVICE)
 	{
 		if (sockCliente != INVALID_SOCKET) 
 		{
 			int control;
+			msgGet getInfo;
 
 			printf ("Conexion aceptada de %s:%d.\n\n", inet_ntoa(dirCliente.sin_addr), ntohs(dirCliente.sin_port));
-
-			/*Mutua exclusion para agregar el thread a la lista de threads global*/
-			control = AgregarThread(&listaThread, sockCliente, dirCliente);
-
-			if (control < 0)
+			
+			/*Recibir el Http GET*/
+			if (httpGet_recv(sockCliente, &getInfo) < 0)
 			{
-				printf("Memoria insuficiente para nuevo Usuario\n\n");
-				return -1;
+				printf("Error al recibir HTTP GET. Se cierra conexion.\n\n");
+				return -2;
 			}
-
-			if (cantidadThreadsLista(listaThread) <= maxClientes)
+			else
 			{
-				ptrListaThread ptr = BuscarThread(listaThread, sockCliente);
-				if (ptr != NULL)
+				/*Mutua exclusion para agregar el thread a la lista de threads global*/
+				control = AgregarThread(&listaThread, sockCliente, dirCliente, getInfo);
+				if (control < 0)
 				{
-					ptr->info.estado = ATENDIDO;
-					if (rutinaCrearThread(rutinaAtencionCliente, sockCliente) != 0)
-					{
-						printf("No se pudo crear thread de Atencion de Cliente\n\n");
-						return -1;
-					}
+					printf("Memoria insuficiente para nuevo Usuario\n\n");
+					return -2;
 				}
-				else
-					rutinaDeError("Inconcistencia en Lista");
+
+				if (cantidadThreadsLista(listaThread) <= maxClientes)
+				{
+					ptrListaThread ptr = BuscarThread(listaThread, sockCliente);
+					if (ptr != NULL)
+					{
+						ptr->info.estado = ATENDIDO;
+						if (rutinaCrearThread(rutinaAtencionCliente, sockCliente) != 0)
+						{
+							printf("No se pudo crear thread de Atencion de Cliente\n\n");
+							return -1;
+						}
+					}
+					else
+						rutinaDeError("Inconcistencia en Lista");
+				}
+				return sockCliente;
 			}
-			return sockCliente;
 		}
 		else
 		{

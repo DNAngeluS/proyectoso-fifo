@@ -1,4 +1,5 @@
 #include "http.h"
+#include <string.h>
 
 int EnviarBloque(SOCKET sockfd, DWORD bAEnviar, LPVOID bloque) 
 {
@@ -51,11 +52,14 @@ int RecibirBloque(SOCKET sockfd, LPVOID bloque) {
 
 	do
 	{
-		/*Se pone el socket como no bloqueante*/
-		if (ioctlsocket(sockfd, FIONBIO, &NonBlock) == SOCKET_ERROR)
+		if (bRecibidos != 0)
 		{
-			printf("ioctlsocket");
-			return -1;
+			/*Se pone el socket como no bloqueante*/
+			if (ioctlsocket(sockfd, FIONBIO, &NonBlock) == SOCKET_ERROR)
+			{
+				printf("ioctlsocket");
+				return -1;
+			}
 		}
 		if ((bHastaAhora = recv(sockfd, bloque, BUF_SIZE, 0)) == -1 && GetLastError() != WSAEWOULDBLOCK) 
 		{
@@ -119,12 +123,45 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo)
 	else
 		return 0;
 }
+
+int getFileType(const char *nombre)
+{
+	char *ptr;
+
+	ptr = strrchr(nombre, '.');
+	
+	ptr++;
+
+	if (!lstrcmp(ptr, "jpg") || !lstrcmp(ptr, "jpeg") || !lstrcmp(ptr, "gif") || !lstrcmp(ptr, "ttf") || !lstrcmp(ptr, "bmp"))
+		return IMAGEN;
+	else if (!lstrcmp(ptr, "html"))
+		return HTML;
+	else
+		return ARCHIVO;
+}
+
 int httpOk_send(SOCKET sockfd, msgGet getInfo){
+	
 	char buffer[BUF_SIZE];
+	char tipoArchivo[50];
 	int bytesSend = 0, error = 0;
 	
+	switch (getFileType(getInfo.filename))
+	{
+	case HTML:
+		lstrcpy(tipoArchivo, "text/html\n\n");
+		break;
+	case IMAGEN:
+		lstrcpy(tipoArchivo, "image/jpeg\n\n");
+		break;
+	case ARCHIVO:
+		lstrcpy(tipoArchivo, "application/octet-stream\n\n");
+		break;
+	}
+
 	/*Crea el Buffer con el protocolo*/
-	sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 200 OK\nContent-type: text/html\nContent-Disposition:attachment; filename=\"%s\"\n", getInfo.protocolo, getInfo.filename);
+	sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 200 OK\nContent-type: %sContent-Disposition:attachment; filename=\"%s\"\n", 
+									getInfo.protocolo, tipoArchivo, getInfo.filename);
 	
 	/*Enviamos el buffer como stream (sin el \0)*/
 	if (EnviarBloque(sockfd, lstrlen(buffer), buffer) == -1)
