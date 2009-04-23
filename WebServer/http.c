@@ -146,10 +146,13 @@ int httpOk_send(SOCKET sockfd, msgGet getInfo){
 	char tipoArchivo[50];
 	char filename[30];
 	int bytesSend = 0, error = 0;
+	int fileType;
 
 	ZeroMemory(buffer, BUF_SIZE);
 	
-	switch (getFileType(getInfo.filename))
+	fileType = getFileType(getInfo.filename);
+
+	switch (fileType)
 	{
 	case HTML:
 		lstrcpy(tipoArchivo, "text/html");
@@ -163,8 +166,15 @@ int httpOk_send(SOCKET sockfd, msgGet getInfo){
 	}
 	
 	/*Crea el Buffer con el protocolo*/
-	sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 200 OK\nContent-type: %s\n", getInfo.protocolo, tipoArchivo, getInfo.filename);
+	sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 200 OK\nContent-type: %s\n", getInfo.protocolo, tipoArchivo);
 	
+	if (fileType == ARCHIVO || fileType == IMAGEN)
+	{
+		lstrcat(buffer, "Content-Disposition: attachment; filename=\"");
+		lstrcat(buffer, getFilename(getInfo.filename));
+		lstrcat(buffer, "\"\n");
+	}
+
 	/*Enviamos el buffer como stream (sin el \0)*/
 	if (EnviarBloque(sockfd, lstrlen(buffer), buffer) == -1)
 		error = 1;
@@ -269,29 +279,18 @@ HANDLE BuscarArchivo(char *filename)
 char *pathUnixToWin(const char *dir, char *path)
 {
     char filename[MAX_PATH];
-    char *i, *j, *lim = path + strlen(path);
-
+    char *i, *j, *lim = path + lstrlen(path);
 	int k;
 
     /* Buscamos el ultimo nombre, el del archivo */
-
-
 	j = path;
 	i = path;
 
-	for(k = 0; k < strlen(path); ++k)
+	for(k = 0; k < lstrlen(path); ++k)
 		if (i[k]=='/')
 			j[k] = '\\';
 		else			
 			j[k] = i[k];
-	
-/*
-
-    for (j = i = path; i < lim; ++i)
-            if (*i == '/')
-                    j = i;
-	*j = '\\';
-*/
 
     strcpy_s(filename, MAX_PATH, j);
     sprintf_s(path, MAX_PATH, "%s%s", dir, filename);
@@ -299,17 +298,9 @@ char *pathUnixToWin(const char *dir, char *path)
     return path;
 }
 
-/*char *pathUnixToWin(const char *dir, char *path)
-{
-    char filename[MAX_PATH];
-    char *i, *j, *lim = path + strlen(path);
-
-    /* Buscamos el ultimo nombre, el del archivo */
-/*    for (j = i = path; i < lim; ++i)
-            if (*i == '/')
-                    j = i;
-    strcpy(filename, ++j);
-    sprintf(path, "%s%s", dir, filename);
-
-    return path;
-}*/
+char *getFilename(const char *path)
+{    
+	char *filename = strrchr(path, '\\');
+	
+	return ++filename;
+}

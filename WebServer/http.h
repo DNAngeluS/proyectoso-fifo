@@ -27,5 +27,6 @@ int httpNotFound_send	(SOCKET sockfd, msgGet getInfo);
 
 char *pathUnixToWin		(const char *dir, char *path);
 int getFileType			(const char *nombre);
+char *getFilename		(const char *path);
 
 #endif
