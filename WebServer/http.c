@@ -5,7 +5,7 @@ int EnviarBloque(SOCKET sockfd, DWORD bAEnviar, LPVOID bloque)
 {
 
 	int bHastaAhora,bEnviados, error = 0;
-	
+
 	bHastaAhora = bEnviados = 0;
  	while (!error && bAEnviar != 0) 
 	{
@@ -144,24 +144,26 @@ int httpOk_send(SOCKET sockfd, msgGet getInfo){
 	
 	char buffer[BUF_SIZE];
 	char tipoArchivo[50];
+	char filename[30];
 	int bytesSend = 0, error = 0;
+
+	ZeroMemory(buffer, BUF_SIZE);
 	
 	switch (getFileType(getInfo.filename))
 	{
 	case HTML:
-		lstrcpy(tipoArchivo, "text/html\n\n");
+		lstrcpy(tipoArchivo, "text/html");
 		break;
 	case IMAGEN:
-		lstrcpy(tipoArchivo, "image/jpeg\n\n");
+		lstrcpy(tipoArchivo, "image/jpeg");
 		break;
 	case ARCHIVO:
-		lstrcpy(tipoArchivo, "application/octet-stream\n\n");
+		lstrcpy(tipoArchivo, "application/octet-stream");
 		break;
 	}
-
+	
 	/*Crea el Buffer con el protocolo*/
-	sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 200 OK\nContent-type: %sContent-Disposition:attachment; filename=\"%s\"\n", 
-									getInfo.protocolo, tipoArchivo, getInfo.filename);
+	sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 200 OK\nContent-type: %s\n", getInfo.protocolo, tipoArchivo, getInfo.filename);
 	
 	/*Enviamos el buffer como stream (sin el \0)*/
 	if (EnviarBloque(sockfd, lstrlen(buffer), buffer) == -1)
@@ -257,7 +259,7 @@ HANDLE BuscarArchivo(char *filename)
 
 	if (hFind == INVALID_HANDLE_VALUE)
 		return hFind;
-
+	
 	file = CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, 
 						NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	FindClose(hFind);
@@ -269,14 +271,31 @@ char *pathUnixToWin(const char *dir, char *path)
     char filename[MAX_PATH];
     char *i, *j, *lim = path + strlen(path);
 
+	int k;
+
     /* Buscamos el ultimo nombre, el del archivo */
+
+
+	j = path;
+	i = path;
+
+	for(k = 0; k < strlen(path); ++k)
+		if (i[k]=='/')
+			j[k] = '\\';
+		else			
+			j[k] = i[k];
+	
+/*
+
     for (j = i = path; i < lim; ++i)
             if (*i == '/')
                     j = i;
 	*j = '\\';
+*/
+
     strcpy_s(filename, MAX_PATH, j);
     sprintf_s(path, MAX_PATH, "%s%s", dir, filename);
-
+	
     return path;
 }
 
