@@ -18,5 +18,6 @@ typedef struct {
 } configuracion;
 
 int leerArchivoConfiguracion (configuracion *config);
+int asignarDatos (configuracion *config, char *key, char *value);
 
 #endif

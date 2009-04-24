@@ -144,7 +144,6 @@ int httpOk_send(SOCKET sockfd, msgGet getInfo){
 	
 	char buffer[BUF_SIZE];
 	char tipoArchivo[50];
-	char filename[30];
 	int bytesSend = 0, error = 0;
 	int fileType;
 

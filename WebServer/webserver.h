@@ -23,15 +23,17 @@ typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
 
 /*Definiciones para el manejo de los mensajes de consola*/
-#define STR_MSG_HELP "USO:\n\t-help: Desplega modo de uso\n\t-queuestatus: Desplega estado de la Cola de Espera\n\t-run: Pone el Web Server en funcionamiento\n\t-finish: Finaliza el Web Server\n\t-outofservice: Establece al Web Server fuera de servicio\n\n"
-#define STR_MSG_QUEUESTATUS "Estado de la Cola de Espera:\n\n"
-#define STR_MSG_RUN "Web Server en servicio\n\n"
-#define STR_MSG_INVALID_RUN "Web Server ya se encuentra en servicio. Ingrese -outofservice para desactivar servicio o -finish para finalizar\n\n"
-#define STR_MSG_FINISH "Web Server a finalizado\n"
-#define STR_MSG_OUTOFSERVICE "Web Server fuera de servicio\n\n"
-#define STR_MSG_INVALID_OUTOFSERVICE "Web Server ya se encuentra fuera de servicio. Ingrese -run para activar el servicio\n\n"
-#define STR_MSG_INVALID_INPUT "Comando invalido. Escriba -help para informacion de comandos\n\n"
-#define STR_MSG_WELCOME "----Web Server----\n------------------\n\n"
+#define STR_MSG_HELP "USO:\r\n\t-help: Desplega modo de uso\r\n\t-queuestatus: Desplega estado de la Cola de Espera\r\n\t-run: Pone el Web Server en funcionamiento\r\n\t-finish: Finaliza el Web Server\r\n\t-outofservice: Establece al Web Server fuera de servicio\r\n\r\n"
+#define STR_MSG_QUEUESTATUS "Estado de la Cola de Espera:\r\n\r\n"
+#define STR_MSG_RUN "Web Server en servicio\r\n\r\n"
+#define STR_MSG_INVALID_RUN "Web Server ya se encuentra en servicio. Ingrese -outofservice para desactivar servicio o -finish para finalizar\r\n\r\n"
+#define STR_MSG_FINISH "Web Server a finalizado\r\n\r\n"
+#define STR_MSG_OUTOFSERVICE "Web Server fuera de servicio\r\n\r\n"
+#define STR_MSG_INVALID_OUTOFSERVICE "Web Server ya se encuentra fuera de servicio. Ingrese -run para activar el servicio\r\n\r\n"
+#define STR_MSG_INVALID_INPUT "Comando invalido. Escriba -help para informacion de comandos\r\n\r\n"
+#define STR_MSG_WELCOME "----Web Server----\r\n------------------\r\n\r\n"
+
+#define ENCABEZADO_LOG "Archivo Log - Web Server\r\n\r\n"
 
 /*Estructuras para la cola de threads*/
 struct thread {
@@ -39,7 +41,7 @@ struct thread {
 	SOCKET socket;
 	SOCKADDR_IN direccion;
 	HANDLE threadHandle;
-	time_t arrival;
+	DWORD arrival;
 	msgGet getInfo;
 	DWORD bytesEnviados;
 	BOOL estado;
@@ -54,11 +56,11 @@ typedef NodoListaThread *ptrListaThread;
 
 /*Estructuras para el archivo Log*/
 typedef struct {
-	DWORD numRequests;
+	unsigned numRequests;
 	DWORD numBytes;
 	SYSTEMTIME arrivalKernel;
 	SYSTEMTIME arrivalUser;
-	time_t arrival;
+	DWORD arrival;
 } infoLogFile;
 
 #endif

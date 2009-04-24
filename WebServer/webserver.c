@@ -2,6 +2,8 @@
 #include "webserver.h"
 #include "http.h"
 
+/************************=== Funciones ===***********************************/
+
 void rutinaDeError					(char *error);
 void rutinaAtencionConsola			(LPVOID args);
 void rutinaAtencionCliente			(LPVOID args);
@@ -19,8 +21,11 @@ int rutinaCrearThread				(void (*funcion)(LPVOID), SOCKET sockfd);
 ptrListaThread BuscarThread			(ptrListaThread listaThread, SOCKET sockfd);
 ptrListaThread BuscarProximoThread	(ptrListaThread listaThread);
 
-reporteLogFin(); /*HACER Genera archivo log con datos estadisticos obtenidos*/
+int generarReporteLog (HANDLE archLog, infoLogFile infoLog); /*HACER Genera archivo log con datos estadisticos obtenidos*/
 
+
+
+/************************=== Variables Globales ===***********************************/
 
 configuracion config;	/*Estructura con datos del archivo de configuracion*/
 
@@ -59,11 +64,14 @@ int main()
 
 	int fueradeservicio = 0;
 
+	/*Lectura de Archivo de Configuracion*/
+	if (leerArchivoConfiguracion(&config) != 0)
+		rutinaDeError("Lectura Archivo de configuracion");
+
 	/*Inicializo variable para archivo Log*/
 	GetLocalTime(&(infoLog.arrivalUser));
 	GetSystemTime(&(infoLog.arrivalKernel));
-	infoLog.arrival = time (NULL);
-
+	infoLog.arrival = GetTickCount();
 	infoLog.numBytes = 0;
 	infoLog.numRequests = 0;
 
@@ -77,10 +85,6 @@ int main()
 	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
 		rutinaDeError("WSAStartup");
 
-	/*Lectura de Archivo de Configuracion*/
-	if (leerArchivoConfiguracion(&config) != 0)
-		rutinaDeError("Lectura Archivo de configuracion");
-
 	/*Creacion de Thread de Atencion de Consola*/
 	hThreadConsola = (HANDLE) _beginthreadex (NULL, 1, (LPVOID) rutinaAtencionConsola, NULL, 0, &nThreadConsolaID);
 	if (hThreadConsola == 0)
@@ -92,11 +96,11 @@ int main()
 
 	printf("%s", STR_MSG_WELCOME);
 
+	/*Se inicializan los FD_SET para select*/
 	FD_ZERO(&fdMaestro);
 	FD_SET(sockWebServer, &fdMaestro);
 
 /*------------------------Atencion de Clientes-------------------------*/
-
 	/*Mientras no se indique la finalizacion*/
 	while (codop != FINISH)
 	{	
@@ -123,28 +127,28 @@ int main()
 			if (!listaVacia(listaThread))
 				ptrAux = listaThread;
 
-				while (ptrAux != NULL)
+			while (ptrAux != NULL)
+			{
+				if (ptrAux->info.estado == ESPERA && 
+					(GetTickCount() - ptrAux->info.arrival) > (config.esperaMaxima))
 				{
-					if (ptrAux->info.estado == ESPERA && 
-						(unsigned) difftime(time(NULL), ptrAux->info.arrival) > (config.esperaMaxima/1000))
-					{
-						ptrListaThread ptrSave = ptrAux->sgte;
-						SOCKET sock = ptrAux->info.socket;
-									
-						printf("Resquet de cliente timed out. Se envia Http Request Timeout.\n\n");
-						if (httpTimeout_send(ptrAux->info.socket, ptrAux->info.getInfo) < 0)
-							printf("Error al enviar Http timeout a %s:%d.\n\n", 
-													inet_ntoa(ptrAux->info.direccion.sin_addr),
-													ntohs(ptrAux->info.direccion.sin_port));
+					ptrListaThread ptrSave = ptrAux->sgte;
+					SOCKET sock = ptrAux->info.socket;
+								
+					printf("Resquet de cliente timed out. Se envia Http Request Timeout.\r\n\r\n");
+					if (httpTimeout_send(ptrAux->info.socket, ptrAux->info.getInfo) < 0)
+						printf("Error al enviar Http timeout a %s:%d.\r\n\r\n", 
+												inet_ntoa(ptrAux->info.direccion.sin_addr),
+												ntohs(ptrAux->info.direccion.sin_port));
 
-						closesocket(sock);
-						EliminarThread(sock);
-						FD_CLR(sock, &fdMaestro);
-						ptrAux = ptrSave;
-					}
-					else
-						ptrAux = ptrAux->sgte;
+					closesocket(sock);
+					EliminarThread(sock);
+					FD_CLR(sock, &fdMaestro);
+					ptrAux = ptrSave;
 				}
+				else
+					ptrAux = ptrAux->sgte;
+			}
 			continue;
 		}
 
@@ -156,8 +160,8 @@ int main()
 
 			if ((sockCliente = rutinaConexionCliente(sockWebServer, config.cantidadClientes)) == -1 || sockCliente == -2)
 			{
-				printf("No se ha podido conectar cliente.%s\n", sockCliente == -2? 
-					" Servidor esta fuera de servicio.\nIngrese -run para reanudar ejecucion.\n":"\n");
+				printf("No se ha podido conectar cliente.%s\r\n", sockCliente == -2? 
+					" Servidor esta fuera de servicio.\r\nIngrese -run para reanudar ejecucion.\r\n":"\r\n");
 				
 				if (sockCliente == -1)
 					EliminarThread(sockCliente);
@@ -193,7 +197,7 @@ int main()
 					ptr->info.estado = ATENDIDO;
 					if (rutinaCrearThread(rutinaAtencionCliente, ptr->info.socket) != 0)
 					{
-						printf("No se pudo crear thread de Atencion de Cliente\n\n");
+						printf("No se pudo crear thread de Atencion de Cliente\r\n\r\n");
 						return -1;
 					}
 				}
@@ -208,7 +212,11 @@ int main()
 
 
 	/*Generar archivo Log*/
-	/*generarLog();*/
+	printf("Se genera Archivo Log.\r\n");
+	if (generarReporteLog(config.archivoLog, infoLog)< 0)
+		printf("Error generando Archivo Log.\r\n\r\n");
+	else
+		printf("Archivo Log generado correctamente.\r\n\r\n");
 
 	return 0;
 }
@@ -248,7 +256,7 @@ SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort)
             
 			addrServidorWeb.sin_family = AF_INET;
             addrServidorWeb.sin_addr.s_addr = nDireccionIP;
-            addrServidorWeb.sin_port = htons(nPort);
+            addrServidorWeb.sin_port = nPort;
 			memset((&addrServidorWeb.sin_zero), '\0', 8);
 
 			/*Liga socket al puerto y direccion*/
@@ -265,7 +273,7 @@ SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort)
         }
     }
 	else
-		rutinaDeError("Direccion IP invalida\n");
+		rutinaDeError("Direccion IP invalida\r\n");
     return INVALID_SOCKET;
 }
 
@@ -344,8 +352,8 @@ Devuelve: -
 
 void rutinaDeError (char* error) 
 {
-	printf("\nError: %s\n", error);
-	printf("Codigo de Error: %d\n\n", GetLastError());
+	printf("\r\nError: %s\r\n", error);
+	printf("Codigo de Error: %d\r\n\r\n", GetLastError());
 	exit(1);
 }
 
@@ -363,7 +371,7 @@ int AgregarThread(ptrListaThread *ths, SOCKET socket, SOCKADDR_IN dirCliente, ms
        
 	if (socket == INVALID_SOCKET) 
 	{
-		printf("Error en _beginthreadex(): %d\n", GetLastError());
+		printf("Error en _beginthreadex(): %d\r\n", GetLastError());
 		return -1;
 	}
        
@@ -377,7 +385,7 @@ int AgregarThread(ptrListaThread *ths, SOCKET socket, SOCKADDR_IN dirCliente, ms
 	nuevo->info.estado = ESPERA;
 	nuevo->info.bytesEnviados = 0;
 	nuevo->info.getInfo = getInfo;
-	nuevo->info.arrival = time(NULL);
+	nuevo->info.arrival = GetTickCount();
 	nuevo->sgte = NULL;
 
 	anterior = NULL;
@@ -443,15 +451,13 @@ void rutinaAtencionCliente (LPVOID args)
 	DWORD bytesEnviados = 0;
 	struct thread *dataThread = (struct thread *) args;
 	char *fileBuscado = pathUnixToWin(config.directorioFiles, dataThread->getInfo.filename);
-	
-	DWORD a;
 
-	printf("Filename: %s. Protocolo: %d \n", dataThread->getInfo.filename, dataThread->getInfo.protocolo);
+	printf("Filename: %s. Protocolo: %d \r\n", dataThread->getInfo.filename, dataThread->getInfo.protocolo);
 	file = BuscarArchivo(fileBuscado);
 	
 	if (file != INVALID_HANDLE_VALUE)
 	{
-		printf("Se encontro archivo en %s.\n\n", fileBuscado);
+		printf("Se encontro archivo en %s.\r\n\r\n", fileBuscado);
 		
 		if (codop == FINISH)
 		{
@@ -460,22 +466,22 @@ void rutinaAtencionCliente (LPVOID args)
 		}
 
 		if (httpOk_send(dataThread->socket, dataThread->getInfo) < 0)
-			printf("Error al enviar HTTP OK. Se cierra conexion.\n\n");
+			printf("Error al enviar HTTP OK. Se cierra conexion.\r\n\r\n");
 		else
 		{	
 			if ((bytesEnviados = EnviarArchivo(dataThread->socket, file)) < 0)
-				printf("Error al enviar archivo solicitado. Se cierra conexion.\n\n");
+				printf("Error al enviar archivo solicitado. Se cierra conexion.\r\n\r\n");
 			else
-				printf("Se envio archivo %s correctamente a %s:%d.\n\n", fileBuscado, 
+				printf("Se envio archivo %s correctamente a %s:%d.\r\n\r\n", fileBuscado, 
 																	inet_ntoa(dataThread->direccion.sin_addr),
 																	ntohs(dataThread->direccion.sin_port));
 		}
 	}
 	else
 	{
-		printf("No se encontro archivo.\n\n");
+		printf("No se encontro archivo.\r\n\r\n");
 		if (httpNotFound_send(dataThread->socket, dataThread->getInfo) < 0)
-			printf("Error al enviar HTTP NOT FOUND. Se cierra conexion.\n\n");
+			printf("Error al enviar HTTP NOT FOUND. Se cierra conexion.\r\n\r\n");
 	}
 
 	closesocket(dataThread->socket);
@@ -486,17 +492,17 @@ void rutinaAtencionCliente (LPVOID args)
 void imprimeLista(ptrListaThread ptr)
 {	
 	if (ptr == NULL)
-		printf("La cola esta vacia\n\n");
+		printf("La cola esta vacia\r\n\r\n");
 	else
 	{
-		printf("La lista es:\n");
+		printf("La lista es:\r\n");
          
 		while (ptr != NULL)
 		{
 			printf("Request %d -> ", ptr->info.socket);
 			ptr = ptr->sgte;
 		}
-		printf("NULL\n\n");
+		printf("NULL\r\n\r\n");
 	}
 }
 
@@ -512,7 +518,7 @@ int rutinaCrearThread(void (*funcion)(LPVOID), SOCKET sockfd)
 		rutinaDeError("Inconcistencia en la Lista");
 
 	dataThread = ptr->info;
-	printf ("Se comienza a atender Request de %s:%d.\n\n", inet_ntoa(dataThread.direccion.sin_addr), ntohs(dataThread.direccion.sin_port));
+	printf ("Se comienza a atender Request de %s:%d.\r\n\r\n", inet_ntoa(dataThread.direccion.sin_addr), ntohs(dataThread.direccion.sin_port));
 
 	/*Se crea el thread encargado de atender cliente*/
 	threadHandle = (HANDLE) _beginthreadex (NULL, 1, (void *) rutinaAtencionCliente, (LPVOID) &dataThread, 0, &threadID);
@@ -551,12 +557,12 @@ SOCKET rutinaConexionCliente(SOCKET sockWebServer, unsigned maxClientes)
 			int control;
 			msgGet getInfo;
 
-			printf ("Conexion aceptada de %s:%d.\n\n", inet_ntoa(dirCliente.sin_addr), ntohs(dirCliente.sin_port));
+			printf ("Conexion aceptada de %s:%d.\r\n\r\n", inet_ntoa(dirCliente.sin_addr), ntohs(dirCliente.sin_port));
 			
 			/*Recibir el Http GET*/
 			if (httpGet_recv(sockCliente, &getInfo) < 0)
 			{
-				printf("Error al recibir HTTP GET. Se cierra conexion.\n\n");
+				printf("Error al recibir HTTP GET. Se cierra conexion.\r\n\r\n");
 				closesocket(sockCliente);
 				return -2;
 			}
@@ -567,7 +573,7 @@ SOCKET rutinaConexionCliente(SOCKET sockWebServer, unsigned maxClientes)
 				control = AgregarThread(&listaThread, sockCliente, dirCliente, getInfo);
 				if (control < 0)
 				{
-					printf("Memoria insuficiente para nuevo Usuario\n\n");
+					printf("Memoria insuficiente para nuevo Usuario\r\n\r\n");
 					closesocket(sockCliente);
 					return -2;
 				}
@@ -579,7 +585,7 @@ SOCKET rutinaConexionCliente(SOCKET sockWebServer, unsigned maxClientes)
 						ptr->info.estado = ATENDIDO;
 						if (rutinaCrearThread(rutinaAtencionCliente, sockCliente) != 0)
 						{
-							printf("No se pudo crear thread de Atencion de Cliente\n\n");
+							printf("No se pudo crear thread de Atencion de Cliente\r\n\r\n");
 							closesocket(sockCliente);
 							return -1;
 						}
@@ -650,35 +656,36 @@ ptrListaThread BuscarProximoThread(ptrListaThread listaThread)
 	return ptr;
 }
 
-/*{
-	arrival = time(NULL);
+int generarReporteLog (HANDLE archLog, infoLogFile infoLog)
+{
+	DWORD tiempoTotal;
+	DWORD bytesEscritos;
+	char buffer[BUF_SIZE];
+	int error = 0;
 
-	do
-		{		
-		/* Si el tiempo desde que llego excede lo configurado o se detecta que se puede seguir */
-/*			if ((unsigned) difftime(time(NULL), arrival) > (config.esperaMaxima/1000))
-			{
-				/*ENVIAR MENSAJE REQUEST TIMEOUT*/
-/*				printf("Thread %l timed out.\n\n", GetCurrentThreadId());
-				_endthreadex(0);
-			}
+	tiempoTotal = GetTickCount() - infoLog.arrival;
+	memset(buffer, '\0', BUF_SIZE);
+	sprintf(buffer, "%sCantidad de Requests Aceptados: %d\r\n"
+						"Cantidad de Bytes Transferidos: %ld\r\n"
+						"Tiempo Total de Ejecucion (en segundos): %d\r\n", ENCABEZADO_LOG, 
+															infoLog.numRequests, 
+															infoLog.numBytes,
+															tiempoTotal/1000);
 
-		/*Si llega al final de la cola, volver a empezar*/
-/*		if (ptrAux == NULL)
-		{
-			ptrAux = listaThread;
-			cantClientesAtendidos = 0;
-			continue;
-		}
+	/*
+	lstrcpy(buffer, ENCABEZADO_LOG);
+	lstrcat(buffer, "Cantidad de Bytes Transferidos: ");
+	lstrcat(buffer, (LPCSTR) infoLog.numRequests - '0');
+	lstrcat(buffer, "\r\nCantidad de Bytes Transferidos: ");
+	lstrcat(buffer, (LPCSTR) infoLog.numBytes - '0');
+	lstrcat(buffer, "\r\nTiempo Total de Ejecucion: ");
+	lstrcat(buffer, (LPCSTR) (unsigned) tiempoTotal - '0');
+	*/
 
-		/*Si el thread esta atendido seguir buscando*/
-/*		if (ptrAux->info.estado == ATENDIDO)
-			cantClientesAtendidos++;
 
-		ptrAux = ptrAux->sgte;
+	if (WriteFile(archLog, buffer, sizeof(buffer), &bytesEscritos, NULL) == FALSE)
+		error = 1;
+	CloseHandle(archLog);
 
-		/*Condicion de salida: si hay menos clientes atendidos de los que se permiten 
-					y a la vez no hay mas clientes que monitorear el estado en la lista */
-/*		} while ((cantClientesAtendidos < config.cantidadClientes) && ptrAux == NULL);
-}*/
-
+	return error? -1: 0;
+}
