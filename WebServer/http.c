@@ -1,15 +1,16 @@
 #include "http.h"
 #include <string.h>
 
-int EnviarBloque(SOCKET sockfd, DWORD bAEnviar, LPVOID bloque) 
+int EnviarBloque(SOCKET sockfd, DWORD bAEnviar, char *bloque) 
 {
 
-	int bHastaAhora,bEnviados, error = 0;
+	DWORD bHastaAhora, bEnviados;	
+	int error = 0;
 
 	bHastaAhora = bEnviados = 0;
- 	while (!error && bAEnviar != 0) 
+ 	while (!error && bEnviados < bAEnviar) 
 	{
-		if ((bHastaAhora = send(sockfd, bloque, bAEnviar, 0)) == -1) 
+		if ((bHastaAhora = send(sockfd, bloque+bEnviados, bAEnviar, 0)) == -1) 
 		{
 			printf("Error en la funcion send.\n\n");
 			error = 1;
@@ -21,10 +22,11 @@ int EnviarBloque(SOCKET sockfd, DWORD bAEnviar, LPVOID bloque)
 			bAEnviar -= bHastaAhora;
 		}
 	}
+	
 	return error == 0? bEnviados: -1;
 }
 
-int RecibirNBloque(SOCKET sockfd, LPVOID bloque, DWORD nBytes)
+int RecibirNBloque(SOCKET sockfd, char *bloque, DWORD nBytes)
 {
 	int bRecibidos = 0;
 	int aRecibir = nBytes;
@@ -32,7 +34,7 @@ int RecibirNBloque(SOCKET sockfd, LPVOID bloque, DWORD nBytes)
 
 	do
 	{
-		if ((bHastaAhora = recv(sockfd, bloque, aRecibir, 0)) == -1) 
+		if ((bHastaAhora = recv(sockfd, bloque+bRecibidos, aRecibir, 0)) == -1) 
 		{
 			printf("Error en la funcion recv.\n\n");
 			return -1;
@@ -44,7 +46,8 @@ int RecibirNBloque(SOCKET sockfd, LPVOID bloque, DWORD nBytes)
 	return bRecibidos;
 }
 
-int RecibirBloque(SOCKET sockfd, LPVOID bloque) {
+
+int RecibirBloque(SOCKET sockfd, char *bloque) {
 	
 	int bRecibidos = 0;
 	int bHastaAhora = 0;
@@ -61,7 +64,7 @@ int RecibirBloque(SOCKET sockfd, LPVOID bloque) {
 				return -1;
 			}
 		}
-		if ((bHastaAhora = recv(sockfd, bloque, BUF_SIZE, 0)) == -1 && GetLastError() != WSAEWOULDBLOCK) 
+		if ((bHastaAhora = recv(sockfd, bloque+bRecibidos, BUF_SIZE, 0)) == -1 && GetLastError() != WSAEWOULDBLOCK) 
 		{
 			printf("Error en la funcion recv.\n\n");
 			return -1;
@@ -84,7 +87,7 @@ int RecibirBloque(SOCKET sockfd, LPVOID bloque) {
 
 int httpGet_recv(SOCKET sockfd, msgGet *getInfo)
 {
-	char buffer[BUF_SIZE], *ptr;
+	char buffer[BUF_SIZE], *ptr, *nextT;
 	char header[4];
 	int bytesRecv, error = 0;
 
@@ -94,19 +97,19 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo)
 	{
 		buffer[bytesRecv+1] = '\0';
 		
-		lstrcpy(header, strtok(buffer, " "));
+		lstrcpy(header, strtok_s(buffer, " ", &nextT));
 
 		if(!lstrcmp(header, "GET"))
 		{
 			char *filename = getInfo->filename;
 			
-			lstrcpy(filename, strtok(NULL, " "));
+			lstrcpy(filename, strtok_s(NULL, " ", &nextT));
 			filename[strlen(filename)] = '\0';
 			filename;
 			lstrcpy(getInfo->filename,filename);
 			
-			ptr = strtok(NULL, ".");
-			getInfo->protocolo = atoi(strtok(NULL, "\r\n"));
+			ptr = strtok_s(NULL, ".", &nextT);
+			getInfo->protocolo = atoi(strtok_s(NULL, "\r\n", &nextT));
 
 			if (getInfo->protocolo != 0 && getInfo->protocolo != 1)
 				error = 1;
@@ -207,49 +210,33 @@ int httpTimeout_send(SOCKET sockfd, msgGet getInfo)
 		return 0;
 }
 
+
 int EnviarArchivo(SOCKET sockRemoto, HANDLE fileHandle) 
 {
 	
 	char buf[BUF_SIZE];
-	DWORD fileSize;
+	DWORD fileSize, bAEnviar = 0;
 
-	int cantBloques, bUltBloque, i;
-	int bEnviadosAux, bEnviadosBloque, bAEnviar, bEnviadosTot;
-	int lenALeer, error = 0;
- 
+	int bEnviadosAux, bEnviadosTot = 0;
+	int lenALeer = 0, error = 0, neof = 1;
+
+	ZeroMemory(buf, BUF_SIZE);
 	fileSize = GetFileSize(fileHandle, NULL);
-	cantBloques = fileSize / BUF_SIZE;
-	bUltBloque = fileSize % BUF_SIZE;
-	
-	for (i=bEnviadosTot=0; !error && i<=cantBloques; i++) 
-	{	 	
-	  	if (i<cantBloques)
-	 		lenALeer = BUF_SIZE;
-	 	else
-	 		lenALeer = bUltBloque;	
-	 	
-	 	bEnviadosAux = bAEnviar = bEnviadosBloque = 0;
-	 	
-	 	while (!error && lenALeer != 0) 
-		{
-	 		bEnviadosAux = bAEnviar = 0;
-			if (ReadFile(fileHandle, buf, lenALeer, &bAEnviar, NULL) == -1) 
-			{
-				printf("Error en ReadFile");
-				error = 1;
-				break;
-			}
-			else 
-			{
-				if ((bEnviadosAux = EnviarBloque(sockRemoto, bAEnviar, buf)) == -1) 
-					error = 1;
-				bEnviadosBloque += bEnviadosAux;
-				lenALeer -= bEnviadosAux;
-			}
-	 	}
-	 	bEnviadosTot+=bEnviadosBloque;
-	}
+
+	do {
+
+		if (ReadFile(fileHandle, buf, sizeof(buf), &bAEnviar, NULL) == -1){
+			printf("Error en ReadFile");
+			error = 1;	
+		}
 		
+		if ((bEnviadosAux = EnviarBloque(sockRemoto, bAEnviar, buf)) == -1) 
+			error = 1;
+
+		bEnviadosTot += bEnviadosAux;				
+
+	}while(bAEnviar > 0);
+
 	printf("\nTamaño de archivo: %d, Enviado: %d\n", fileSize, bEnviadosTot);
 	CloseHandle(fileHandle);
 
