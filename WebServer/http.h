@@ -14,9 +14,9 @@ typedef struct {
 	int protocolo;
 } msgGet;
 
-int EnviarBloque		(SOCKET sockfd, DWORD bAEnviar, LPVOID bloque);
-int RecibirBloque		(SOCKET sockfd, LPVOID bloque);
-int RecibirNBloque		(SOCKET sockfd, LPVOID bloque, DWORD nBytes);
+int EnviarBloque		(SOCKET sockfd, DWORD bAEnviar, char *bloque);
+int RecibirBloque		(SOCKET sockfd, char *bloque);
+int RecibirNBloque		(SOCKET sockfd, char *bloque, DWORD nBytes);
 int EnviarArchivo		(SOCKET sockRemoto, HANDLE fileHandle);
 HANDLE BuscarArchivo	(char *filename);
 
