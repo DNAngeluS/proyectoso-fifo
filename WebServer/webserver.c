@@ -154,7 +154,7 @@ int main()
 
 
 		/*== Hay usuario conectandose ==*/
-		if (FD_ISSET(sockWebServer, &fdLectura) && codop != OUTOFSERVICE && codop != FINISH)
+		if (FD_ISSET(sockWebServer, &fdLectura) && codop != FINISH)
 		{
 			SOCKET sockCliente;
 
@@ -485,6 +485,7 @@ void rutinaAtencionCliente (LPVOID args)
 	}
 
 	closesocket(dataThread->socket);
+	/*Mutua exclusion para alterar variable*/
 	WaitForSingleObject(logMutex, INFINITE);
 	infoLog.numBytes += bytesEnviados;
 	ReleaseMutex(logMutex);
@@ -492,7 +493,7 @@ void rutinaAtencionCliente (LPVOID args)
 }
 
 void imprimeLista(ptrListaThread ptr)
-{	
+{
 	if (ptr == NULL)
 		printf("La cola esta vacia\r\n\r\n");
 	else
@@ -685,7 +686,7 @@ int generarReporteLog (HANDLE archLog, infoLogFile infoLog)
 	*/
 
 
-	if (WriteFile(archLog, buffer, sizeof(buffer), &bytesEscritos, NULL) == FALSE)
+	if (WriteFile(archLog, buffer, strlen(buffer)+1, &bytesEscritos, NULL) == FALSE)
 		error = 1;
 	CloseHandle(archLog);
 

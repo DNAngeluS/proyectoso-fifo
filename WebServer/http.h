@@ -7,7 +7,7 @@
 
 #define BUF_SIZE 4096
 
-enum filetype_t {HTML, TXT, PHP, JPG, GIF, PNG, JPEG, PDF, ARCHIVO, EXE, ZIP, DOC, XLS, PPT,  };
+enum filetype_t {HTML, TXT, PHP, JPG, GIF, PNG, JPEG, PDF, ARCHIVO, EXE, ZIP, DOC, XLS, PPT };
 
 typedef struct {
 	char filename[MAX_PATH];
