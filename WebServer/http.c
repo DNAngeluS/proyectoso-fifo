@@ -127,6 +127,17 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo)
 		return 0;
 }
 
+DWORD getFileSize(const char *nombre)
+{	
+	DWORD size;
+	HANDLE fileHandle = CreateFile(nombre, GENERIC_READ, FILE_SHARE_READ, 
+						NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_READONLY, NULL);
+	size = GetFileSize(fileHandle, NULL);
+	CloseHandle(fileHandle);
+
+	return size;
+}
+
 int getFileType(const char *nombre)
 {
 	char *ptr;
@@ -135,46 +146,111 @@ int getFileType(const char *nombre)
 	
 	ptr++;
 
-	if (!lstrcmp(ptr, "jpg") || !lstrcmp(ptr, "jpeg") || !lstrcmp(ptr, "gif") || !lstrcmp(ptr, "ttf") || !lstrcmp(ptr, "bmp"))
-		return IMAGEN;
-	else if (!lstrcmp(ptr, "html"))
+	if (!lstrcmp(ptr, "jpg"))
+		return JPG;
+	if (!lstrcmp(ptr, "txt"))
+		return TXT;
+	if (!lstrcmp(ptr, "pdf"))
+		return PDF;
+	if (!lstrcmp(ptr, "exe"))
+		return EXE;
+	if (!lstrcmp(ptr, "zip"))
+		return ZIP;
+	if (!lstrcmp(ptr, "html"))
 		return HTML;
-	else
-		return ARCHIVO;
+	if (!lstrcmp(ptr, "doc"))
+		return DOC;
+	if (!lstrcmp(ptr, "xls"))
+		return XLS;
+	if (!lstrcmp(ptr, "ppt"))
+		return PPT;
+	if (!lstrcmp(ptr, "gif"))
+		return GIF;
+	if (!lstrcmp(ptr, "png"))
+		return PNG;
+	if (!lstrcmp(ptr, "jpeg"))
+		return JPEG;
+	if (!lstrcmp(ptr, "php"))
+		return PHP;
+	return ARCHIVO;
 }
 
-int httpOk_send(SOCKET sockfd, msgGet getInfo){
+int httpOk_send(SOCKET sockfd, msgGet getInfo)
+{
 	
 	char buffer[BUF_SIZE];
 	char tipoArchivo[50];
 	int bytesSend = 0, error = 0;
 	int fileType;
+	DWORD fileSize;
 
 	ZeroMemory(buffer, BUF_SIZE);
 	
+	fileSize = getFileSize(getInfo.filename);
 	fileType = getFileType(getInfo.filename);
-
 	switch (fileType)
 	{
 	case HTML:
 		lstrcpy(tipoArchivo, "text/html");
 		break;
-	case IMAGEN:
+	case TXT:
+		lstrcpy(tipoArchivo, "text/txt");
+		break;
+	case PHP:
+		lstrcpy(tipoArchivo, "text/php");
+		break;
+	case JPEG:
 		lstrcpy(tipoArchivo, "image/jpeg");
 		break;
-	case ARCHIVO:
+	case JPG:
+		lstrcpy(tipoArchivo, "image/jpg");
+		break;
+	case PNG:
+		lstrcpy(tipoArchivo, "image/png");
+		break;
+	case GIF:
+		lstrcpy(tipoArchivo, "image/gif");
+		break;
+	case EXE:
 		lstrcpy(tipoArchivo, "application/octet-stream");
 		break;
+	case ZIP:
+		lstrcpy(tipoArchivo, "application/zip");
+		break;
+	case DOC:
+		lstrcpy(tipoArchivo, "application/msword");
+		break;
+	case XLS:
+		lstrcpy(tipoArchivo, "application/vnd.ms-excel");
+		break;
+	case PDF:
+		lstrcpy(tipoArchivo, "application/pdf");
+		break;
+	case PPT:
+		lstrcpy(tipoArchivo, "application/vnd.ms-powerpoint");
+		break;
+	case ARCHIVO:
+		lstrcpy(tipoArchivo, "application/force-download");
+		break;
 	}
-	
-	/*Crea el Buffer con el protocolo*/
-	sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 200 OK\nContent-type: %s\n", getInfo.protocolo, tipoArchivo);
-	
-	if (fileType == ARCHIVO || fileType == IMAGEN)
+
+	if (fileType > JPEG) /*No es ni foto ni texto*/
 	{
-		lstrcat(buffer, "Content-Disposition: attachment; filename=\"");
-		lstrcat(buffer, getFilename(getInfo.filename));
-		lstrcat(buffer, "\"\n");
+		/*Crea el Buffer con el protocolo*/
+		sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 200 OK\nContent-type: %s\n"
+									"Content-Disposition: attachment; filename=\"%s\"\n"
+									"Content-Transfer-Encoding: binary\n"
+									"Accept-Ranges: bytes\n"
+									"Cache-Control: private\n"
+									"Pragma: private\n"
+									"Expires: Mon, 26 Jul 1997 05:00:00 GMT\n"
+									"Content-Length: %ld\n\n", getInfo.protocolo, tipoArchivo, 
+									getFilename(getInfo.filename), fileSize);
+	
+	}
+	else
+	{
+		sprintf_s(buffer, sizeof(buffer), "HTTP/1.%d 200 OK\nContent-type: %s\n\n", getInfo.protocolo, tipoArchivo);
 	}
 
 	/*Enviamos el buffer como stream (sin el \0)*/
@@ -211,33 +287,46 @@ int httpTimeout_send(SOCKET sockfd, msgGet getInfo)
 }
 
 
-int EnviarArchivo(SOCKET sockRemoto, HANDLE fileHandle) 
+int EnviarArchivo(SOCKET sockRemoto, char *fileBuscado) 
 {
 	
 	char buf[BUF_SIZE];
 	DWORD fileSize, bAEnviar = 0;
-
+	HANDLE fileHandle;
 	int bEnviadosAux, bEnviadosTot = 0;
 	int lenALeer = 0, error = 0, neof = 1;
+	DWORD valor;
+	DWORD dato1, dato2;
 
-	ZeroMemory(buf, BUF_SIZE);
+	fileHandle = CreateFile(fileBuscado, GENERIC_READ, FILE_SHARE_READ, 
+						NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_READONLY, NULL);
+	
 	fileSize = GetFileSize(fileHandle, NULL);
 
-	do {
+	dato1 = fileSize / BUF_SIZE;
+	dato2 = fileSize % BUF_SIZE;
 
-		if (ReadFile(fileHandle, buf, sizeof(buf), &bAEnviar, NULL) == -1){
+	SetFilePointer(fileHandle, 0, NULL, FILE_BEGIN);
+	do 
+	{
+		ZeroMemory(buf, BUF_SIZE);
+		if (FALSE == ReadFile(fileHandle, buf, BUF_SIZE, &bAEnviar, NULL))
+		{
 			printf("Error en ReadFile");
 			error = 1;	
 		}
+		if (bAEnviar > 0)
+		{
+			if ((bEnviadosAux = EnviarBloque(sockRemoto, bAEnviar, buf)) == -1) 
+				error = 1;
+			bEnviadosTot += bEnviadosAux;				
+		}
 		
-		if ((bEnviadosAux = EnviarBloque(sockRemoto, bAEnviar, buf)) == -1) 
-			error = 1;
-
-		bEnviadosTot += bEnviadosAux;				
-
-	}while(bAEnviar > 0);
+		valor = SetFilePointer(fileHandle, 0, NULL, FILE_CURRENT);
+	} while(bAEnviar > 0);
 
 	printf("\nTamaño de archivo: %d, Enviado: %d\n", fileSize, bEnviadosTot);
+	
 	CloseHandle(fileHandle);
 
 	if (fileSize != bEnviadosTot)
@@ -245,21 +334,18 @@ int EnviarArchivo(SOCKET sockRemoto, HANDLE fileHandle)
 	return error == 0? bEnviadosTot: -1;
 }
 
-HANDLE BuscarArchivo(char *filename)
+int BuscarArchivo(char *filename)
 {
 	WIN32_FIND_DATA findData;
 	HANDLE hFind;
-	HANDLE file ;
 
 	hFind = FindFirstFile(filename, &findData);
 
 	if (hFind == INVALID_HANDLE_VALUE)
-		return hFind;
-	
-	file = CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, 
-						NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		return 0;
 	FindClose(hFind);
-	return file;
+
+	return 1;
 }
 
 char *pathUnixToWin(const char *dir, char *path)

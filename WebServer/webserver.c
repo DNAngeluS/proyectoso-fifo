@@ -30,7 +30,7 @@ int generarReporteLog (HANDLE archLog, infoLogFile infoLog); /*HACER Genera arch
 configuracion config;	/*Estructura con datos del archivo de configuracion*/
 
 infoLogFile infoLog;
-/*HANDLE logFileMutex;	/*Semaforo de mutua exclusion MUTEX para escribir archivo Log*/
+HANDLE logMutex;	/*Semaforo de mutua exclusion MUTEX para escribir archivo Log*/
 
 /*HANDLE threadListMutex;	/*Semaforo de mutua exclusion MUTEX para modificar la Lista de Threads*/
 ptrListaThread listaThread = NULL;	/*Puntero de la lista de threads de usuarios en ejecucion y espera*/
@@ -76,8 +76,8 @@ int main()
 	infoLog.numRequests = 0;
 
 	/*Inicializacion de los Semaforos Mutex*/
-/*	if ((logFileMutex = CreateMutex(NULL, FALSE, NULL)) == NULL)
-		rutinaDeError("Error en CreateMutex()");*/
+	if ((logMutex = CreateMutex(NULL, FALSE, NULL)) == NULL)
+		rutinaDeError("Error en CreateMutex()");
 /*	if ((threadListMutex = CreateMutex(NULL, FALSE, NULL)) == NULL)
 		rutinaDeError("Error en CreateMutex()");
 	
@@ -447,15 +447,15 @@ Devuelve: -
 */
 void rutinaAtencionCliente (LPVOID args)
 {
-	HANDLE file;
+	int encontro;
 	DWORD bytesEnviados = 0;
 	struct thread *dataThread = (struct thread *) args;
 	char *fileBuscado = pathUnixToWin(config.directorioFiles, dataThread->getInfo.filename);
 
 	printf("Filename: %s. Protocolo: %d \r\n", dataThread->getInfo.filename, dataThread->getInfo.protocolo);
-	file = BuscarArchivo(fileBuscado);
+	encontro = BuscarArchivo(fileBuscado);
 	
-	if (file != INVALID_HANDLE_VALUE)
+	if (encontro)
 	{
 		printf("Se encontro archivo en %s.\r\n\r\n", fileBuscado);
 		
@@ -469,7 +469,7 @@ void rutinaAtencionCliente (LPVOID args)
 			printf("Error al enviar HTTP OK. Se cierra conexion.\r\n\r\n");
 		else
 		{	
-			if ((bytesEnviados = EnviarArchivo(dataThread->socket, file)) < 0)
+			if ((bytesEnviados = EnviarArchivo(dataThread->socket, fileBuscado)) < 0)
 				printf("Error al enviar archivo solicitado. Se cierra conexion.\r\n\r\n");
 			else
 				printf("Se envio archivo %s correctamente a %s:%d.\r\n\r\n", fileBuscado, 
@@ -485,7 +485,9 @@ void rutinaAtencionCliente (LPVOID args)
 	}
 
 	closesocket(dataThread->socket);
+	WaitForSingleObject(logMutex, INFINITE);
 	infoLog.numBytes += bytesEnviados;
+	ReleaseMutex(logMutex);
 	_endthreadex(0);
 }
 
