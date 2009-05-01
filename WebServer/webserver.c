@@ -217,6 +217,7 @@ int main()
 		printf("Error generando Archivo Log.\r\n\r\n");
 	else
 		printf("Archivo Log generado correctamente.\r\n\r\n");
+	CloseHandle(logMutex);
 
 	return 0;
 }
