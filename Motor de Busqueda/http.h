@@ -8,6 +8,8 @@
 #ifndef _HTTP_H
 #define	_HTTP_H
 
+#include "frontend.h"
+
 #define MAX_PATH 256
 
 typedef struct {
@@ -15,9 +17,12 @@ typedef struct {
     int protocolo;
 } msgGet;
 
-int httpGet_recv ();
+int EnviarBloque		(SOCKET sockfd, unsigned long bAEnviar, char *bloque);
+int RecibirBloque		(SOCKET sockfd, char *bloque);
+int RecibirNBloque		(SOCKET sockfd, char *bloque, unsigned long nBytes);
 
-int enviarHtml ();
+int httpGet_recv                (SOCKET sockfd, msgGet *getInfo);
+int enviarFormularioHtml        (SOCKET sockfd);
 
 #endif	/* _HTTP_H */
 

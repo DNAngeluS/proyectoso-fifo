@@ -17,7 +17,7 @@ SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
 SOCKET establecerConexionQP(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR *dir);
 
 int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd);
-void *rutinaAtencionCliente(void *args);
+void *rutinaAtencionCliente(void *sock);
 
 
 SOCKET sockQP;
@@ -29,9 +29,7 @@ configuracion config;
 int main(int argc, char** argv) {
 
     SOCKET sockFrontEnd;
-    SOCKADDR_IN dirFrontEnd;
-    ptrListaThread lstThread;
-
+    
     /*Lectura de Archivo de Configuracion*/
     if (leerArchivoConfiguracion(&config) != 0)
        rutinaDeError("Lectura Archivo de configuracion");
@@ -48,35 +46,11 @@ int main(int argc, char** argv) {
     {
         SOCKET sockCliente;
         SOCKADDR_IN dirCliente;
-        thread_t thrCliente;
         int nAddrSize = sizeof(dirCliente);
-
-        /*Si la lista no esta vacia, espero 1 segundo a ver si algun thread termino*/
-        if (!estaVacia(lstThread))
-        {
-            ptrListaThread thrAny;
-            thread_t thrID;
-            int exitStatus;
-
-            do {
-                /*Busca si algun thread termino*/
-                thrAny = BuscarFinishedThread(lstThread);
-                if (thrAny != NULL)
-                {
-                    struct thread thrInfo;
-
-                    /*Elimina thread de lista, lo junta con el ppal y cierra socket*/
-                    thrInfo = EliminarThread(&lstThread, thrAny->info.socket);
-                    thr_join(thrInfo.threadID, &thrID, &exitStatus);
-                    close(thrInfo.socket);
-                    
-                }
-            /*Mientras hayan threads que hayan terminado*/
-            } while (thrAny != NULL);
-        }
 
         /*Acepta la conexion entrante*/
         sockCliente = accept(sockFrontEnd, (SOCKADDR *) &dirCliente, &nAddrSize);
+        
         /*Si el socket es invalido, ignora y vuelve a empezar*/
         if (sockCliente == INVALID_SOCKET)
             continue;
@@ -86,23 +60,12 @@ int main(int argc, char** argv) {
         /*Envia el formulario html para empezar a atender. Si falla ignora y vuelve a empezar*/
         if (enviarHtml (sockCliente) < 0)
             continue;
+
         /*Crea el thread que atendera al nuevo cliente*/
-        thrCliente = rutinaCrearThread(rutinaAtencionCliente, sockCliente);
-        if (thrCliente == 0)
+        if (rutinaCrearThread(rutinaAtencionCliente, sockCliente) < 0)
         {
             printf("No se ha podido atender cliente de %s. Se cierra conexion.\n\n", inet_ntoa(dirCliente.sin_addr));
             close(sockCliente);
-        }
-        else
-        {
-            /*Agrega el nuevo cliente a la lista*/
-            if (AgregarThread(&lstThread, sockCliente, dirCliente, thrCliente) < 0)
-            {
-                /*Si falla, mata el thread y cierra socket*/
-                printf("(agregar thread) Fallo de atencion cliente de %s. Se cierra conexion.\n\n", inet_ntoa(dirCliente.sin_addr));
-                thr_kill(thrCliente, SIGKILL);
-                close(sockCliente);
-            }
         }
     }
 
@@ -111,18 +74,13 @@ int main(int argc, char** argv) {
     return (EXIT_SUCCESS);
 }
 
-ptrListaThread BuscarFinishedThread(ptrListaThread lstThread)
+void *rutinaAtencionCliente (void *sock)
 {
-    
-}
-
-void *rutinaAtencionCliente(void *args)
-{
-    struct thread *dataThread = (struct thread *) args;
+    SOCKET sockCliente = (SOCKET) sock;
     msgGet getInfo;
 
     /*Recibir el Http GET*/
-    if (httpGet_recv(dataThread.socket, &getInfo) < 0)
+    if (httpGet_recv(sockCliente, &getInfo) < 0)
     {
         printf("Error al recibir HTTP GET. Se cierra conexion.\n\n");
         thr_exit(-1);
@@ -146,26 +104,19 @@ void *rutinaAtencionCliente(void *args)
     return;
 }
 
-thread_t rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, ptrListaThread lstThread)
+int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd)
 {
     thread_t thr;
-    ptrListaThread ptr = NULL;
-    struct thread dataThread;
 
-    ptr = BuscarThread(lstThread, sockfd);
-    if (ptr == NULL)
-        rutinaDeError("Inconcistencia en la Lista");
-
-    dataThread = ptr->info;
-    printf ("Se comienza a atender Request de %s.\n\n", inet_ntoa(dataThread.direccion.sin_addr));
+    /*printf ("Se comienza a atender Request de %s.\n\n", inet_ntoa(dirCliente.direccion.sin_addr));*/
 
     if (thr_create((void *) NULL, /*PTHREAD_STACK_MIN*/ thr_min_stack() +1024, rutinaAtencionCliente, (void *) sockfd, 0, &thr) < 0)
     {
         printf("Error al crear thread: %d", errno);
-        return 0;
+        return -1;
     }
 
-    return thr;
+    return 0;
 }
 
 
@@ -177,7 +128,8 @@ Ultima modificacion: Scheinkman, Mariano
 Recibe: Error detectado.
 Devuelve: int rutinaCrearThread(void (*funcion)(void *), SOCKET sockfd);-
  */
-void rutinaDeError(char* error) {
+void rutinaDeError(char* error)
+{
     printf("\r\nError: %s\r\n", error);
     printf("Codigo de Error: %d\r\n\r\n", errno);
     exit(EXIT_FAILURE);
