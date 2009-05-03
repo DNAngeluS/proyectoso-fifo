@@ -9,13 +9,15 @@
 #define	_IRC_H
 
 #define MAX_UUID 35
+#define DESCRIPTORID_LEN 16
 
 typedef struct {
-    char descriptorID [16];
+    char descriptorID [DESCRIPTORID_LEN];
     int payloadDesc;
     long payloadLen;
     void *payload;
 }headerIRC;
+
 typedef struct {
     char palabra [MAX_PATH];
     char url [MAX_PATH];
@@ -23,17 +25,20 @@ typedef struct {
     char desc [MAX_PATH];
     char UUID [MAX_UUID];
 }soPalabrasHTML;
+
 typedef struct {
     char palabra [MAX_PATH];
     char url [MAX_PATH];
     int tipo;
-    char fomarmato [4];
-    long tamano;
+    char formato [4];
+    long length;
 }soPalabrasArchivos;
+
 typedef struct {
     char UUID [MAX_UUID];
     char html [MAX_PATH];
 }hostsCodigo;
+
 typedef struct {
     char host [MAX_PATH];
     long uts;
