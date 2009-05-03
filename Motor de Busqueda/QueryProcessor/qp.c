@@ -14,8 +14,8 @@
 void rutinaDeError(char *string);
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
 
-msgGet recibirPedido(SOCKET sockCli);
-void* consultarLDAP(msgGet buscar);
+headerIRC recibirPedido(SOCKET sockCli);
+void* consultarLDAP(headerIRC buscar);
 headerIRC construirIRC(void *objeto);
 void enviarPedido(headerIRC irc);
 
@@ -23,9 +23,8 @@ void enviarPedido(headerIRC irc);
 int main(){
   SOCKET sockQP, sockCli;
   SOCKADDR_IN dirQP, dirCliente; //Address info del cliente
-  configuracion config;
-  msgGet buscar;
-  headerIRC irc;
+  configuracion config;  
+  headerIRC irc, buscar;
   void *objeto;
 
   /*Lectura de Archivo de Configuracion*/
@@ -64,15 +63,12 @@ int main(){
   return (EXIT_SUCCESS);
 }
 
-msgGet recibirPedido(SOCKET sockCli){
-    msgGet msg;
-
-    sprintf(msg.palabras, "%s", "+hola+mundo-so");
-    msg.protocolo = 1;
-
-    return msg;
+headerIRC recibirPedido(SOCKET sockCli){
+    headerIRC buscar;
+ 
+    return buscar;
 }
-void* consultarLDAP(msgGet buscar){
+void* consultarLDAP(headerIRC buscar){
     void *ptr;
 
     return ptr;
