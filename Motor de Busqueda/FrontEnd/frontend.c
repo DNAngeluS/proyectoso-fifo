@@ -14,7 +14,7 @@
 void rutinaDeError(char *string);
 
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
-SOCKET establecerConexionQP(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR *dir);
+SOCKET establecerConexionQP(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *dir);
 
 int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd);
 void *rutinaAtencionCliente(void *sock);
@@ -35,8 +35,11 @@ int main(int argc, char** argv) {
        rutinaDeError("Lectura Archivo de configuracion");
 
     /*Se establece conexion con el Query Procesor*/
-    if ((sockQP = establecerConexionQP(config.ipQP, config.puertoQP, (SOCKADDR *)&dirQP)) == INVALID_SOCKET)
+    if ((sockQP = establecerConexionQP(config.ipQP, config.puertoQP, &dirQP)) == INVALID_SOCKET)
         rutinaDeError("Socket invalido");
+    
+    printf("Se establecio conexion con el QP satisfactoriamente. "
+            "Se comienzan a escuchar conexiones.\n\n");
 
     /*Se establece conexion a puerto de escucha*/
     if ((sockFrontEnd = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
@@ -47,6 +50,7 @@ int main(int argc, char** argv) {
         SOCKET sockCliente;
         SOCKADDR_IN dirCliente;
         int nAddrSize = sizeof(dirCliente);
+        msgGet getInfo;
 
         /*Acepta la conexion entrante*/
         sockCliente = accept(sockFrontEnd, (SOCKADDR *) &dirCliente, &nAddrSize);
@@ -57,10 +61,18 @@ int main(int argc, char** argv) {
 
         printf ("Conexion aceptada de %s.\n\n", inet_ntoa(dirCliente.sin_addr));
 
-        /*Envia el formulario html para empezar a atender. Si falla ignora y vuelve a empezar*/
-        if (enviarHtml (sockCliente) < 0)
-            continue;
+        if (httpGet_recv(sockCliente, &getInfo) < 0)
+        {
+            printf("Error al recibir HTTP GET.\n\n");
+            return -1;
+        }
 
+        /*Envia el formulario html para empezar a atender. Si falla ignora y vuelve a empezar*/
+        if (enviarFormularioHtml (&sockCliente, getInfo) < 0)
+        {
+            close(sockCliente);
+            continue;
+        }
         /*Crea el thread que atendera al nuevo cliente*/
         if (rutinaCrearThread(rutinaAtencionCliente, sockCliente) < 0)
         {
@@ -83,24 +95,24 @@ void *rutinaAtencionCliente (void *sock)
     if (httpGet_recv(sockCliente, &getInfo) < 0)
     {
         printf("Error al recibir HTTP GET. Se cierra conexion.\n\n");
-        thr_exit(-1);
+        thr_exit(NULL);
         return;
     }
     /*Enviar consulta a QP*/
     if (ircRequest_send(sockQP, getInfo.palabras) < 0)
     {
         printf("Error al enviar consulta a QP. Se cierra conexion.\n\n");
-        thr_exit(-1);
+        thr_exit(NULL);
         return;
     }
     /*Recibir consulta de QP*/
     if (ircResponse_recv(sockQP) < 0)
     {
-        thr_exit(-1);
+        thr_exit(NULL);
         return;
     }
 
-    thr_exit(0);
+    thr_exit(NULL);
     return;
 }
 
@@ -132,6 +144,7 @@ void rutinaDeError(char* error)
 {
     printf("\r\nError: %s\r\n", error);
     printf("Codigo de Error: %d\r\n\r\n", errno);
+    perror(error);
     exit(EXIT_FAILURE);
 }
 
@@ -190,25 +203,22 @@ Ultima modificacion: Scheinkman, Mariano
 Recibe: Direccion ip y puerto del QP.
 Devuelve: ok? Socket del servidor: socket invalido.
 */
-SOCKET establecerConexionQP(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR *dir)
+SOCKET establecerConexionQP(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr)
 {
     SOCKET sockfd;
-    SOCKET sockQP;
 
-    SOCKADDR_IN dest_addr;
-    
-    if (sockfd= socket(AF_INET, SOCK_STREAM, 0) == -1)
-        return INVALID_SOCKET;
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+        rutinaDeError("socket");
 
-    dest_addr.sin_family = AF_INET;
-    dest_addr.sin_port = nPort;
-    dest_addr.sin_addr.s_addr = nDireccionIP;
-    memset(&(dest_addr.sin_zero), '\0', 8);
+    their_addr->sin_family = AF_INET;
+    their_addr->sin_port = nPort;
+    their_addr->sin_addr.s_addr = nDireccionIP;
+    memset(&(their_addr->sin_zero),'\0',8);
 
-    if ((sockQP = connect(sockfd, dir, sizeof(SOCKADDR_IN))) == -1)
-        return INVALID_SOCKET;
+    if (connect(sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1)
+        rutinaDeError("connect");
 
-    return sockQP;
+    return sockfd;
 }
 
 

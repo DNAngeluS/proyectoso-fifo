@@ -14,7 +14,11 @@
 #include <thread.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <fcntl.h>
+#include <sys/file.h>
+#include <sys/filio.h>
 #include <netinet/in.h>
 #include <errno.h>
 
@@ -23,6 +27,8 @@
 #define MAX_PATH 256
 #define SOCKET_ERROR -1
 #define BUF_SIZE 4096
+
+#define CANTIDAD_RECURSOS_FORMULARIO 2 /*Cantidad de Gets que hará el formulario*/
 
 typedef int SOCKET;
 typedef struct sockaddr_in SOCKADDR_IN;

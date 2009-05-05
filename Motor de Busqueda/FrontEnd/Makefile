@@ -12,14 +12,14 @@
 
 
 #Flags
-CC = exec gcc-4.1
-CFLAGS = -ansi
+CC = exec gcc
+CFLAGS = -ansi -lsocket -lnsl -g
 
 #Dependencias
 OBJS = frontend.o irc.o http.o config.o
 
 frontend: $(OBJS)
-	$(CC) $(CFLAGS) -o pred $(OBJS)
+	$(CC) $(CFLAGS) -o frontend $(OBJS)
 
 clean:
 	rm -f frontend $(OBJS)

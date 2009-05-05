@@ -6,9 +6,7 @@
  */
 
 #include "http.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+
 
 int EnviarBloque(SOCKET sockfd, unsigned long bAEnviar, char *bloque)
 {
@@ -82,7 +80,7 @@ int RecibirBloque(SOCKET sockfd, char *bloque) {
             break;
         bRecibidos += bHastaAhora;
     } while (1);
-
+    
     /*Se vuelve a poner como bloqueante*/
     NonBlock = 0;
     if (ioctl(sockfd, FIONBIO, &NonBlock) == SOCKET_ERROR)
@@ -108,13 +106,12 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo)
 
         strcpy(header, strtok(buffer, " "));
 
-        if(!lstrcmp(header, "GET"))
+        if(!strcmp(header, "GET"))
         {
             char *palabras = getInfo->palabras;
 
             strcpy(palabras, strtok(NULL, " "));
             palabras[strlen(palabras)] = '\0';
-            palabras;
             strcpy(getInfo->palabras,palabras);
 
             ptr = strtok(NULL, ".");
@@ -134,11 +131,280 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo)
     }
     else return 0;
 }
-int enviarFormularioHtml(SOCKET sockCliente)
+
+int EnviarArchivo(SOCKET sockRemoto, int filefd)
 {
-    /*
-     * HACER
-     * info en : http://xmlsoft.org/
-     * usar bibliotecas "libxml2"     
-     */
+    char buf[BUF_SIZE];
+    struct stat stat_buf;
+    int cantBloques, bUltBloque, i;
+    int bEnviadosAux, bEnviadosBloque, bAEnviar, bEnviadosTot;
+    int lenALeer, error = 0;
+
+    if (fstat(filefd, &stat_buf) < 0)
+    {
+        perror("fstat");
+        exit(1);
+    }
+    cantBloques = stat_buf.st_size / BUF_SIZE;
+    bUltBloque = stat_buf.st_size % BUF_SIZE;
+
+    for (i=bEnviadosTot=0; !error && i<=cantBloques; i++)
+    {
+        if (i<cantBloques)
+            lenALeer = BUF_SIZE;
+        else
+            lenALeer = bUltBloque;
+
+        bEnviadosAux = bAEnviar = bEnviadosBloque = 0;
+
+        while (!error && lenALeer != 0)
+        {
+            bEnviadosAux = bAEnviar = 0;
+            if ((bAEnviar = read(filefd, buf, lenALeer)) == -1)
+            {
+                perror("read");
+                error = 1;
+                break;
+            }
+            else
+            {
+                if ((bEnviadosAux = EnviarBloque(sockRemoto, bAEnviar, buf)) == -1)
+                {
+                    error = 1;
+                }
+                bEnviadosBloque += bEnviadosAux;
+                lenALeer -= bEnviadosAux;
+            }
+        }
+        bEnviadosTot+=bEnviadosBloque;
+    }
+
+    printf("\nTamaño de archivo: %d, Enviado: %d\n", stat_buf.st_size, bEnviadosTot);
+    
+    if (stat_buf.st_size != bEnviadosTot)
+            error = 1;
+    return error==0? bEnviadosTot: -1;
 }
+
+int httpNotFound_send(SOCKET sockfd, msgGet getInfo)
+{
+    char buffer[BUF_SIZE];
+
+    sprintf(buffer, "HTTP/1.%d 404 Not Found\n\n<b>ERROR</b>: File %s was not found\n", getInfo.protocolo, getInfo.palabras);
+
+
+    /*Enviamos el buffer como stream (sin el \0)*/
+    if (EnviarBloque(sockfd, strlen(buffer), buffer) == -1 )
+        return -1;
+    else
+    {
+        printf("Se ha enviado HTTP 404 Not Found\n\n");
+        return 0;
+    }
+}
+
+int httpOk_send(SOCKET sockfd, msgGet getInfo)
+{
+	
+    char buffer[BUF_SIZE];
+    char tipoArchivo[50];
+    int error = 0;
+    int fileType;
+    unsigned long fileSize;
+
+    memset(buffer,'\0',BUF_SIZE);
+
+    fileType = getFileType(getInfo.palabras);
+    switch (fileType)
+    {
+    case HTML:
+        strcpy(tipoArchivo, "text/html");
+        break;
+    case TXT:
+        strcpy(tipoArchivo, "text/txt");
+        break;
+    case PHP:
+        strcpy(tipoArchivo, "text/php");
+        break;
+    case JPEG:
+        strcpy(tipoArchivo, "image/jpeg");
+        break;
+    case JPG:
+        strcpy(tipoArchivo, "image/jpg");
+        break;
+    case PNG:
+        strcpy(tipoArchivo, "image/png");
+        break;
+    case GIF:
+        strcpy(tipoArchivo, "image/gif");
+        break;
+    case EXE:
+        strcpy(tipoArchivo, "application/octet-stream");
+        break;
+    case ZIP:
+        strcpy(tipoArchivo, "application/zip");
+        break;
+    case DOC:
+        strcpy(tipoArchivo, "application/msword");
+        break;
+    case XLS:
+        strcpy(tipoArchivo, "application/vnd.ms-excel");
+        break;
+    case PDF:
+        strcpy(tipoArchivo, "application/pdf");
+        break;
+    case PPT:
+        strcpy(tipoArchivo, "application/vnd.ms-powerpoint");
+        break;
+    case ARCHIVO:
+        strcpy(tipoArchivo, "application/force-download");
+        break;
+    }
+
+    if (fileType > JPEG) /*No es ni foto ni texto*/
+    {
+        /*Crea el Buffer con el protocolo*/
+        sprintf(buffer, "HTTP/1.%d 200 OK\nContent-type: %s\n"
+                            "Content-Disposition: attachment; filename=\"%s\"\n"
+                            "Content-Transfer-Encoding: binary\n"
+                            "Accept-Ranges: bytes\n"
+                            "Cache-Control: private\n"
+                            "Pragma: private\n"
+                            "Expires: Mon, 26 Jul 1997 05:00:00 GMT\n"
+                            "Content-Length: %ld\n\n", getInfo.protocolo, tipoArchivo, 
+                            getInfo.palabras, fileSize);
+
+    }
+    else
+    {
+        sprintf(buffer,"HTTP/1.%d 200 OK\nContent-type: %s\n\n", getInfo.protocolo, tipoArchivo);
+    }
+
+    /*Enviamos el buffer como stream (sin el \0)*/
+    if (EnviarBloque(sockfd, strlen(buffer), buffer) == -1)
+        error = 1;
+
+    printf("Se ha enviado HTTP 200 OK\n\n");
+
+    return error? -1: 0;
+}
+
+
+int enviarFormularioHtml(SOCKET sockCliente, msgGet getInfo)
+{
+    /* \
+     * HACER  \
+     * info en : http://xmlsoft.org/ \
+     * usar bibliotecas "libxml2"      \
+     */
+    
+    int fdFile;
+    
+    if ((strcmp(getInfo.palabras, "/SOogle.hmtl") == 0) || (strcmp(getInfo.palabras, "imgs/SOogle.jpg") == 0) )
+    {
+        printf("Se esperaba recibir \"/SOogle.html\". Se envia HTTP Not Found.\n");
+        if (httpNotFound_send(sockCliente, getInfo) < 0)
+        {
+            printf("Error al enviar HTTP Not Found.\n\n");
+            return -1;
+        }
+        return -1;
+    }
+    else
+    {
+        char *filename = getInfo.palabras;
+        printf("GTTP GET ok. Se envia Formulario.\n");
+
+
+        if ((fdFile = open(++filename, O_RDONLY, 0)) < 0)
+        {
+            perror("open");
+            if (httpNotFound_send(sockCliente, getInfo) < 0)
+            {
+                printf("Error al enviar HTTP Not Found.\n\n");
+                return -1;
+            }
+            return -1;
+        }
+        else
+        {
+            if (httpOk_send(sockCliente, getInfo) < 0)
+            {
+                printf("Error al enviar HTTP OK.\n\n");
+                return -1;
+            }
+            if (EnviarArchivo(sockCliente, fdFile) != getFileSize(fdFile))
+            {
+                printf("Error al enviar Archivo.\n\n");
+                close(fdFile);
+                return -1;
+            }
+            close(fdFile);
+        }
+    }
+
+    return 0;
+}
+
+unsigned long getFileSize(int fdFile)
+{
+    unsigned long size;
+    struct stat fileInfo;
+
+    if (fstat(fdFile, &fileInfo) < 0)
+    {
+        perror("Error de fstat");
+        exit(1);
+    }
+    size = (unsigned long) fileInfo.st_size;
+
+    return size;
+}
+
+int getFileType(const char *nombre)
+{
+    char *ptr;
+
+    ptr = strrchr(nombre, '.');
+
+    ptr++;
+
+    if (!strcmp(ptr, "jpg"))
+        return JPG;
+    if (!strcmp(ptr, "txt"))
+        return TXT;
+    if (!strcmp(ptr, "pdf"))
+        return PDF;
+    if (!strcmp(ptr, "exe"))
+        return EXE;
+    if (!strcmp(ptr, "zip"))
+        return ZIP;
+    if (!strcmp(ptr, "html"))
+        return HTML;
+    if (!strcmp(ptr, "doc"))
+        return DOC;
+    if (!strcmp(ptr, "xls"))
+        return XLS;
+    if (!strcmp(ptr, "ppt"))
+        return PPT;
+    if (!strcmp(ptr, "gif"))
+        return GIF;
+    if (!strcmp(ptr, "png"))
+        return PNG;
+    if (!strcmp(ptr, "jpeg"))
+        return JPEG;
+    if (!strcmp(ptr, "php"))
+        return PHP;
+    return ARCHIVO;
+}
+
+
+
+
+
+
+
+
+
+
+

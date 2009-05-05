@@ -8,6 +8,8 @@
 #ifndef _IRC_H
 #define	_IRC_H
 
+#include "frontend.h"
+
 #define MAX_UUID 35
 #define DESCRIPTORID_LEN 16
 
