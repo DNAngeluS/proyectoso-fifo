@@ -51,6 +51,7 @@ int main(int argc, char** argv) {
         SOCKADDR_IN dirCliente;
         int nAddrSize = sizeof(dirCliente);
         msgGet getInfo;
+        int getType;
 
         /*Acepta la conexion entrante*/
         sockCliente = accept(sockFrontEnd, (SOCKADDR *) &dirCliente, &nAddrSize);
@@ -67,17 +68,25 @@ int main(int argc, char** argv) {
             return -1;
         }
 
-        /*Envia el formulario html para empezar a atender. Si falla ignora y vuelve a empezar*/
-        if (enviarFormularioHtml (&sockCliente, getInfo) < 0)
+        obtenerGetType(&getType);
+
+        if (getType == BROWSER)
         {
-            close(sockCliente);
-            continue;
+            /*Envia el formulario html para empezar a atender. Si falla ignora y vuelve a empezar*/
+            if (enviarFormularioHtml (&sockCliente, getInfo) < 0)
+            {
+                close(sockCliente);
+                continue;
+            }
         }
-        /*Crea el thread que atendera al nuevo cliente*/
-        if (rutinaCrearThread(rutinaAtencionCliente, sockCliente) < 0)
+        else if (getType == FORMULARIO)
         {
-            printf("No se ha podido atender cliente de %s. Se cierra conexion.\n\n", inet_ntoa(dirCliente.sin_addr));
-            close(sockCliente);
+            /*Crea el thread que atendera al nuevo cliente*/
+            if (rutinaCrearThread(rutinaAtencionCliente, sockCliente, getInfo) < 0)
+            {
+                printf("No se ha podido atender cliente de %s. Se cierra conexion.\n\n", inet_ntoa(dirCliente.sin_addr));
+                close(sockCliente);
+            }
         }
     }
 
@@ -86,18 +95,15 @@ int main(int argc, char** argv) {
     return (EXIT_SUCCESS);
 }
 
-void *rutinaAtencionCliente (void *sock)
+void *rutinaAtencionCliente (void *args)
 {
-    SOCKET sockCliente = (SOCKET) sock;
-    msgGet getInfo;
+    args_thread *arg = (args_thread *) args;
 
-    /*Recibir el Http GET*/
-    if (httpGet_recv(sockCliente, &getInfo) < 0)
-    {
-        printf("Error al recibir HTTP GET. Se cierra conexion.\n\n");
-        thr_exit(NULL);
-        return;
-    }
+    SOCKET sockCliente = arg.socket;
+    msgGet getInfo = arg.getInfo;
+
+    /*DESARMAR getInfo*/
+
     /*Enviar consulta a QP*/
     if (ircRequest_send(sockQP, getInfo.palabras) < 0)
     {
@@ -116,13 +122,17 @@ void *rutinaAtencionCliente (void *sock)
     return;
 }
 
-int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd)
+int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo)
 {
     thread_t thr;
+    args_thread args;
 
     /*printf ("Se comienza a atender Request de %s.\n\n", inet_ntoa(dirCliente.direccion.sin_addr));*/
 
-    if (thr_create((void *) NULL, /*PTHREAD_STACK_MIN*/ thr_min_stack() +1024, rutinaAtencionCliente, (void *) sockfd, 0, &thr) < 0)
+    args.socket = sockfd;
+    args.getInfo = getInfo;
+
+    if (thr_create((void *) NULL, /*PTHREAD_STACK_MIN*/ thr_min_stack() +1024, rutinaAtencionCliente, (void *) &args, 0, &thr) < 0)
     {
         printf("Error al crear thread: %d", errno);
         return -1;

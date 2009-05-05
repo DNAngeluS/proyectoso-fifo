@@ -28,13 +28,18 @@
 #define SOCKET_ERROR -1
 #define BUF_SIZE 4096
 
-#define CANTIDAD_RECURSOS_FORMULARIO 2 /*Cantidad de Gets que hará el formulario*/
+enum getType_t {FORMULARIO, BROWSER};
 
 typedef int SOCKET;
 typedef struct sockaddr_in SOCKADDR_IN;
 typedef struct sockaddr SOCKADDR;
 typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
+
+typedef struct {
+    SOCKET socket;
+    msgGet getInfo;
+} args_thread;
 
 
 #endif	/* _FRONTEND_H */

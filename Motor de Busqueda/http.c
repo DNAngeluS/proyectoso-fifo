@@ -300,7 +300,7 @@ int enviarFormularioHtml(SOCKET sockCliente, msgGet getInfo)
     
     int fdFile;
     
-    if ((strcmp(getInfo.palabras, "/SOogle.hmtl") == 0) || (strcmp(getInfo.palabras, "imgs/SOogle.jpg") == 0) )
+    if ((strcmp(getInfo.palabras, "/index.hmtl") == 0) || (strcmp(getInfo.palabras, "imgs/soogle.jpg") == 0) )
     {
         printf("Se esperaba recibir \"/SOogle.html\". Se envia HTTP Not Found.\n");
         if (httpNotFound_send(sockCliente, getInfo) < 0)
