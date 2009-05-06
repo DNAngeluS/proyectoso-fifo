@@ -2,44 +2,47 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
  <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1" />
- <title>SOogle tu Motor de Busqueda!</title>
- <link href="style.css" rel="stylesheet" type="text/css" />
+ <title>SOogle tu Motor de Busqueda!</title> 
 </head>
-<body>
- <div id="pagina">
-  <div id="logo"><img src="img/soogle.jpg" id="logo_SOogle" /></div>     
-  <div id="centro">
-   <div id="home" >
+<body style="margin: 0; height: 100%; width: 100%; font-size: 14px; font-family: 'lucida grande',tahoma,verdana,arial,sans-serif; text-align: center;">
+<!-- Contendor de la Pagina -->
+ <div id="pagina" style="display: block; position: relative; width: 800px; margin-left: auto; margin-right: auto;">
+ <!-- Logo -->
+  <div id="logo" style="display: block; position: relative; margin-left: auto; margin-right: auto;">
+   <img src="img/soogle.jpg" id="logo_SOogle" />
+  </div>
+  <!-- Buscador -->     
+  <div id="centro" style="display: block; position: relative; margin-left: auto; margin-right: auto;">   
+    <!-- Formulario de Busqueda -->
     <form id="formBusqueda" action="resultados.html" method="get" onclick="">
-     <div id="busqueda">
+     <div id="busqueda" style="display: block; position: relative;">
       <input id="buscar" name="buscar" type="text" maxlength="200" size="120" />
      </div>
-     <div id="tipos">
-      <input type="radio" name="tipo" value="todo" />En toda la Web
-      <input type="radio" name="tipo" value="web" />Sólo Paginas Web
+     <div id="tipos" style="display: block; position: relative;">      
+      <input type="radio" name="tipo" value="web" checked="checked" />Sólo Paginas Web
       <input type="radio" name="tipo" value="img" />Sólo Imagenes
       <input type="radio" name="tipo" value="otros" />Sólo Otros
      </div>
-     <div id="botones">
+     <div id="botones" style="display: block; position: relative;">
       <input type="submit" value="Buscar Ahora!" />
      </div>
-    </form>
-   </div>
-  </div>    
- </div>
- <div id="contacto">
-  <p>----------------------------------------</p>
-  <p>Grupo FIFO</p>
-  <p>----------------------------------------</p>
-  <p>Lider: Ariel Pacay</p>
-  <ul>
-   <li>Arial Diaz</li>
-   <li>Lucio Moya</li>
-   <li>Mariano Scheinkman</li>
-   <li>Mauro Echerdt</li>  
-  </ul>
-  <p>----------------------------------------</p>
-  <p>Up the FIFO's!</p>
- </div>
+    </form> <!-- Fin del Formulario -->   
+  </div> <!-- Fin del Buscador -->
+  <!-- Datos del Grupo -->
+  <div id="contacto" style="display: block; position: relative; margin-left: auto; margin-right: auto;">
+   <p>----------------------------------------</p>
+   <p>Grupo FIFO</p>
+   <p>----------------------------------------</p>
+   <p>Lider: Ariel Pacay</p>
+   <ul>
+    <li>Arial Diaz</li>
+    <li>Lucio Moya</li>
+    <li>Mariano Scheinkman</li>
+    <li>Mauro Echerdt</li>  
+   </ul>
+   <p>----------------------------------------</p>
+   <p>Up the FIFO's!</p>
+  </div> <!-- Fin de Datos del Grupo -->    
+ </div> <!-- Fin de Pagina -->
 </body>
 </html>
