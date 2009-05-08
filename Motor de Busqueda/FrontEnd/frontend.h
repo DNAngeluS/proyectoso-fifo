@@ -21,6 +21,7 @@
 #include <sys/filio.h>
 #include <netinet/in.h>
 #include <errno.h>
+#include <ctype.h>
 
 #define INVALID_SOCKET -1
 /*#define SOMAXCONN = 20*/
@@ -29,6 +30,7 @@
 #define BUF_SIZE 4096
 
 enum getType_t {FORMULARIO, BROWSER};
+enum searchType_t {WEB, IMG, OTROS};
 
 typedef int SOCKET;
 typedef struct sockaddr_in SOCKADDR_IN;
@@ -39,11 +41,13 @@ typedef unsigned short in_port_t;
 typedef struct {
     char palabras[MAX_PATH];
     int protocolo;
+    int searchType;
 } msgGet;
 
 typedef struct {
     SOCKET socket;
     msgGet getInfo;
+    SOCKADDR_IN dir;
 } threadArgs;
 
 

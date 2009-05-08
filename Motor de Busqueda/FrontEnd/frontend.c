@@ -16,7 +16,7 @@ void rutinaDeError(char *string);
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
 SOCKET establecerConexionQP(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *dir);
 
-int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo);
+int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo, SOCKADDR_IN dir);
 void *rutinaAtencionCliente(void *sock);
 
 
@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
         if (getType == BROWSER)
         {
             /*Envia el formulario html para empezar a atender.*/
-            if (enviarFormularioHtml (sockCliente, getInfo) < 0)
+            if (EnviarFormularioHtml (sockCliente, getInfo) < 0)
                 printf("No se ha podido atender cliente de %s. Se cierra conexion.\n\n", inet_ntoa(dirCliente.sin_addr));
             close(sockCliente);
             continue;
@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
         else if (getType == FORMULARIO)
         {
             /*Crea el thread que atendera al nuevo cliente*/
-            if (rutinaCrearThread(rutinaAtencionCliente, sockCliente, getInfo) < 0)
+            if (rutinaCrearThread(rutinaAtencionCliente, sockCliente, getInfo, dirCliente) < 0)
             {
                 printf("No se ha podido atender cliente de %s. Se cierra conexion.\n\n", inet_ntoa(dirCliente.sin_addr));
                 close(sockCliente);
@@ -101,16 +101,33 @@ int main(int argc, char** argv) {
 void *rutinaAtencionCliente (void *args)
 {
     threadArgs *arg;
-    SOCKET sockQP;
-    msgGet getInfo;
+    SOCKET sockCliente;
+    msgGet getThread, getInfo;
+    SOCKADDR_IN dirCliente;
 
     arg = (threadArgs *) args;
-    sockQP = arg->socket;
-    getInfo = arg->getInfo;
+    sockCliente = arg->socket;
+    getThread = arg->getInfo;
+    dirCliente = arg->dir;
+
+    printf ("Se comienza a atender Request de %s.\n\n", inet_ntoa(dirCliente.sin_addr));
 
     /*DESARMAR getInfo*/
 
     printf("Llegue hasta aca!\n\n");
+    if (obtenerQueryString(getThread, &getInfo) < 0)
+    {
+        perror("obtenerQueryString: error de tipo");
+        if (httpNotFound_send(sockCliente, getInfo) < 0)
+        {
+            printf("Error al enviar HTTP Not Found.\n\n");
+            thr_exit(NULL);
+        }
+    }
+    else
+         printf("palabras buscadas: %s\ntipo: %d\n", getInfo.palabras, getInfo.searchType);
+
+    exit(EXIT_SUCCESS);
 
     /*Enviar consulta a QP*/
     if (ircRequest_send(sockQP, getInfo.palabras) < 0)
@@ -127,15 +144,14 @@ void *rutinaAtencionCliente (void *args)
     thr_exit(NULL);
 }
 
-int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo)
+int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo, SOCKADDR_IN dir)
 {
     thread_t thr;
     threadArgs args;
 
-    printf ("Se comienza a atender Request de %s.\n\n", getInfo.palabras);
-
     args.socket = sockfd;
     args.getInfo = getInfo;
+    args.dir = dir;
 
     if (thr_create((void *) NULL, /*PTHREAD_STACK_MIN*/ thr_min_stack() +1024, rutinaAtencionCliente, (void *) &args, 0, &thr) < 0)
     {

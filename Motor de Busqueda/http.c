@@ -7,6 +7,9 @@
 
 #include "http.h"
 
+int detectarCaracter                    (char *palabra);
+void desplazarCadena                    (char *ptr, char caracter);
+void transformarCaracteresEspeciales    (char *palabra);
 
 int EnviarBloque(SOCKET sockfd, unsigned long bAEnviar, char *bloque)
 {
@@ -104,6 +107,7 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo, int *getType)
     memset(buffer, '\0', sizeof(buffer));
     memset(header, '\0', sizeof(header));
 
+    getInfo->searchType = -1;
 
     if ((bytesRecv = RecibirBloque(sockfd, buffer)) == -1)
         error = 1;
@@ -298,7 +302,7 @@ int httpOk_send(SOCKET sockfd, msgGet getInfo)
 }
 
 
-int enviarFormularioHtml(SOCKET sockCliente, msgGet getInfo)
+int EnviarFormularioHtml(SOCKET sockCliente, msgGet getInfo)
 {
     /* \
      * HACER  \
@@ -419,7 +423,7 @@ int obtenerGetType(const char *palabras)
     }
     else
     {
-        if (!strcmp(strtok(++ptr, "="),"buscar"))
+        if (strstr(palabras, "buscar="))
         {
             return FORMULARIO;
         }
@@ -427,6 +431,134 @@ int obtenerGetType(const char *palabras)
             return BROWSER;
     }
 }
+
+int obtenerQueryString(msgGet getThread, msgGet *getInfo)
+{
+    char *palabra, *tipo, *ptr;
+    char busqueda[MAX_PATH];
+
+    strcpy(busqueda, getThread.palabras);
+    
+    ptr = strstr(busqueda, "buscar=");
+    tipo = strstr(busqueda, "&tipo=");
+
+    *tipo++ = '\0';
+    tipo= tipo + strlen("tipo=");
+
+    palabra = ptr + strlen("buscar=");
+
+    if (!strcmp(tipo, "web"))
+        getInfo->searchType = WEB;
+    else if (!strcmp(tipo, "img"))
+        getInfo->searchType = IMG;
+    else if (!strcmp(tipo, "otros"))
+        getInfo->searchType = OTROS;
+    else
+    {
+        strcpy(getInfo->palabras, getThread.palabras);
+        return -1;
+    }
+
+    transformarCaracteresEspeciales(palabra);
+
+    strcpy(getInfo->palabras, palabra);
+
+    return 0;
+}
+
+void transformarCaracteresEspeciales(char *palabra)
+{
+
+    for (;*palabra != NULL;palabra++)
+    {
+        if (*palabra == ' ')    *palabra = '+';
+        if (*palabra == '+')    *palabra = '+';
+        if (*palabra == '-')    *palabra = '-';
+
+        if (*palabra == '%')
+        {
+            if (*(palabra+1) == '2')
+            {
+                if (*(palabra+2) == '0')    desplazarCadena(palabra, '+');
+                if (*(palabra+2) == '1')    desplazarCadena(palabra, '!');
+                if (*(palabra+2) == '2')    desplazarCadena(palabra, '\"');
+                if (*(palabra+2) == '3')    desplazarCadena(palabra, '#');
+                if (*(palabra+2) == '4')    desplazarCadena(palabra, '$');
+                if (*(palabra+2) == '5')    desplazarCadena(palabra, '%');
+                if (*(palabra+2) == '6')    desplazarCadena(palabra, '&');
+                if (*(palabra+2) == '7')    desplazarCadena(palabra, '\'');
+                if (*(palabra+2) == '8')    desplazarCadena(palabra, '(');
+                if (*(palabra+2) == '9')    desplazarCadena(palabra, ')');
+                if (*(palabra+2) == 'A')    desplazarCadena(palabra, '*');
+                if (*(palabra+2) == 'B')    desplazarCadena(palabra, '+');
+                if (*(palabra+2) == 'C')    desplazarCadena(palabra, ',');
+                if (*(palabra+2) == 'D')    desplazarCadena(palabra, '-');
+                if (*(palabra+2) == 'E')    desplazarCadena(palabra, '.');
+                if (*(palabra+2) == 'F')    desplazarCadena(palabra, '/');
+            }
+            else if (*(palabra+1) == '3')
+            {
+                if (*(palabra+2) == 'A')    desplazarCadena(palabra, ':');
+                if (*(palabra+2) == 'B')    desplazarCadena(palabra, ';');
+                if (*(palabra+2) == 'C')    desplazarCadena(palabra, '<');
+                if (*(palabra+2) == 'D')    desplazarCadena(palabra, '=');
+                if (*(palabra+2) == 'E')    desplazarCadena(palabra, '>');
+                if (*(palabra+2) == 'F')    desplazarCadena(palabra, '?');
+            }
+            else if (*(palabra+1) == '5' && *(palabra+2) == '0')
+                 desplazarCadena(palabra, '@');
+            else if (*(palabra+1) == '5')
+            {
+                if (*(palabra+2) == 'B')    desplazarCadena(palabra, '[');
+                if (*(palabra+2) == 'C')    desplazarCadena(palabra, '\\');
+                if (*(palabra+2) == 'D')    desplazarCadena(palabra, ']');
+                if (*(palabra+2) == 'E')    desplazarCadena(palabra, '^');
+                if (*(palabra+2) == 'F')    desplazarCadena(palabra, '_');
+            }
+            else if (*(palabra+1) == '6' && *(palabra+2) == '0')
+                 desplazarCadena(palabra, '`');
+            else if (*(palabra+1) == '7')
+            {
+                if (*(palabra+2) == 'B')    desplazarCadena(palabra, '{');
+                if (*(palabra+2) == 'C')    desplazarCadena(palabra, '|');
+                if (*(palabra+2) == 'D')    desplazarCadena(palabra, '}');
+                if (*(palabra+2) == 'E')    desplazarCadena(palabra, '~');
+            }
+            else    desplazarCadena(palabra,'\\');
+        }
+    }
+
+
+}
+
+void desplazarCadena(char *ptr, char caracter)
+{
+    int i=1;
+
+    if (caracter != '\\')
+    {
+        ptr[0] = caracter;
+
+        while (ptr[i+2] != NULL)
+        {
+            ptr[i] = ptr[i+2];
+            i++;
+        }
+        ptr[i] = '\0';
+    }
+    else
+    {
+        i=0;
+        while (ptr[i+3] != NULL)
+        {
+            ptr[i] = ptr[i+3];
+            i++;
+        }
+        ptr[i] = '\0';
+    }
+}
+
+
 
 
 
