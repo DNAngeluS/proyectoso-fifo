@@ -37,9 +37,14 @@ typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
 
 typedef struct {
+    char palabras[MAX_PATH];
+    int protocolo;
+} msgGet;
+
+typedef struct {
     SOCKET socket;
     msgGet getInfo;
-} args_thread;
+} threadArgs;
 
 
 #endif	/* _FRONTEND_H */

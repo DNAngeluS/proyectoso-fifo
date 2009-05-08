@@ -60,8 +60,11 @@ int RecibirBloque(SOCKET sockfd, char *bloque) {
     int bHastaAhora = 0;
     int NonBlock = 1;
 
+    errno = 0;
+
     do
     {
+        /*Si no es la primera vez lo desbloquea*/
         if (bRecibidos != 0)
         {
             /*Se pone el socket como no bloqueante*/
@@ -92,14 +95,18 @@ int RecibirBloque(SOCKET sockfd, char *bloque) {
     return bRecibidos;
 }
 
-int httpGet_recv(SOCKET sockfd, msgGet *getInfo)
+int httpGet_recv(SOCKET sockfd, msgGet *getInfo, int *getType)
 {
     char buffer[BUF_SIZE], *ptr;
     char header[4];
-    int bytesRecv, error = 0;
+    int bytesRecv=-1, error = 0;
+
+    memset(buffer, '\0', sizeof(buffer));
+    memset(header, '\0', sizeof(header));
+
 
     if ((bytesRecv = RecibirBloque(sockfd, buffer)) == -1)
-            error = 1;
+        error = 1;
     else
     {
         buffer[bytesRecv+1] = '\0';
@@ -114,11 +121,12 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo)
             palabras[strlen(palabras)] = '\0';
             strcpy(getInfo->palabras,palabras);
 
-            ptr = strtok(NULL, ".");
-            getInfo->protocolo = atoi(strtok(NULL, "\r\n"));
-
+            *getType = obtenerGetType(palabras);
+            
+            ptr = strtok(NULL, "HTTP/");
+            getInfo->protocolo = atoi((ptr+2));
             if (getInfo->protocolo != 0 && getInfo->protocolo != 1)
-                error = 1;
+                error = 1;          
         }
         else
             error = 1;
@@ -179,7 +187,7 @@ int EnviarArchivo(SOCKET sockRemoto, int filefd)
         bEnviadosTot+=bEnviadosBloque;
     }
 
-    printf("\nTamaño de archivo: %d, Enviado: %d\n", stat_buf.st_size, bEnviadosTot);
+    printf("Tamaño de archivo: %d, Enviado: %d\n\n", stat_buf.st_size, bEnviadosTot);
     
     if (stat_buf.st_size != bEnviadosTot)
             error = 1;
@@ -198,7 +206,7 @@ int httpNotFound_send(SOCKET sockfd, msgGet getInfo)
         return -1;
     else
     {
-        printf("Se ha enviado HTTP 404 Not Found\n\n");
+        printf("Se ha enviado HTTP 404 Not Found\n");
         return 0;
     }
 }
@@ -284,7 +292,7 @@ int httpOk_send(SOCKET sockfd, msgGet getInfo)
     if (EnviarBloque(sockfd, strlen(buffer), buffer) == -1)
         error = 1;
 
-    printf("Se ha enviado HTTP 200 OK\n\n");
+    printf("Se ha enviado HTTP 200 OK\n");
 
     return error? -1: 0;
 }
@@ -313,7 +321,7 @@ int enviarFormularioHtml(SOCKET sockCliente, msgGet getInfo)
     else
     {
         char *filename = getInfo.palabras;
-        printf("GTTP GET ok. Se envia Formulario.\n");
+        printf("GTTP GET ok. Se envia %s.\n", getInfo.palabras);
 
 
         if ((fdFile = open(++filename, O_RDONLY, 0)) < 0)
@@ -333,6 +341,7 @@ int enviarFormularioHtml(SOCKET sockCliente, msgGet getInfo)
                 printf("Error al enviar HTTP OK.\n\n");
                 return -1;
             }
+
             if (EnviarArchivo(sockCliente, fdFile) != getFileSize(fdFile))
             {
                 printf("Error al enviar Archivo.\n\n");
@@ -398,9 +407,26 @@ int getFileType(const char *nombre)
     return ARCHIVO;
 }
 
+int obtenerGetType(const char *palabras)
+{
+    char *ptr;
 
+    ptr = strchr(palabras, '?');
 
-
+    if (ptr == NULL)
+    {
+        return BROWSER;
+    }
+    else
+    {
+        if (!strcmp(strtok(++ptr, "="),"buscar"))
+        {
+            return FORMULARIO;
+        }
+        else
+            return BROWSER;
+    }
+}
 
 
 

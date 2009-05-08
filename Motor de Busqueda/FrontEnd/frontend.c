@@ -16,7 +16,7 @@ void rutinaDeError(char *string);
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
 SOCKET establecerConexionQP(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *dir);
 
-int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd);
+int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo);
 void *rutinaAtencionCliente(void *sock);
 
 
@@ -60,24 +60,22 @@ int main(int argc, char** argv) {
         if (sockCliente == INVALID_SOCKET)
             continue;
 
-        printf ("Conexion aceptada de %s.\n\n", inet_ntoa(dirCliente.sin_addr));
+        printf ("Conexion aceptada de %s.\n", inet_ntoa(dirCliente.sin_addr));
 
-        if (httpGet_recv(sockCliente, &getInfo) < 0)
+        if (httpGet_recv(sockCliente, &getInfo, &getType) < 0)
         {
             printf("Error al recibir HTTP GET.\n\n");
-            return -1;
+            close(sockCliente);
+            continue;
         }
-
-        obtenerGetType(&getType);
 
         if (getType == BROWSER)
         {
-            /*Envia el formulario html para empezar a atender. Si falla ignora y vuelve a empezar*/
-            if (enviarFormularioHtml (&sockCliente, getInfo) < 0)
-            {
-                close(sockCliente);
-                continue;
-            }
+            /*Envia el formulario html para empezar a atender.*/
+            if (enviarFormularioHtml (sockCliente, getInfo) < 0)
+                printf("No se ha podido atender cliente de %s. Se cierra conexion.\n\n", inet_ntoa(dirCliente.sin_addr));
+            close(sockCliente);
+            continue;
         }
         else if (getType == FORMULARIO)
         {
@@ -87,9 +85,14 @@ int main(int argc, char** argv) {
                 printf("No se ha podido atender cliente de %s. Se cierra conexion.\n\n", inet_ntoa(dirCliente.sin_addr));
                 close(sockCliente);
             }
+            continue;
         }
     }
 
+    /*
+     * ¿Esperar por todos los threads?
+     */
+    
     close(sockQP);
     close(sockFrontEnd);
     return (EXIT_SUCCESS);
@@ -97,37 +100,39 @@ int main(int argc, char** argv) {
 
 void *rutinaAtencionCliente (void *args)
 {
-    args_thread *arg = (args_thread *) args;
+    threadArgs *arg;
+    SOCKET sockQP;
+    msgGet getInfo;
 
-    SOCKET sockCliente = arg.socket;
-    msgGet getInfo = arg.getInfo;
+    arg = (threadArgs *) args;
+    sockQP = arg->socket;
+    getInfo = arg->getInfo;
 
     /*DESARMAR getInfo*/
+
+    printf("Llegue hasta aca!\n\n");
 
     /*Enviar consulta a QP*/
     if (ircRequest_send(sockQP, getInfo.palabras) < 0)
     {
         printf("Error al enviar consulta a QP. Se cierra conexion.\n\n");
         thr_exit(NULL);
-        return;
     }
     /*Recibir consulta de QP*/
     if (ircResponse_recv(sockQP) < 0)
     {
         thr_exit(NULL);
-        return;
     }
 
     thr_exit(NULL);
-    return;
 }
 
 int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo)
 {
     thread_t thr;
-    args_thread args;
+    threadArgs args;
 
-    /*printf ("Se comienza a atender Request de %s.\n\n", inet_ntoa(dirCliente.direccion.sin_addr));*/
+    printf ("Se comienza a atender Request de %s.\n\n", getInfo.palabras);
 
     args.socket = sockfd;
     args.getInfo = getInfo;
@@ -150,6 +155,7 @@ Ultima modificacion: Scheinkman, Mariano
 Recibe: Error detectado.
 Devuelve: int rutinaCrearThread(void (*funcion)(void *), SOCKET sockfd);-
  */
+
 void rutinaDeError(char* error)
 {
     printf("\r\nError: %s\r\n", error);
