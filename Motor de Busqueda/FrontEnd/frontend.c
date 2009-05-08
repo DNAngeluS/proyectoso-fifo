@@ -18,7 +18,7 @@ SOCKET establecerConexionQP(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN
 
 int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo, SOCKADDR_IN dir);
 void *rutinaAtencionCliente(void *sock);
-
+int solicitarBusqueda(sockQP, getInfo.palabras);
 
 SOCKET sockQP;
 SOCKADDR_IN dirQP;
@@ -98,12 +98,29 @@ int main(int argc, char** argv) {
     return (EXIT_SUCCESS);
 }
 
+solicitarBusqueda(getInfo.palabras, *respuesta)
+{
+
+	/*Enviar consulta a QP*/
+	if (ircRequest_send(sockQP, getInfo.palabras) < 0)
+	{
+	  printf("Error al enviar consulta a QP. Se cierra conexion.\n\n");
+	  thr_exit(NULL);
+	}
+	/*Recibir consulta de QP*/
+	if (ircResponse_recv(sockQP, &respuesta) < 0)
+	{
+	  thr_exit(NULL);
+	}
+}
+
 void *rutinaAtencionCliente (void *args)
 {
     threadArgs *arg;
     SOCKET sockCliente;
     msgGet getThread, getInfo;
     SOCKADDR_IN dirCliente;
+    int htmlFile;
 
     arg = (threadArgs *) args;
     sockCliente = arg->socket;
@@ -112,35 +129,35 @@ void *rutinaAtencionCliente (void *args)
 
     printf ("Se comienza a atender Request de %s.\n\n", inet_ntoa(dirCliente.sin_addr));
 
-    /*DESARMAR getInfo*/
-
-    printf("Llegue hasta aca!\n\n");
+	 /*Se obtiene el query string a buscar*/
     if (obtenerQueryString(getThread, &getInfo) < 0)
     {
         perror("obtenerQueryString: error de tipo");
         if (httpNotFound_send(sockCliente, getInfo) < 0)
         {
             printf("Error al enviar HTTP Not Found.\n\n");
-            thr_exit(NULL);
+            close(sockCliente)
+      		thr_exit(NULL);
         }
+        close(sockCliente)
+     	  thr_exit(NULL);
     }
     else
          printf("palabras buscadas: %s\ntipo: %d\n", getInfo.palabras, getInfo.searchType);
 
     exit(EXIT_SUCCESS);
 
-    /*Enviar consulta a QP*/
-    if (ircRequest_send(sockQP, getInfo.palabras) < 0)
-    {
-        printf("Error al enviar consulta a QP. Se cierra conexion.\n\n");
-        thr_exit(NULL);
-    }
-    /*Recibir consulta de QP*/
-    if (ircResponse_recv(sockQP) < 0)
-    {
-        thr_exit(NULL);
-    }
-
+	 /*Se solicita la busqueda al Query Processor*/
+    solicitarBusqueda(sockQP, getInfo, &respuesta);
+    
+	 /*Se genera el html con la respuesta*/
+    htmlFile = generarHtml(respuesta);
+    
+    /*Se envia archivo html*/
+    httpOk_send(sockCliente);
+    EnviarArchivo(htmlFile);
+    
+	 close(sockCliente)
     thr_exit(NULL);
 }
 
