@@ -13,6 +13,11 @@
 #define MAX_UUID 35
 #define DESCRIPTORID_LEN 16
 
+#define IRC_REQUEST 0x00
+#define IRC_RESPONSE 0x01
+
+
+
 typedef struct {
     char descriptorID [DESCRIPTORID_LEN];
     int payloadDesc;
@@ -46,10 +51,10 @@ typedef struct {
     long uts;
 }hostsExpiracion;
 
-int ircRequest_send ();
-int ircRequest_recv ();
-int ircResponse_send ();
-int ircResponse_recv ();
+int ircRequest_send(SOCKET sock, void *bloque, unsigned long bloqueLen);
+int ircRequest_recv (SOCKET sock, void *bloque, char *descriptorID);
+int ircResponse_send (SOCKET sock, char *descriptorID, void *bloque, unsigned long bloqueLen);
+int ircResponse_recv (SOCKET sock, void *bloque, unsigned long bloqueLen, char *descriptorID);
 
 #endif	/* _IRC_H */
 
