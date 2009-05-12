@@ -11,49 +11,37 @@ int detectarCaracter                    (char *palabra);
 void desplazarCadena                    (char *ptr, char caracter);
 void transformarCaracteresEspeciales    (char *palabra);
 
-int EnviarBloque(SOCKET sockfd, unsigned long bAEnviar, char *bloque)
+int EnviarBloque(SOCKET sockfd, unsigned long len, void *buffer)
 {
+    int bHastaAhora = 0;
+	int bytesEnviados = 0;
 
-    unsigned long bHastaAhora, bEnviados;
-    int error = 0;
-    bHastaAhora = bEnviados = 0;
-    
-    while (!error && bEnviados < bAEnviar)
-    {
-        if ((bHastaAhora = send(sockfd, bloque+bEnviados, bAEnviar, 0)) == -1)
-        {
-            printf("Error en la funcion send.\n\n");
-            error = 1;
-            break;
-        }
-        else
-        {
-            bEnviados += bHastaAhora;
-            bAEnviar -= bHastaAhora;
-        }
-    }
+	do {
+			if ((bHastaAhora = send(sockfd, buffer, len, 0)) == -1){
+				break;
+			}
+			bytesEnviados += bHastaAhora;
+	} while (bytesEnviados != len);
 
-    return error == 0? bEnviados: -1;
+	return bHastaAhora == -1? -1: bytesEnviados;
 }
 
-int RecibirNBloque(SOCKET sockfd, char *bloque, unsigned long nBytes)
+int RecibirNBloque(SOCKET socket, void *buffer, unsigned long length)
 {
-    int bRecibidos = 0;
-    int aRecibir = nBytes;
-    int bHastaAhora = 0;
 
-    do
-    {
-        if ((bHastaAhora = recv(sockfd, bloque+bRecibidos, aRecibir, 0)) == -1)
-        {
-                printf("Error en la funcion recv.\n\n");
-                return -1;
-        }
-        aRecibir -= bHastaAhora;
-        bRecibidos += bHastaAhora;
-    } while (aRecibir > 0);
+	int bRecibidos = 0;
+	int bHastaAhora = 0;
 
-    return bRecibidos;
+	do {
+		if ((bHastaAhora = recv(socket, buffer, length, 0)) == -1) {
+			break;
+		}
+		if (bHastaAhora == 0)
+			return 0;
+		bRecibidos += bHastaAhora;
+	} while (bRecibidos != length);
+
+	return bHastaAhora == -1? -1: bRecibidos;
 }
 
 
@@ -301,64 +289,6 @@ int httpOk_send(SOCKET sockfd, msgGet getInfo)
     return error? -1: 0;
 }
 
-
-int EnviarFormularioHtml(SOCKET sockCliente, msgGet getInfo)
-{
-    /* \
-     * HACER  \
-     * info en : http://xmlsoft.org/ \
-     * usar bibliotecas "libxml2"      \
-     */
-    
-    int fdFile;
-    
-    if ((strcmp(getInfo.palabras, "/index.hmtl") == 0) || (strcmp(getInfo.palabras, "imgs/soogle.jpg") == 0) )
-    {
-        printf("Se esperaba recibir \"/SOogle.html\". Se envia HTTP Not Found.\n");
-        if (httpNotFound_send(sockCliente, getInfo) < 0)
-        {
-            printf("Error al enviar HTTP Not Found.\n\n");
-            return -1;
-        }
-        return -1;
-    }
-    else
-    {
-        char *filename = getInfo.palabras;
-        printf("GTTP GET ok. Se envia %s.\n", getInfo.palabras);
-
-
-        if ((fdFile = open(++filename, O_RDONLY, 0)) < 0)
-        {
-            perror("open");
-            if (httpNotFound_send(sockCliente, getInfo) < 0)
-            {
-                printf("Error al enviar HTTP Not Found.\n\n");
-                return -1;
-            }
-            return -1;
-        }
-        else
-        {
-            if (httpOk_send(sockCliente, getInfo) < 0)
-            {
-                printf("Error al enviar HTTP OK.\n\n");
-                return -1;
-            }
-
-            if (EnviarArchivo(sockCliente, fdFile) != getFileSize(fdFile))
-            {
-                printf("Error al enviar Archivo.\n\n");
-                close(fdFile);
-                return -1;
-            }
-            close(fdFile);
-        }
-    }
-
-    return 0;
-}
-
 unsigned long getFileSize(int fdFile)
 {
     unsigned long size;
@@ -557,8 +487,6 @@ void desplazarCadena(char *ptr, char caracter)
         ptr[i] = '\0';
     }
 }
-
-
 
 
 

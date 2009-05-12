@@ -12,11 +12,22 @@
 
 enum filetype_t {HTML, TXT, PHP, JPG, GIF, PNG, JPEG, PDF, ARCHIVO, EXE, ZIP, DOC, XLS, PPT };
 
-int EnviarBloque                        (SOCKET sockfd, unsigned long bAEnviar, char *bloque);
+typedef struct {
+    char palabras[MAX_PATH];
+    int protocolo;
+    int searchType;
+} msgGet;
+
+typedef struct {
+    SOCKET socket;
+    msgGet getInfo;
+    SOCKADDR_IN dir;
+} threadArgs;
+
+int EnviarBloque                        (SOCKET sockfd, unsigned long bAEnviar, void *bloque);
 int RecibirBloque                       (SOCKET sockfd, char *bloque);
-int RecibirNBloque                      (SOCKET sockfd, char *bloque, unsigned long nBytes);
+int RecibirNBloque                      (SOCKET socket, void *buffer, unsigned long length);
 int EnviarArchivo                       (SOCKET sockRemoto, int filefd);
-int EnviarFormularioHtml                (SOCKET sockfd, msgGet getInfo);
 
 int httpGet_recv                        (SOCKET sockfd, msgGet *getInfo, int *getType);
 int httpNotFound_send                   (SOCKET sockfd, msgGet getInfo);

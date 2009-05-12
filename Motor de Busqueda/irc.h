@@ -23,38 +23,38 @@ typedef struct {
     int payloadDesc;
     long payloadLen;
     void *payload;
-}headerIRC;
+} headerIRC;
 
 typedef struct {
-    char palabra [MAX_PATH];
-    char url [MAX_PATH];
-    char titulo [MAX_PATH];
-    char desc [MAX_PATH];
-    char UUID [MAX_UUID];
-}soPalabrasHTML;
+    char URL        [MAX_PATH];
+    char UUID       [MAX_UUID];
+    char *palabras  [MAX_PATH];
+    char titulo     [MAX_PATH];
+    char desc       [MAX_PATH];
+} so_URL_HTML;
 
 typedef struct {
-    char palabra [MAX_PATH];
-    char url [MAX_PATH];
-    int tipo;
-    char formato [4];
-    long length;
-}soPalabrasArchivos;
+    char URL        [MAX_PATH];
+    char *palabras  [MAX_PATH];
+    char tipo       [2];
+    char formato    [4];
+    char length     [20];
+} so_URL_Archivos;
 
 typedef struct {
     char UUID [MAX_UUID];
     char html [MAX_PATH];
-}hostsCodigo;
+} hostsCodigo;
 
 typedef struct {
     char host [MAX_PATH];
     long uts;
-}hostsExpiracion;
+} hostsExpiracion;
 
-int ircRequest_send(SOCKET sock, void *bloque, unsigned long bloqueLen);
+int ircRequest_send(SOCKET sock, void *bloque, unsigned long bloqueLen, char *descriptorID);
 int ircRequest_recv (SOCKET sock, void *bloque, char *descriptorID);
 int ircResponse_send (SOCKET sock, char *descriptorID, void *bloque, unsigned long bloqueLen);
-int ircResponse_recv (SOCKET sock, void *bloque, unsigned long bloqueLen, char *descriptorID);
+int ircResponse_recv (SOCKET sock, void *bloque, char *descriptorID);
 
 #endif	/* _IRC_H */
 

@@ -13,12 +13,17 @@
 
 void rutinaDeError(char *string);
 
-SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
-SOCKET establecerConexionQP(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *dir);
+SOCKET establecerConexionEscucha    (in_addr_t nDireccionIP, in_port_t nPort);
+SOCKET establecerConexionQP         (in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *dir);
 
-int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo, SOCKADDR_IN dir);
-void *rutinaAtencionCliente(void *sock);
-int solicitarBusqueda(sockQP, getInfo.palabras);
+void *rutinaAtencionCliente         (void *sock);
+int rutinaCrearThread               (void *(*funcion)(void *), SOCKET sockfd,
+                                    msgGet getInfo, SOCKADDR_IN dir);
+
+int EnviarFormularioHtml            (SOCKET sockfd, msgGet getInfo);
+int EnviarRespuestaHtml             (SOCKET socket, msgGet getInfo, void *respuesta);
+int generarHtml                     (int htmlFile, void *respuesta, int searchType);
+int solicitarBusqueda               (msgGet getInfo,void *respuesta);
 
 SOCKET sockQP;
 SOCKADDR_IN dirQP;
@@ -98,67 +103,129 @@ int main(int argc, char** argv) {
     return (EXIT_SUCCESS);
 }
 
-solicitarBusqueda(getInfo.palabras, *respuesta)
+solicitarBusqueda(msgGet getInfo, void *respuesta)
 {
+    char descriptorID[DESCRIPTORID_LEN];
 
-	/*Enviar consulta a QP*/
-	if (ircRequest_send(sockQP, getInfo.palabras) < 0)
-	{
-	  printf("Error al enviar consulta a QP. Se cierra conexion.\n\n");
-	  thr_exit(NULL);
-	}
-	/*Recibir consulta de QP*/
-	if (ircResponse_recv(sockQP, &respuesta) < 0)
-	{
-	  thr_exit(NULL);
-	}
+    /*Enviar consulta a QP*/
+    if (ircRequest_send(sockQP, (void *) &getInfo, sizeof(getInfo), descriptorID) < 0)
+    {
+      printf("Error al enviar consulta a QP.\n\n");
+      return -1;
+    }
+    /*Recibir consulta de QP*/
+    if (ircResponse_recv(sockQP, respuesta, descriptorID) < 0)
+    {
+        printf("Error al enviar consulta a QP.\n\n");
+        return -1;
+    }
+    return 0;
 }
 
 void *rutinaAtencionCliente (void *args)
 {
-    threadArgs *arg;
-    SOCKET sockCliente;
-    msgGet getThread, getInfo;
-    SOCKADDR_IN dirCliente;
-    int htmlFile;
-
-    arg = (threadArgs *) args;
-    sockCliente = arg->socket;
-    getThread = arg->getInfo;
-    dirCliente = arg->dir;
+    threadArgs *arg = (threadArgs *) args;
+    SOCKET sockCliente = arg->socket;
+    msgGet getThread = arg->getInfo, getInfo;
+    SOCKADDR_IN dirCliente = arg->dir;
+    void *respuesta;
 
     printf ("Se comienza a atender Request de %s.\n\n", inet_ntoa(dirCliente.sin_addr));
 
-	 /*Se obtiene el query string a buscar*/
+    /*Se obtiene el query string a buscar*/
     if (obtenerQueryString(getThread, &getInfo) < 0)
     {
         perror("obtenerQueryString: error de tipo");
         if (httpNotFound_send(sockCliente, getInfo) < 0)
         {
             printf("Error al enviar HTTP Not Found.\n\n");
-            close(sockCliente)
-      		thr_exit(NULL);
+            close(sockCliente);
+            thr_exit(NULL);
         }
-        close(sockCliente)
-     	  thr_exit(NULL);
+        close(sockCliente);
+        thr_exit(NULL);
     }
     else
          printf("palabras buscadas: %s\ntipo: %d\n", getInfo.palabras, getInfo.searchType);
+    
+    if (getInfo.searchType == WEB)      respuesta = (so_URL_HTML *)      malloc (sizeof(so_URL_HTML));
+    if (getInfo.searchType == IMG)      respuesta = (so_URL_Archivos *)  malloc (sizeof(so_URL_Archivos));
+    if (getInfo.searchType == OTROS)    respuesta = (so_URL_Archivos *)  malloc (sizeof(so_URL_Archivos));
 
-    exit(EXIT_SUCCESS);
+    /*Se solicita la busqueda al Query Processor*/
+    if (solicitarBusqueda(getInfo, (void *) respuesta) < 0)
+    {
+        perror("Solicitar busqueda");
+        close(sockCliente);
+        thr_exit(NULL);
+    }
 
-	 /*Se solicita la busqueda al Query Processor*/
-    solicitarBusqueda(sockQP, getInfo, &respuesta);
+    if (EnviarRespuestaHtml(sockCliente, getInfo, (void *) respuesta) < 0)
+        perror("Enviar respuesta html");
     
-	 /*Se genera el html con la respuesta*/
-    htmlFile = generarHtml(respuesta);
-    
-    /*Se envia archivo html*/
-    httpOk_send(sockCliente);
-    EnviarArchivo(htmlFile);
-    
-	 close(sockCliente)
+    close(sockCliente);
     thr_exit(NULL);
+}
+
+int generarHtml(int htmlFile, void *respuesta, int searchType)
+{
+    int i;
+
+    if (searchType == WEB)
+    {
+        so_URL_HTML *ptr = (so_URL_HTML *) respuesta;
+        
+    }
+    else if (searchType == IMG || searchType == OTROS)
+    {
+        so_URL_Archivos *ptr = (so_URL_Archivos *) respuesta;
+
+    }
+    else
+    {
+        perror("Error de tipo");
+        return -1;
+    }
+    return 0;
+}
+
+int EnviarRespuestaHtml(SOCKET socket, msgGet getInfo, void *respuesta)
+{
+    int htmlFile;
+
+    if ((htmlFile = open("resultados.html", O_RDWR, 0)) < 0)
+    {
+        perror("open htmlFile");
+        return -1;
+    }
+
+    /*Se genera el html con la respuesta*/
+    if (generarHtml(htmlFile, respuesta, getInfo.searchType) == -1)
+    {
+        perror("generarHtml: error al generar");
+
+        /*Si hay error al generar Html, enviar not found*/
+        if (httpNotFound_send(socket, getInfo) < 0)
+            printf("Error al enviar HTTP Not Found.\n\n");
+        return -1;
+    }
+
+    /*Se envia archivo html*/
+    if (httpOk_send(socket, getInfo) < 0)
+    {
+        printf("Error al enviar HTTP OK.\n\n");
+        close(htmlFile);
+        return -1;
+    }
+    if (EnviarArchivo(socket, htmlFile) != getFileSize(htmlFile))
+    {
+        printf("Error al enviar Archivo.\n\n");
+        close(htmlFile);
+        return -1;
+    }
+
+    close(htmlFile);
+    return 0;
 }
 
 int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo, SOCKADDR_IN dir)
@@ -170,7 +237,7 @@ int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo, S
     args.getInfo = getInfo;
     args.dir = dir;
 
-    if (thr_create((void *) NULL, /*PTHREAD_STACK_MIN*/ thr_min_stack() +1024, rutinaAtencionCliente, (void *) &args, 0, &thr) < 0)
+    if (thr_create((void *) NULL, /*PTHREAD_STACK_MIN*/ thr_min_stack() +1024, funcion, (void *) &args, 0, &thr) < 0)
     {
         printf("Error al crear thread: %d", errno);
         return -1;
@@ -179,7 +246,62 @@ int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo, S
     return 0;
 }
 
+int EnviarFormularioHtml(SOCKET sockCliente, msgGet getInfo)
+{
+    /* \
+     * HACER  \
+     * info en : http://xmlsoft.org/ \
+     * usar bibliotecas "libxml2"      \
+     */
 
+    int fdFile;
+
+    if ((strcmp(getInfo.palabras, "/index.hmtl") == 0) || (strcmp(getInfo.palabras, "imgs/soogle.jpg") == 0) )
+    {
+        printf("Se esperaba recibir \"/SOogle.html\". Se envia HTTP Not Found.\n");
+        if (httpNotFound_send(sockCliente, getInfo) < 0)
+        {
+            printf("Error al enviar HTTP Not Found.\n\n");
+            return -1;
+        }
+        return -1;
+    }
+    else
+    {
+        char *filename = getInfo.palabras;
+        printf("GTTP GET ok. Se envia %s.\n", getInfo.palabras);
+
+
+        if ((fdFile = open(++filename, O_RDONLY, 0)) < 0)
+        {
+            perror("open");
+            if (httpNotFound_send(sockCliente, getInfo) < 0)
+            {
+                printf("Error al enviar HTTP Not Found.\n\n");
+                return -1;
+            }
+            return -1;
+        }
+        else
+        {
+            if (httpOk_send(sockCliente, getInfo) < 0)
+            {
+                printf("Error al enviar HTTP OK.\n\n");
+                return -1;
+            }
+
+            if (EnviarArchivo(sockCliente, fdFile) != getFileSize(fdFile))
+            {
+                printf("Error al enviar Archivo.\n\n");
+                close(fdFile);
+                return -1;
+            }
+            close(fdFile);
+        }
+    }
+
+    return 0;
+}
 
 
 /*
@@ -213,7 +335,7 @@ SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort)
     {
         SOCKADDR_IN addrServidorWeb; /*Address del Web server*/
         char yes = 1;
-        int NonBlock = 1;
+        /*int NonBlock = 1;*/
 
         /*Impide el error "addres already in use" y setea non blocking el socket*/
         if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(int)) == -1)
