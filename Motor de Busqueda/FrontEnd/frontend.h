@@ -16,6 +16,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/timeb.h>
 #include <fcntl.h>
 #include <sys/file.h>
 #include <sys/filio.h>

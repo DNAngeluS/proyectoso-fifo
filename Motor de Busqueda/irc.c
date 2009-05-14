@@ -87,7 +87,7 @@ int ircResponse_send (SOCKET sock, char *descriptorID, void *bloque, unsigned lo
     }
     return 0;
 }
-int ircResponse_recv (SOCKET sock, void *bloque, char *descriptorID)
+int ircResponse_recv (SOCKET sock, void *bloque, char *descriptorID, unsigned long *respuestaLen)
 {
     headerIRC header;
     unsigned long len = sizeof(headerIRC);
@@ -104,7 +104,8 @@ int ircResponse_recv (SOCKET sock, void *bloque, char *descriptorID)
         int i;
 
         len = header.payloadLen;
-
+        *respuestaLen = header.payloadLen;
+        
         realloc(bloque, len);
 
         if (RecibirNBloque(sock, bloque, len) != len)

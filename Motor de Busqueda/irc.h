@@ -26,19 +26,19 @@ typedef struct {
 } headerIRC;
 
 typedef struct {
-    char URL        [MAX_PATH];
-    char UUID       [MAX_UUID];
-    char *palabras  [MAX_PATH];
-    char titulo     [MAX_PATH];
-    char desc       [MAX_PATH];
+    char URL            [MAX_PATH];
+    char UUID           [MAX_UUID];
+    char *palabras      [MAX_PATH];
+    char titulo         [MAX_PATH];
+    char descripcion    [MAX_PATH];
 } so_URL_HTML;
 
 typedef struct {
-    char URL        [MAX_PATH];
-    char *palabras  [MAX_PATH];
-    char tipo       [2];
-    char formato    [4];
-    char length     [20];
+    char URL            [MAX_PATH];
+    char nombre         [MAX_PATH];
+    char tipo           [2];
+    char formato        [4];
+    char length         [20];
 } so_URL_Archivos;
 
 typedef struct {
@@ -54,7 +54,7 @@ typedef struct {
 int ircRequest_send(SOCKET sock, void *bloque, unsigned long bloqueLen, char *descriptorID);
 int ircRequest_recv (SOCKET sock, void *bloque, char *descriptorID);
 int ircResponse_send (SOCKET sock, char *descriptorID, void *bloque, unsigned long bloqueLen);
-int ircResponse_recv (SOCKET sock, void *bloque, char *descriptorID);
+int ircResponse_recv (SOCKET sock, void *bloque, char *descriptorID, unsigned long *respuestaLen);
 
 #endif	/* _IRC_H */
 
