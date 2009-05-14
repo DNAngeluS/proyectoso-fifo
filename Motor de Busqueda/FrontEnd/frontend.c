@@ -203,6 +203,15 @@ int generarHtmlWEB(int htmlFile, so_URL_HTML *respuesta, unsigned long respuesta
             return -1;
         }
     }
+    
+    strcpy(buffer, "-------------------------------------------------\n\n");
+    
+    nBytes = write(htmlFile, buffer, sizeof(buffer));
+    if (nBytes != sizeof(buffer))
+    {
+        perror("write: Html file");
+        return -1;
+    }
 
     return 0;
 }
@@ -229,6 +238,15 @@ int generarHtmlOTROS(int htmlFile, so_URL_Archivos *respuesta, unsigned long res
             perror("write: Html file");
             return -1;
         }
+    }
+    
+    strcpy(buffer, "-------------------------------------------------\n\n");
+    
+    nBytes = write(htmlFile, buffer, sizeof(buffer));
+    if (nBytes != sizeof(buffer))
+    {
+        perror("write: Html file");
+        return -1;
     }
 
     return 0;
