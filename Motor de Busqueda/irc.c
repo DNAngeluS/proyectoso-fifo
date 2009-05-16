@@ -50,6 +50,7 @@ int ircRequest_recv (SOCKET sock, void *bloque, char *descriptorID, int *mode)
         return -1;
     }
     memcpy(header.descriptorID, descriptorID, DESCRIPTORID_LEN);
+    *mode = header.payloadDesc;
 
     len = header.payloadLen;
     if (RecibirNBloque(sock, bloque, len) != len)
