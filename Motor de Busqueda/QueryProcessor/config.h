@@ -16,7 +16,7 @@ typedef struct {
     in_port_t puerto;		/*puerto*/
     in_addr_t ipLDAP;		/*ip servidor LDAP*/
     in_port_t puertoLDAP;	/*puerto servidor LDAP*/
-    char[20] claveLDAP;		/*Clave servidor LDAP*/
+    char claveLDAP[20];		/*Clave servidor LDAP*/
 } configuracion;
 
 int leerArchivoConfiguracion (configuracion *config);

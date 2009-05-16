@@ -8,79 +8,92 @@
 #include "qp.h"
 #include "config.h"
 #include "irc.h"
+#include "LdapWrapper.h"
+#include "mldap.h"
 #include "http.h"
-
 
 void rutinaDeError(char *string);
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
 
-headerIRC recibirPedido(SOCKET sockCli);
-void* consultarLDAP(headerIRC buscar);
 headerIRC construirIRC(void *objeto);
-void enviarPedido(headerIRC irc);
 
+int main()
+{
+    SOCKET sockFE;
+    SOCKADDR_IN dirCliente;
+    configuracion config;
+    ldapObj ldap;
+    PLDAP_RESULT_SET resultSet;
 
-int main(){
-  SOCKET sockQP, sockCli;
-  SOCKADDR_IN dirQP, dirCliente; //Address info del cliente
-  configuracion config;  
-  headerIRC irc, buscar;
-  void *objeto;
-
-  /*Lectura de Archivo de Configuracion*/
-  if (leerArchivoConfiguracion(&config) != 0)
+    /*Lectura de Archivo de Configuracion*/
+    if (leerArchivoConfiguracion(&config) != 0)
       rutinaDeError("Lectura Archivo de configuracion");
 
-  /*Se establece conexion con el puerto de escucha*/
-  if ((sockQP = establecerConexionQP(config.ip, config.puerto, (SOCKADDR *)&dirQP)) == INVALID_SOCKET)
-      rutinaDeError("Socket invalido");
+    if (establecerConexionEscucha(INADDR_ANY, config.puerto) != 0)
+      rutinaDeError("Establecer conexion de escucha");
 
-  while(1){
+    ldap = establecerConexionLDAP(config);
+      /*rutinaDeError("Establecer conexion LDAP");*/
+
+    while(1)
+    {
+      SOCKET sockCliente;
       int nAddrSize = sizeof(dirCliente);
+      msgGet *getInfo;
+      char descriptorID[DESCRIPTORID_LEN];
 
+      memset(descriptorID, '\0', DESCRIPTORID_LEN);
       /*Acepta la conexion entrante. Ahora FrontEnd*/
-      sockCli = accept(sockQP, (SOCKADDR *) &dirCliente, &nAddrSize);
-      
-      if (sockCli != INVALID_SOCKET)
+      sockCliente = accept(sockFE, (SOCKADDR *) &dirCliente, &nAddrSize);
+
+      if (sockCliente != INVALID_SOCKET)
           continue;
-      
-      printf ("Conexion aceptada de %s:%d.\r\n\r\n", inet_ntoa(dirCliente.sin_addr),
+
+      printf ("Conexion aceptada de %s:%d.\n\n", inet_ntoa(dirCliente.sin_addr),
                                                         ntohs(dirCliente.sin_port));
       /*Recibe las palabras a buscar*/
-      buscar = recibirPedido(sockCli);
-      /*Consulta en el Directorio openDS las palabras*/
-      objeto = consultarLDAP(buscar);
-      /*Construye el IRC para mandar los datos encontrados*/
-      irc = construirIRC(objeto);
+      if (ircRequest_recv (sockCliente, (void *) getInfo, descriptorID) < 0)
+      {
+          close(sockCliente);
+          continue;
+      }
+      /*Crea las estructuras para enviar el IRC*/
+      void *resultados = NULL;
+      unsigned long len;
+
+      /*Indentifica el tipo de busqueda*/
+      if (getInfo->searchType == WEB) len = (sizeof(so_URL_HTML));
+      if (getInfo->searchType == IMG) len = (sizeof(so_URL_Archivos));
+      if (getInfo->searchType == OTROS) len = (sizeof(so_URL_Archivos));
+
+      /*Realiza la busqueda*/
+      resultSet = consultarLDAP(ldap, getInfo->palabras, getInfo->searchType);
+      /*Prepara la informacion a enviar por el IRC*/
+      resultados = armarPayload(resultSet, getInfo->searchType);
+      
       /*envia el IRC con los datos encontrados*/
-      enviarPedido(irc);
+      if (ircResponse_send(sockCliente, descriptorID, resultados, len) < 0)
+      {
+          close(sockCliente);
+          continue;
+      }
 
-  }
-  /*cierra las conexiones*/
-  close(sockQP);
-  close(sockCli);
-  
-  return (EXIT_SUCCESS);
-}
+      close(sockCliente);
+    }
 
-headerIRC recibirPedido(SOCKET sockCli){
-    headerIRC buscar;
- 
-    return buscar;
-}
-void* consultarLDAP(headerIRC buscar){
-    void *ptr;
 
-    return ptr;
-}
-headerIRC construirIRC(void *objeto){
-    headerIRC irc;
+    /*Cierra conexiones de Sockets*/
+    close(sockFE);    
 
-    return irc;
-}
-void enviarPedido(headerIRC irc){
+    /*Cierra conexiones LDAP*/
+    ldap.sessionOp->endSession(ldap.session);
+    /*libero los objetos de operaciones*/
+    freeLDAPSession(ldap.session);
+    freeLDAPContext(ldap.context);
+    freeLDAPContextOperations(ldap.ctxOp);
+    freeLDAPSessionOperations(ldap.sessionOp);
 
-    return;
+    return 0;
 }
 
 /*Descripcion: Establece la conexion del servidor web a la escucha en un puerto y direccion ip.
@@ -88,34 +101,52 @@ Ultima modificacion: Moya, Lucio
 Recibe: Direccion ip y puerto a escuchar.
 Devuelve: ok? Socket del servidor: socket invalido.
 */
-SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort){
-  SOCKET sockfd;
-  /*Obtiene un socket*/
-  sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  if (sockfd != INVALID_SOCKET){
-      SOCKADDR_IN addrQP; /*Address del Web server*/
-      char yes = 1;
-      int NonBlock = 1;
+SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort)
+{
+    SOCKET sockfd;
 
-      /*Impide el error "addres already in use" y setea non blocking el socket*/
-      if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(int)) == -1)
-          rutinaDeError("Setsockopt");
-      /*if (ioctlsocket(sockfd, FIONBIO, &NonBlock) == SOCKET_ERROR){
-       * rutinaDeError("ioctlsocket");
-       * }*/
-      addrQP.sin_family = AF_INET;
-      addrQP.sin_addr.s_addr = nDireccionIP;
-      addrQP.sin_port = nPort;
-      memset((&addrQP.sin_zero), '\0', 8);
-      /*Liga socket al puerto y direccion*/
-      if ((bind (sockfd, (SOCKADDR *) &addrQP, sizeof(SOCKADDR_IN))) != SOCKET_ERROR){
-          /*Pone el puerto a la escucha de conexiones entrantes*/
-          if (listen(sockfd, SOMAXCONN) == -1)
-              rutinaDeError("Listen");
-          else
-              return sockfd;
-      }else
-          rutinaDeError("Bind");
-  }
-  return INVALID_SOCKET;
+    /*Obtiene un socket*/
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd != INVALID_SOCKET)
+    {
+        SOCKADDR_IN addrServidorWeb; /*Address del Web server*/
+        char yes = 1;
+        int NonBlock = 1;
+
+        /*Impide el error "addres already in use" y setea non blocking el socket*/
+        if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(int)) == -1)
+            rutinaDeError("Setsockopt");
+
+        /*if (ioctlsocket(sockfd, FIONBIO, &NonBlock) == SOCKET_ERROR)
+        {
+        rutinaDeError("ioctlsocket");
+        }*/
+
+        addrServidorWeb.sin_family = AF_INET;
+        addrServidorWeb.sin_addr.s_addr = nDireccionIP;
+        addrServidorWeb.sin_port = nPort;
+        memset((&addrServidorWeb.sin_zero), '\0', 8);
+
+        /*Liga socket al puerto y direccion*/
+        if ((bind (sockfd, (SOCKADDR *) &addrServidorWeb, sizeof(SOCKADDR_IN))) != SOCKET_ERROR)
+        {
+            /*Pone el puerto a la escucha de conexiones entrantes*/
+            if (listen(sockfd, SOMAXCONN) == -1)
+                rutinaDeError("Listen");
+            else
+            return sockfd;
+        }
+        else
+            rutinaDeError("Bind");
+    }
+
+    return INVALID_SOCKET;
+}
+
+void rutinaDeError(char* error)
+{
+    printf("\r\nError: %s\r\n", error);
+    printf("Codigo de Error: %d\r\n\r\n", errno);
+    perror(error);
+    exit(EXIT_FAILURE);
 }
