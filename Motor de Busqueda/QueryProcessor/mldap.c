@@ -33,9 +33,10 @@ ldapObj establecerConexionLDAP(configuracion c)
     return ldap;
 }
 
-PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char *palabras, int searchType)
+PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char buf[BUF_SIZE], int searchType)
 {
     PLDAP_RESULT_SET resultSet;
+
 
     if (searchType == WEB)
         resultSet = ldap.sessionOp->searchEntry(ldap.session, "ou=so,dc=utn,dc=edu", "utnurlKeywords=KW1");
@@ -107,17 +108,19 @@ VOID* armarPayload(PLDAP_RESULT_SET resultSet, int searchType)
 int generarArrayHTML(so_URL_HTML *resultados, PLDAP_FIELD field, int pos)
 {
     INT	index = 0;
-    char buf[BUF_SIZE];
+    char buf[BUF_SIZE] = "";
     
-    if(field->name=="utnurlID")resultados[pos].UUID =(char *) field->values[index];
-    if(field->name=="utnurlTitle")resultados[pos].titulo =(char *) field->values[index];
-    if(field->name=="utnurlDescription")resultados[pos].descripcion =(char *) field->values[index];
-    if(field->name=="labeledURL")resultados[pos].URL =(char *) field->values[index];
-    if(field->name=="utnurlKeywords"){
-        buf = field->values[index]
-        sprintf(resultados[pos].palabras, "%s", field->values[index]);
-        for(index = 1; index < field->valuesSize; index++) {
-            sprintf(resultados[pos].palabras, ", %s", field->values[index]);
+    if(field->name=="utnurlID") strcpy(resultados[pos].UUID, field->values[index]);
+    if(field->name=="utnurlTitle")strcpy(resultados[pos].titulo, field->values[index]);
+    if(field->name=="utnurlDescription")strcpy(resultados[pos].descripcion, field->values[index]);
+    if(field->name=="labeledURL")strcpy(resultados[pos].URL, field->values[index]);
+    if(field->name=="utnurlKeywords")
+    {
+        strcat (buf, field->values[index]);        
+        for(index = 1; index < field->valuesSize; index++)
+        {
+            strcat(buf, ", ");
+            strcat(buf, field->values[index]);            
         }
     }
 
@@ -125,20 +128,22 @@ int generarArrayHTML(so_URL_HTML *resultados, PLDAP_FIELD field, int pos)
 int generarArrayOTROS(so_URL_Archivos *resultados, PLDAP_FIELD field, int pos)
 {
     INT	index = 0;
+    char buf[BUF_SIZE] = "";
 
-    if(field->name=="utnurlID")resultados[pos].URL = field->values[index];
-    if(field->name=="utnurlNombre")resultados[pos].nombre = field->values[index];
-    if(field->name=="utnurlFormat")resultados[pos].formato = field->values[index];
-    if(field->name=="utnurlType")resultados[pos].tipo = field->values[index];
-    if(field->name=="utnurlLen")resultados[pos].length = field->values[index];
-    if(field->name=="labeledURL")resultados[pos].URL = field->values[index];
+    if(field->name=="utnurlID")strcpy(resultados[pos].URL, field->values[index]);
+    if(field->name=="utnurlNombre")strcpy(resultados[pos].nombre, field->values[index]);
+    if(field->name=="utnurlFormat")strcpy(resultados[pos].formato, field->values[index]);
+    if(field->name=="utnurlType")strcpy(resultados[pos].tipo, field->values[index]);
+    if(field->name=="utnurlLen")strcpy(resultados[pos].length,field->values[index]);
+    if(field->name=="labeledURL")strcpy(resultados[pos].URL, field->values[index]);
     if(field->name=="utnurlKeywords")
     {
-        sprintf(resultados[pos].palabras, "%s", field->values[index]);
+        strcat (buf, field->values[index]);
         for(index = 1; index < field->valuesSize; index++)
         {
-            sprintf(resultados[pos].palabras, ", %s", field->values[index]);
+            strcat(buf, ", ");
+            strcat(buf, field->values[index]);
         }
-    }
 
+    }
 }
