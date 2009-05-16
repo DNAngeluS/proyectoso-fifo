@@ -386,7 +386,7 @@ int EnviarRespuestaHtml(SOCKET socket, msgGet getInfo, void *respuesta,
     }
     close(htmlFile);
 
-    system("rm resultados.txt");
+    unlink("resultados.txt");
 
     return 0;
 }
