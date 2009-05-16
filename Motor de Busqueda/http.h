@@ -16,6 +16,7 @@ typedef struct {
     char palabras[MAX_PATH];
     int protocolo;
     int searchType;
+    char queryString[QUERYSTRING_SIZE];
 } msgGet;
 
 typedef struct {

@@ -27,10 +27,11 @@ int EnviarRespuestaHtml             (SOCKET socket, msgGet getInfo, void *respue
 
 int generarHtmlWEB                  (int htmlFile, so_URL_HTML      *respuesta, unsigned long respuestaLen);
 int generarHtmlOTROS                (int htmlFile, so_URL_Archivos  *respuesta, unsigned long respuestaLen);
+int generarFinDeHtml                (int htmlFile);
 int generarEncabezadoHtml           (int htmlFile, msgGet getInfo,
                                         unsigned long respuestaLen, struct timeb tiempoInicio);
 
-int solicitarBusqueda               (msgGet getInfo,void *respuesta, unsigned long *respuestaLen);
+int solicitarBusqueda               (msgGet getInfo, void *respuesta, unsigned long *respuestaLen);
 
 SOCKET sockQP;
 SOCKADDR_IN dirQP;
@@ -114,14 +115,20 @@ solicitarBusqueda(msgGet getInfo, void *respuesta, unsigned long *respuestaLen)
 {
     char descriptorID[DESCRIPTORID_LEN];
 
+    int mode;
+
+    if (getInfo.searchType == WEB)      mode = IRC_REQUEST_HTML;
+    if (getInfo.searchType == IMG)      mode = IRC_REQUEST_ARCHIVOS;
+    if (getInfo.searchType == OTROS)    mode = IRC_REQUEST_ARCHIVOS;
+
     /*Enviar consulta a QP*/
-    if (ircRequest_send(sockQP, (void *) &getInfo, sizeof(getInfo), descriptorID) < 0)
+    if (ircRequest_send(sockQP, (void *) getInfo.queryString, BUF_SIZE, descriptorID, mode) < 0)
     {
       printf("Error al enviar consulta a QP.\n\n");
       return -1;
     }
     /*Recibir consulta de QP*/
-    if (ircResponse_recv(sockQP, respuesta, descriptorID, respuestaLen) < 0)
+    if (ircResponse_recv(sockQP, respuesta, descriptorID, respuestaLen, mode) < 0)
     {
         printf("Error al enviar consulta a QP.\n\n");
         return -1;
@@ -135,6 +142,7 @@ void *rutinaAtencionCliente (void *args)
     SOCKET sockCliente = arg->socket;
     msgGet getThread = arg->getInfo, getInfo;
     SOCKADDR_IN dirCliente = arg->dir;
+
     void *respuesta;
     unsigned long respuestaLen;
     struct timeb tiempoInicio;
@@ -188,29 +196,22 @@ int generarHtmlWEB(int htmlFile, so_URL_HTML *respuesta, unsigned long respuesta
     {
         int nBytes;
         char buffer[BUF_SIZE];
-        
-        sprintf(buffer, "\t%d. Titulo:%s\n"
-                    "\tDescripcion: %s\n"
-                    "\tLink: http://%s\n"
-                    "\tEn cache: http://%scache=%s\n\n"
+
+        memset(buffer,'\0',BUF_SIZE);
+        sprintf(buffer, "<b>%d</b>.<br/>Titulo: %s<br/>"
+                    "Descripcion: %s<br/>"
+                    "Link: http://%s<br/>"
+                    "En cache: http://%s/cache=%s<br/><br/>"
                     , i+1, respuesta[i].titulo, respuesta[i].descripcion
                     , respuesta[i].URL, respuesta[i].URL, respuesta[i].UUID);
-        
-        nBytes = write(htmlFile, buffer, sizeof(buffer));
-        if (nBytes != sizeof(buffer))
+
+        lseek(htmlFile,0L,2);
+        nBytes = write(htmlFile, buffer, strlen(buffer));
+        if (nBytes != strlen(buffer))
         {
             perror("write: Html file");
             return -1;
         }
-    }
-    
-    strcpy(buffer, "-------------------------------------------------\n\n");
-    
-    nBytes = write(htmlFile, buffer, sizeof(buffer));
-    if (nBytes != sizeof(buffer))
-    {
-        perror("write: Html file");
-        return -1;
     }
 
     return 0;
@@ -225,37 +226,30 @@ int generarHtmlOTROS(int htmlFile, so_URL_Archivos *respuesta, unsigned long res
         int nBytes;
         char buffer[BUF_SIZE];
 
-        sprintf(buffer, "\t%d. Nombre:%s\n"
-                    "\tFormato: %s\n"
-                    "\tTamaño: %s\n"
-                    "\tLink: http://%s\n\n"
+        memset(buffer,'\0',BUF_SIZE);
+        sprintf(buffer, "<b>%d</b>.<br/>Nombre: %s<br/>"
+                    "Formato: %s<br/>"
+                    "Size: %s<br/>"
+                    "Link: http://%s<br/><br/>"
                     , i+1, respuesta[i].nombre, respuesta[i].tipo
                     , respuesta[i].length, respuesta[i].URL);
 
-        nBytes = write(htmlFile, buffer, sizeof(buffer));
-        if (nBytes != sizeof(buffer))
+        lseek(htmlFile,0L,2);
+        nBytes = write(htmlFile, buffer, strlen(buffer));
+        if (nBytes != strlen(buffer))
         {
             perror("write: Html file");
             return -1;
         }
     }
-    
-    strcpy(buffer, "-------------------------------------------------\n\n");
-    
-    nBytes = write(htmlFile, buffer, sizeof(buffer));
-    if (nBytes != sizeof(buffer))
-    {
-        perror("write: Html file");
-        return -1;
-    }
-
-    return 0;
 }
 
 int generarEncabezadoHtml(int htmlFile, msgGet getInfo,
                             unsigned long respuestaLen, struct timeb tiempoInicio)
 {
     char buffer[BUF_SIZE];
+    char contenidoHtml[BUF_SIZE];
+
     int nBytes;
     char tipoDeResultado[20];
     int cantidad;
@@ -272,37 +266,68 @@ int generarEncabezadoHtml(int htmlFile, msgGet getInfo,
     else
         cantidad = respuestaLen/sizeof(so_URL_Archivos);
 
+    memset(buffer,'\0',BUF_SIZE);
+    sprintf(contenidoHtml,"<html><head><title>%s</title></head><body>", "SOogle - Resultados de Busqueda");
+    strcat(buffer,contenidoHtml);
 
-
-    sprintf(buffer, "Resultados obtenidos:\n"
-                    "Tipo de resultados: %s\n"
-                    "Cantidad: %d\n"
-                    "Tiempo de respuesta: %d,%d segundos\n"
-                    "Palabras: \"%s\"\n"
-                    "-------------------------------------------------\n\n"
+    sprintf(contenidoHtml, "<p>Resultados obtenidos:</p>"
+                    "<p>Tipo de resultados: %s</p>"
+                    "<p>Cantidad: %d</p>"
+                    "<p>Tiempo de respuesta: %d,%d segundos</p>"
+                    "<p>Palabras: \"<b>%s</b>\"</p>"
+                    "<p>-------------------------------------------------\n</p>"
                     , tipoDeResultado, cantidad
                     , secTiempoRespuesta, milliTiempoRespuesta
                     , getInfo.palabras);
 
-    nBytes = write(htmlFile, buffer, sizeof(buffer));
-    if (nBytes != sizeof(buffer))
+    strcat(buffer,contenidoHtml);
+
+    lseek(htmlFile,0L,0);
+    if ((nBytes = write(htmlFile, buffer, strlen(buffer))) == -1)
     {
-        perror("write: Html file");
+	     perror("write: htmlFile");
+	     return -1;
+	 }
+    if (nBytes != strlen(buffer))
+    {
+        perror("write: no completo escritura");
         return -1;
     }
     return 0;
 }
 
-int EnviarRespuestaHtml(SOCKET socket, msgGet getInfo, void *respuesta, 
+int generarFinDeHtml(int htmlFile)
+{
+    char buffer[BUF_SIZE];
+    int nBytes;
+
+    memset(buffer,'\0',BUF_SIZE);
+    strcpy(buffer, "-------------------------------------------------<br/><br/>"
+    					 "</body></html>");
+
+    lseek(htmlFile,0L,2);
+    nBytes = write(htmlFile, buffer, strlen(buffer));
+    if (nBytes != strlen(buffer))
+    {
+        perror("write: Html file");
+        return -1;
+    }
+}
+
+int EnviarRespuestaHtml(SOCKET socket, msgGet getInfo, void *respuesta,
                         unsigned long respuestaLen, struct timeb tiempoInicio)
 {
     int htmlFile;
     int control;
+    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
-    if ((htmlFile = open("resultados.html", O_RDWR, 0)) < 0)
+    if ((htmlFile = open("resultados.txt", O_CREAT | O_WRONLY, mode)) < 0)
     {
-        perror("open htmlFile");
-        return -1;
+        if ((htmlFile = open("resultados.txt", O_TRUNC | O_WRONLY, mode)) < 0)
+        {
+            perror("open htmlFile");
+            return -1;
+        }
     }
 
     if (generarEncabezadoHtml(htmlFile, getInfo, respuestaLen, tiempoInicio) < 0)
@@ -321,6 +346,12 @@ int EnviarRespuestaHtml(SOCKET socket, msgGet getInfo, void *respuesta,
         return -1;
     }
 
+    if (generarFinDeHtml(htmlFile) < 0)
+    {
+        perror("Generar fin de Html");
+        return -1;
+    }
+
     /*Se genera el html con la respuesta*/
     if (control == -1)
     {
@@ -329,6 +360,14 @@ int EnviarRespuestaHtml(SOCKET socket, msgGet getInfo, void *respuesta,
         /*Si hay error al generar Html, enviar not found*/
         if (httpNotFound_send(socket, getInfo) < 0)
             printf("Error al enviar HTTP Not Found.\n\n");
+        return -1;
+    }
+
+    close(htmlFile);
+
+    if ((htmlFile = open("resultados.txt", O_RDONLY, mode)) < 0)
+    {
+        perror("open htmlFile");
         return -1;
     }
 
@@ -345,8 +384,10 @@ int EnviarRespuestaHtml(SOCKET socket, msgGet getInfo, void *respuesta,
         close(htmlFile);
         return -1;
     }
-
     close(htmlFile);
+
+    system("rm resultados.txt");
+
     return 0;
 }
 

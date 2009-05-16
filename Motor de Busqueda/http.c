@@ -10,6 +10,7 @@
 int detectarCaracter                    (char *palabra);
 void desplazarCadena                    (char *ptr, char caracter);
 void transformarCaracteresEspeciales    (char *palabra);
+void formatQueryString                  (char *palabras, char *queryString);
 
 int EnviarBloque(SOCKET sockfd, unsigned long len, void *buffer)
 {
@@ -89,38 +90,43 @@ int RecibirBloque(SOCKET sockfd, char *bloque) {
 int httpGet_recv(SOCKET sockfd, msgGet *getInfo, int *getType)
 {
     char buffer[BUF_SIZE], *ptr;
-    char header[4];
     int bytesRecv=-1, error = 0;
 
     memset(buffer, '\0', sizeof(buffer));
-    memset(header, '\0', sizeof(header));
 
     getInfo->searchType = -1;
+    memset(getInfo->queryString, '\0', QUERYSTRING_SIZE);
 
     if ((bytesRecv = RecibirBloque(sockfd, buffer)) == -1)
         error = 1;
     else
     {
-        buffer[bytesRecv+1] = '\0';
+    	  int error = 1;
+    	  char *palabras;
 
-        strcpy(header, strtok(buffer, " "));
+		  ptr = buffer;
+		  for (;*ptr != NULL;ptr++)
+		  {
+		  		if (!memcmp(ptr,"GET ", strlen("GET ")))
+		  		{
+		  			error = 0;
+		  			ptr = ptr + strlen("GET ");
+		  			palabras = ptr;
+		  		}
+		  		if (!error && *ptr == ' ')
+		  		{
+		  			strncpy(getInfo->palabras, palabras, ptr - palabras);
+		  		}
 
-        if(!strcmp(header, "GET"))
-        {
-            char *palabras = getInfo->palabras;
+		  		if (!error && !memcmp(ptr,"HTTP/1.", strlen("HTTP/1.")))
+		  		{
+		  			ptr = ptr + strlen("HTTP/1.");
+		  			getInfo->protocolo = *ptr - '0';
+		  			break;
+		  		}
+		  }
 
-            strcpy(palabras, strtok(NULL, " "));
-            palabras[strlen(palabras)] = '\0';
-            strcpy(getInfo->palabras,palabras);
-
-            *getType = obtenerGetType(palabras);
-            
-            ptr = strtok(NULL, "HTTP/");
-            getInfo->protocolo = atoi((ptr+2));
-            if (getInfo->protocolo != 0 && getInfo->protocolo != 1)
-                error = 1;          
-        }
-        else
+        if (getInfo->protocolo != 0 && getInfo->protocolo != 1)
             error = 1;
     }
     if (error)
@@ -214,51 +220,56 @@ int httpOk_send(SOCKET sockfd, msgGet getInfo)
 
     memset(buffer,'\0',BUF_SIZE);
 
-    fileType = getFileType(getInfo.palabras);
-    switch (fileType)
-    {
-    case HTML:
+    if (getInfo.searchType != -1)
         strcpy(tipoArchivo, "text/html");
-        break;
-    case TXT:
-        strcpy(tipoArchivo, "text/txt");
-        break;
-    case PHP:
-        strcpy(tipoArchivo, "text/php");
-        break;
-    case JPEG:
-        strcpy(tipoArchivo, "image/jpeg");
-        break;
-    case JPG:
-        strcpy(tipoArchivo, "image/jpg");
-        break;
-    case PNG:
-        strcpy(tipoArchivo, "image/png");
-        break;
-    case GIF:
-        strcpy(tipoArchivo, "image/gif");
-        break;
-    case EXE:
-        strcpy(tipoArchivo, "application/octet-stream");
-        break;
-    case ZIP:
-        strcpy(tipoArchivo, "application/zip");
-        break;
-    case DOC:
-        strcpy(tipoArchivo, "application/msword");
-        break;
-    case XLS:
-        strcpy(tipoArchivo, "application/vnd.ms-excel");
-        break;
-    case PDF:
-        strcpy(tipoArchivo, "application/pdf");
-        break;
-    case PPT:
-        strcpy(tipoArchivo, "application/vnd.ms-powerpoint");
-        break;
-    case ARCHIVO:
-        strcpy(tipoArchivo, "application/force-download");
-        break;
+    else
+    {
+        fileType = getFileType(getInfo.palabras);
+        switch (fileType)
+        {
+        case HTML:
+            strcpy(tipoArchivo, "text/html");
+            break;
+        case TXT:
+            strcpy(tipoArchivo, "text/txt");
+            break;
+        case PHP:
+            strcpy(tipoArchivo, "text/php");
+            break;
+        case JPEG:
+            strcpy(tipoArchivo, "image/jpeg");
+            break;
+        case JPG:
+            strcpy(tipoArchivo, "image/jpg");
+            break;
+        case PNG:
+            strcpy(tipoArchivo, "image/png");
+            break;
+        case GIF:
+            strcpy(tipoArchivo, "image/gif");
+            break;
+        case EXE:
+            strcpy(tipoArchivo, "application/octet-stream");
+            break;
+        case ZIP:
+            strcpy(tipoArchivo, "application/zip");
+            break;
+        case DOC:
+            strcpy(tipoArchivo, "application/msword");
+            break;
+        case XLS:
+            strcpy(tipoArchivo, "application/vnd.ms-excel");
+            break;
+        case PDF:
+            strcpy(tipoArchivo, "application/pdf");
+            break;
+        case PPT:
+            strcpy(tipoArchivo, "application/vnd.ms-powerpoint");
+            break;
+        case ARCHIVO:
+            strcpy(tipoArchivo, "application/force-download");
+            break;
+        }
     }
 
     if (fileType > JPEG) /*No es ni foto ni texto*/
@@ -366,6 +377,7 @@ int obtenerQueryString(msgGet getThread, msgGet *getInfo)
 {
     char *palabra, *tipo, *ptr;
     char busqueda[MAX_PATH];
+    char queryString[QUERYSTRING_SIZE];
 
     strcpy(busqueda, getThread.palabras);
     
@@ -390,10 +402,96 @@ int obtenerQueryString(msgGet getThread, msgGet *getInfo)
     }
 
     transformarCaracteresEspeciales(palabra);
-
     strcpy(getInfo->palabras, palabra);
+    formatQueryString(getInfo->palabras, queryString);
+
+    strcpy(getInfo->queryString, queryString);
 
     return 0;
+}
+
+void formatQueryString(char *palabras, char *queryString)
+{
+    char *ptrInit = palabras;
+    char *ptrSeek = palabras;
+    char andBuf[MAX_PATH];
+    int and = 0;
+    int or = 0;
+
+    memset(andBuf,'\0',MAX_PATH);
+    memset(queryString,'\0',BUF_SIZE);
+
+    for (; *ptrSeek != NULL; ptrSeek++)
+    {
+        char palabra[MAX_PATH];
+        char buf[MAX_PATH];
+
+        if (ptrSeek == palabras)
+        {
+        	   if (*ptrSeek != '-' && *ptrSeek != '+')
+        	   {
+        	   	memset(palabra,'\0',MAX_PATH);
+            	memset(buf,'\0',MAX_PATH);
+
+        	   	ptrInit = ptrSeek;
+					while(*ptrSeek != '\0' && *ptrSeek != '+' && *ptrSeek != '-')
+						ptrSeek++;
+
+					strncpy(palabra, ptrInit, ptrSeek-ptrInit);
+					sprintf(buf,"%s(utnurlKeywords=%s)", "(|", palabra);
+					strcat(andBuf, buf);
+					and = 1;
+			   }
+			   if (*ptrSeek == '-')		*ptrSeek = '+';
+        }
+
+        if (*ptrSeek == '+')
+        {
+            memset(palabra,'\0',MAX_PATH);
+            memset(buf,'\0',MAX_PATH);
+
+
+				ptrInit = ++ptrSeek;
+				while(*ptrSeek != '\0' && *ptrSeek != '+' && *ptrSeek != '-')
+					ptrSeek++;
+
+			   strncpy(palabra, ptrInit, ptrSeek-ptrInit);
+			   sprintf(buf,"%s(utnurlKeywords=%s)", !and? "(|":"", palabra);
+			   strcat(andBuf, buf);
+
+			   if (!and)	and = 1;
+
+			   ptrSeek--;
+        }
+    }
+	 strcat(andBuf,")");
+
+    ptrInit = palabras;
+    ptrSeek = palabras;
+
+    for (; *ptrSeek != NULL; ptrSeek++)
+    {
+        if (*ptrSeek == '-')
+        {
+            char palabra[MAX_PATH];
+            char buf[MAX_PATH];
+
+            memset(palabra,'\0',MAX_PATH);
+            memset(buf,'\0',MAX_PATH);
+
+				ptrInit = ++ptrSeek;
+				while(*ptrSeek != '\0' && *ptrSeek != '+' && *ptrSeek != '-')
+					ptrSeek++;
+
+            strncpy(palabra, ptrInit, ptrSeek-ptrInit);
+            sprintf(buf,"%s%s(!(utnurlKeywords=%s))", !or? "(&":"", !or? andBuf:"", palabra);
+            if (!or)   or = 1;
+            strcat(queryString, buf);
+
+            ptrSeek--;
+        }
+    }
+    strcat(queryString, or? ")": andBuf);
 }
 
 void transformarCaracteresEspeciales(char *palabra)

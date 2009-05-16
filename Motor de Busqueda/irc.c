@@ -11,14 +11,15 @@
 
 void GenerarID(char *cadenaOUT);
 
-int ircRequest_send(SOCKET sock, void *bloque, unsigned long bloqueLen, char *descriptorID)
+int ircRequest_send(SOCKET sock, void *bloque, unsigned long bloqueLen, 
+                    char *descriptorID, int mode)
 {
     headerIRC header;
     unsigned long len;
 
     GenerarID(header.descriptorID);
     strcpy(descriptorID, header.descriptorID);
-    header.payloadDesc = IRC_REQUEST;
+    header.payloadDesc = mode;
     header.payloadLen = bloqueLen;
     header.payload = bloque;
 
@@ -38,7 +39,7 @@ int ircRequest_send(SOCKET sock, void *bloque, unsigned long bloqueLen, char *de
     return 0;
 }
 
-int ircRequest_recv (SOCKET sock, void *bloque, char *descriptorID)
+int ircRequest_recv (SOCKET sock, void *bloque, char *descriptorID, int *mode)
 {
     headerIRC header;
     unsigned long len = sizeof(headerIRC);
@@ -48,8 +49,6 @@ int ircRequest_recv (SOCKET sock, void *bloque, char *descriptorID)
         printf("Error en irc request recv header\n");
         return -1;
     }
-    if (header.payloadDesc != IRC_REQUEST)
-        return -1;
     memcpy(header.descriptorID, descriptorID, DESCRIPTORID_LEN);
 
     len = header.payloadLen;
@@ -62,13 +61,14 @@ int ircRequest_recv (SOCKET sock, void *bloque, char *descriptorID)
     return 0;
 }
 
-int ircResponse_send (SOCKET sock, char *descriptorID, void *bloque, unsigned long bloqueLen)
+int ircResponse_send (SOCKET sock, char *descriptorID, void *bloque, 
+                        unsigned long bloqueLen, int mode)
 {
     headerIRC header;
     unsigned long len = sizeof(headerIRC);
 
     strcpy(header.descriptorID, descriptorID);
-    header.payloadDesc = IRC_RESPONSE;
+    header.payloadDesc = mode;
     header.payloadLen = bloqueLen;
     header.payload = bloque;
 
@@ -87,7 +87,8 @@ int ircResponse_send (SOCKET sock, char *descriptorID, void *bloque, unsigned lo
     }
     return 0;
 }
-int ircResponse_recv (SOCKET sock, void *bloque, char *descriptorID, unsigned long *respuestaLen)
+int ircResponse_recv (SOCKET sock, void *bloque, char *descriptorID, 
+                    unsigned long *respuestaLen, int mode)
 {
     headerIRC header;
     unsigned long len = sizeof(headerIRC);
@@ -97,7 +98,7 @@ int ircResponse_recv (SOCKET sock, void *bloque, char *descriptorID, unsigned lo
         printf("Error en irc request recv header\n");
         return -1;
     }
-    if (header.payloadDesc != IRC_RESPONSE)
+    if (header.payloadDesc != mode)
         return -1;
     if (!memcmp(header.descriptorID, descriptorID, DESCRIPTORID_LEN))
     {
