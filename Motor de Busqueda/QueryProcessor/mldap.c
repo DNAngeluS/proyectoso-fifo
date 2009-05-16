@@ -12,7 +12,8 @@
 int generarArrayHTML(so_URL_HTML * resultados, PLDAP_FIELD field, int pos);
 int generarArrayOTROS(so_URL_Archivos * resultados, PLDAP_FIELD field, int pos);
 
-ldapObj establecerConexionLDAP(configuracion c){
+ldapObj establecerConexionLDAP(configuracion c)
+{
     ldapObj ldap;
 
     /*Variables del LDAP*/
@@ -32,8 +33,8 @@ ldapObj establecerConexionLDAP(configuracion c){
     return ldap;
 }
 
-PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char *palabras, int searchType) {
-
+PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char *palabras, int searchType)
+{
     PLDAP_RESULT_SET resultSet;
 
     if (searchType == WEB)
@@ -45,8 +46,8 @@ PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char *palabras, int searchType) {
 }
 
 
-VOID* armarPayload(PLDAP_RESULT_SET resultSet, int searchType) {
-
+VOID* armarPayload(PLDAP_RESULT_SET resultSet, int searchType)
+{
     /* Hago una consulta en una determinada
      * rama aplicando la siguiente condicion*/    
     PLDAP_ITERATOR iterator = NULL;
@@ -61,7 +62,8 @@ VOID* armarPayload(PLDAP_RESULT_SET resultSet, int searchType) {
     /* Itero sobre los registros obtenidos
      * a traves de un iterador que conoce
      * la implementacion del recorset*/
-    for(i = 0, iterator = resultSet->iterator; iterator->hasNext(resultSet); i++) {
+    for(i = 0, iterator = resultSet->iterator; iterator->hasNext(resultSet); i++)
+    {
         PLDAP_RECORD record = iterator->next(resultSet);
         /*Realoca memoria para la estructura*/
         if (searchType == WEB) realloc(resultados, sizeof(so_URL_HTML));
@@ -70,7 +72,8 @@ VOID* armarPayload(PLDAP_RESULT_SET resultSet, int searchType) {
         
         /* Itero sobre los campos de cada
          * uno de los record*/
-        while(recordOp->hasNextField(record)) {
+        while(recordOp->hasNextField(record))
+        {
             PLDAP_FIELD field = recordOp->nextField(record);                        
             /*
             utnurlKeywords
@@ -101,14 +104,17 @@ VOID* armarPayload(PLDAP_RESULT_SET resultSet, int searchType) {
     return resultados;
 }
 
-int generarArrayHTML(so_URL_HTML *resultados, PLDAP_FIELD field, int pos){
+int generarArrayHTML(so_URL_HTML *resultados, PLDAP_FIELD field, int pos)
+{
     INT	index = 0;
+    char buf[BUF_SIZE];
     
     if(field->name=="utnurlID")resultados[pos].UUID =(char *) field->values[index];
     if(field->name=="utnurlTitle")resultados[pos].titulo =(char *) field->values[index];
     if(field->name=="utnurlDescription")resultados[pos].descripcion =(char *) field->values[index];
     if(field->name=="labeledURL")resultados[pos].URL =(char *) field->values[index];
     if(field->name=="utnurlKeywords"){
+        buf = field->values[index]
         sprintf(resultados[pos].palabras, "%s", field->values[index]);
         for(index = 1; index < field->valuesSize; index++) {
             sprintf(resultados[pos].palabras, ", %s", field->values[index]);
@@ -116,7 +122,8 @@ int generarArrayHTML(so_URL_HTML *resultados, PLDAP_FIELD field, int pos){
     }
 
 }
-int generarArrayOTROS(so_URL_Archivos *resultados, PLDAP_FIELD field, int pos){
+int generarArrayOTROS(so_URL_Archivos *resultados, PLDAP_FIELD field, int pos)
+{
     INT	index = 0;
 
     if(field->name=="utnurlID")resultados[pos].URL = field->values[index];
@@ -125,9 +132,11 @@ int generarArrayOTROS(so_URL_Archivos *resultados, PLDAP_FIELD field, int pos){
     if(field->name=="utnurlType")resultados[pos].tipo = field->values[index];
     if(field->name=="utnurlLen")resultados[pos].length = field->values[index];
     if(field->name=="labeledURL")resultados[pos].URL = field->values[index];
-    if(field->name=="utnurlKeywords"){
+    if(field->name=="utnurlKeywords")
+    {
         sprintf(resultados[pos].palabras, "%s", field->values[index]);
-        for(index = 1; index < field->valuesSize; index++) {
+        for(index = 1; index < field->valuesSize; index++)
+        {
             sprintf(resultados[pos].palabras, ", %s", field->values[index]);
         }
     }
