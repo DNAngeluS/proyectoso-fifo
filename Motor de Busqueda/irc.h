@@ -8,8 +8,8 @@
 #ifndef _IRC_H
 #define	_IRC_H
 
-#include "frontend.h"
 
+#define MAX_PATH 256
 #define MAX_UUID 35
 #define DESCRIPTORID_LEN 16
 
@@ -20,6 +20,7 @@
 #define IRC_RESPONSE_ARCHIVOS 0x22
 #define IRC_RESPONSE_CACHE 0x22
 
+#include "qp.h"
 
 
 typedef struct {
@@ -32,7 +33,7 @@ typedef struct {
 typedef struct {
     char URL            [MAX_PATH];
     char UUID           [MAX_UUID];
-    char *palabras      [MAX_PATH];
+    char palabras       [MAX_PATH];
     char titulo         [MAX_PATH];
     char descripcion    [MAX_PATH];
 } so_URL_HTML;
@@ -40,6 +41,7 @@ typedef struct {
 typedef struct {
     char URL            [MAX_PATH];
     char nombre         [MAX_PATH];
+    char palabras       [MAX_PATH];
     char tipo           [2];
     char formato        [4];
     char length         [20];

@@ -17,7 +17,7 @@ EXTRALDFLAGS=-lsocket -lnsl
 #LDAPLIB=-lldap50 -lplc4 -lplds4
 
 # Estas son las librerias de openLdap
-LDAPLIB=-lldap  -llber
+LDAPLIB=-lldap -llber
 
 # en mi caso las librerias estan en /opt/csw/
 # Si se bajan las librerias de http://www.blastwave.org (openldap_devel)
@@ -28,10 +28,10 @@ LIBS=-R $(LIBDIR) -L $(LIBDIR) $(LDAPLIB) $(EXTRALDFLAGS)
 
 #Flags
 CC = exec gcc
-CFLAGS = -ansi -lsocket -lnsl -g -lldap -llber
+CFLAGS =-ansi -g
 
 #Dependencias
-OBJS = qp.o irc.o http.o config.o LdapWrapper.o mldap.o
+OBJS = LdapWrapper.o config.o http.o irc.o mldap.o qp.o
 
 qp: $(OBJS)
 	$(CC) $(CFLAGS) $(LIBS) -o qp $(OBJS)

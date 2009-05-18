@@ -137,12 +137,15 @@ PLDAP_SESSION newSession(PLDAP_CONTEXT context, PCHAR dn, PCHAR password) {
  *
  */
 VOID startSession(PLDAP_SESSION session) {
+	INT sessionOK;
 
 	PLDAP_CONTEXT context = session->context;
 
-	ldap_simple_bind_s(context->ldap, session->dn, session->password);
-
-	session->started = 1;
+	if((sessionOK = ldap_simple_bind_s(context->ldap, session->dn, session->password))!=(INT)LDAP_SUCCESS){
+		session->started = 0;
+		printf("start Error: %s\n", getErrorDescription(sessionOK));
+	}else
+		session->started = 1;
 
 }
 

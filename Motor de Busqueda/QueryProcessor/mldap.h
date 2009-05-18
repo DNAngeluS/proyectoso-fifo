@@ -8,8 +8,11 @@
 #ifndef _MLDAP_H
 #define	_MLDAP_H
 
+#include <stdio.h>
+#include <stdlib.h>
 #include "LdapWrapper.h"
 #include "config.h"
+#include "irc.h"
 
 typedef struct {
     PLDAP_SESSION session;
@@ -20,7 +23,7 @@ typedef struct {
     PLDAP_ATTRIBUTE_OP attribOp;
 } ldapObj;
 
-ldapObj establecerConexionLDAP(configuracion c);
+int establecerConexionLDAP(ldapObj *ldap, configuracion config);
 PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char *palabras, int searchType);
 VOID *armarPayload(PLDAP_RESULT_SET resultSet, int searchType);
 

@@ -14,13 +14,11 @@
 
 void rutinaDeError(char *string);
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
-
-headerIRC construirIRC(void *objeto);
+SOCKET atenderConsulta(SOCKET sockfd, ldapObj ldap);
 
 int main()
 {
-    SOCKET sockFE;
-    SOCKADDR_IN dirCliente;
+    SOCKET sockFE;    
     configuracion config;
     ldapObj ldap;
     PLDAP_RESULT_SET resultSet;
@@ -32,55 +30,12 @@ int main()
     if (establecerConexionEscucha(INADDR_ANY, config.puerto) != 0)
       rutinaDeError("Establecer conexion de escucha");
 
-    ldap = establecerConexionLDAP(config);
-      /*rutinaDeError("Establecer conexion LDAP");*/
+    if(establecerConexionLDAP(&ldap, config)!=0)
+      rutinaDeError("No se pudo establecer la conexion LDAP.");	
+    
+    printf("Conexion establecida con LDAP\n");
 
-    while(1)
-    {
-      SOCKET sockCliente;
-      int nAddrSize = sizeof(dirCliente);
-      msgGet *getInfo;
-      char descriptorID[DESCRIPTORID_LEN];
-
-      memset(descriptorID, '\0', DESCRIPTORID_LEN);
-      /*Acepta la conexion entrante. Ahora FrontEnd*/
-      sockCliente = accept(sockFE, (SOCKADDR *) &dirCliente, &nAddrSize);
-
-      if (sockCliente != INVALID_SOCKET)
-          continue;
-
-      printf ("Conexion aceptada de %s:%d.\n\n", inet_ntoa(dirCliente.sin_addr),
-                                                        ntohs(dirCliente.sin_port));
-      /*Recibe las palabras a buscar*/
-      if (ircRequest_recv (sockCliente, (void *) getInfo, descriptorID) < 0)
-      {
-          close(sockCliente);
-          continue;
-      }
-      /*Crea las estructuras para enviar el IRC*/
-      void *resultados = NULL;
-      unsigned long len;
-
-      /*Indentifica el tipo de busqueda*/
-      if (getInfo->searchType == WEB) len = (sizeof(so_URL_HTML));
-      if (getInfo->searchType == IMG) len = (sizeof(so_URL_Archivos));
-      if (getInfo->searchType == OTROS) len = (sizeof(so_URL_Archivos));
-
-      /*Realiza la busqueda*/
-      resultSet = consultarLDAP(ldap, getInfo->palabras, getInfo->searchType);
-      /*Prepara la informacion a enviar por el IRC*/
-      resultados = armarPayload(resultSet, getInfo->searchType);
-      
-      /*envia el IRC con los datos encontrados*/
-      if (ircResponse_send(sockCliente, descriptorID, resultados, len) < 0)
-      {
-          close(sockCliente);
-          continue;
-      }
-
-      close(sockCliente);
-    }
-
+/*atenderConsulta(sockFE, ldap)*/
 
     /*Cierra conexiones de Sockets*/
     close(sockFE);    
@@ -96,8 +51,74 @@ int main()
     return 0;
 }
 
-/*Descripcion: Establece la conexion del servidor web a la escucha en un puerto y direccion ip.
+/*      
+Descripcion: Atiende el cliente, recibe busca en LDAP y responde.
 Ultima modificacion: Moya, Lucio
+Recibe: Socket y estructura LDAP.
+Devuelve: ok? Socket del servidor: socket invalido.
+*/
+
+SOCKET atenderConsulta(SOCKET sockfd, ldapObj ldap)
+{
+    /*Cliente*/
+    SOCKET sockCliente;
+    SOCKADDR_IN dirCliente;
+    int nAddrSize = sizeof(dirCliente);
+    /*IRC/IPC*/
+    msgGet *getInfo;
+    char descriptorID[DESCRIPTORID_LEN];
+    int mode;
+
+    while(1)
+    {/*Nose si iria el while para el nuevo caso que estas pensando*/
+
+        memset(descriptorID, '\0', DESCRIPTORID_LEN);
+        /*Acepta la conexion entrante. Ahora FrontEnd*/
+        sockCliente = accept(sockfd, (SOCKADDR *) &dirCliente, &nAddrSize);
+
+        if (sockCliente != INVALID_SOCKET)
+            continue;
+
+        printf ("Conexion aceptada de %s:%d.\n\n", inet_ntoa(dirCliente.sin_addr),
+                                                        ntohs(dirCliente.sin_port));
+        /*Recibe las palabras a buscar*/
+        if (ircRequest_recv (sockCliente, (void *) &getInfo, descriptorID, &mode) < 0)
+        {
+            close(sockCliente);
+            continue;
+        }
+        
+        /*Crea las estructuras para enviar el IRC*/
+        void *resultados = NULL;
+        unsigned long len;
+        
+        PLDAP_RESULT_SET resultSet;     
+
+        /*Indentifica el tipo de busqueda*/
+        if (getInfo->searchType == WEB) len = (sizeof(so_URL_HTML));
+        if (getInfo->searchType == IMG) len = (sizeof(so_URL_Archivos));
+        if (getInfo->searchType == OTROS) len = (sizeof(so_URL_Archivos));
+        
+        /*Realiza la busqueda*/        
+        if((resultSet = consultarLDAP(ldap, getInfo->palabras, getInfo->searchType))!=NULL)
+            continue;
+        /*Prepara la informacion a enviar por el IRC*/
+        if((resultados = armarPayload(resultSet, getInfo->searchType))!=NULL)
+            continue;
+        /*envia el IRC con los datos encontrados*/
+        if (ircResponse_send(sockCliente, descriptorID, resultados, len, mode) < 0)
+        {
+            close(sockCliente);
+            continue;
+        }
+    }
+
+    close(sockCliente);
+}
+
+/*      
+Descripcion: Establece la conexion del servidor web a la escucha en un puerto y direccion ip.
+Ultima modificacion: Scheinkman, Mariano
 Recibe: Direccion ip y puerto a escuchar.
 Devuelve: ok? Socket del servidor: socket invalido.
 */
@@ -110,7 +131,7 @@ SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort)
     if (sockfd != INVALID_SOCKET)
     {
         SOCKADDR_IN addrServidorWeb; /*Address del Web server*/
-        char yes = 1;
+        char yes = '1';
         int NonBlock = 1;
 
         /*Impide el error "addres already in use" y setea non blocking el socket*/
