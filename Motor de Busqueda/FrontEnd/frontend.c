@@ -49,6 +49,8 @@ int main(int argc, char** argv) {
     if ((sockFrontEnd = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
        rutinaDeError("Socket invalido");
 
+    printf("FRONT-END. Conexion establecida -> Esperando conexiones entrantes.\n\n");
+
     while(1)
     {
         SOCKET sockCliente;
@@ -72,6 +74,8 @@ int main(int argc, char** argv) {
             close(sockCliente);
             continue;
         }
+
+        getType = obtenerGetType(getInfo.palabras);
 
         if (getType == BROWSER)
         {

@@ -101,30 +101,31 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo, int *getType)
         error = 1;
     else
     {
-    	  int error = 1;
-    	  char *palabras;
+        int error = 1;
+        char *palabras;
 
-		  ptr = buffer;
-		  for (;*ptr != NULL;ptr++)
-		  {
-		  		if (!memcmp(ptr,"GET ", strlen("GET ")))
-		  		{
-		  			error = 0;
-		  			ptr = ptr + strlen("GET ");
-		  			palabras = ptr;
-		  		}
-		  		if (!error && *ptr == ' ')
-		  		{
-		  			strncpy(getInfo->palabras, palabras, ptr - palabras);
-		  		}
+        ptr = buffer;
+        for (;*ptr != NULL;ptr++)
+        {
+            if (!memcmp(ptr,"GET ", strlen("GET ")))
+            {
+                error = 0;
+                ptr = ptr + strlen("GET ");
+                palabras = ptr;
+            }
+            if (!error && *ptr == ' ')
+            {
+                strncpy(getInfo->palabras, palabras, ptr - palabras);
+                getInfo->palabras[ptr - palabras] = '\0';
+            }
 
-		  		if (!error && !memcmp(ptr,"HTTP/1.", strlen("HTTP/1.")))
-		  		{
-		  			ptr = ptr + strlen("HTTP/1.");
-		  			getInfo->protocolo = *ptr - '0';
-		  			break;
-		  		}
-		  }
+            if (!error && !memcmp(ptr,"HTTP/1.", strlen("HTTP/1.")))
+            {
+                ptr = ptr + strlen("HTTP/1.");
+                getInfo->protocolo = *ptr - '0';
+                break;
+            }
+        }
 
         if (getInfo->protocolo != 0 && getInfo->protocolo != 1)
             error = 1;
