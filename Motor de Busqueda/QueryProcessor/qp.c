@@ -181,6 +181,8 @@ int atenderConsulta(SOCKET sockfd, ldapObj ldap)
 	  return -1;
 	}
 
+	free(resultados);
+	
 	return 0;
 }
 
