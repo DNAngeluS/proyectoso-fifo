@@ -12,7 +12,7 @@
 
 
 #Flags
-CC = exec gcc
+CC = exec /opt/csw/gcc4/bin/gcc
 CFLAGS = -ansi -lsocket -lnsl -g
 
 #Dependencias
