@@ -31,10 +31,8 @@ int generarFinDeHtml                (int htmlFile);
 int generarEncabezadoHtml           (int htmlFile, msgGet getInfo,
                                         unsigned long respuestaLen, struct timeb tiempoInicio);
 
-int solicitarBusqueda               (msgGet getInfo, void *respuesta, unsigned long *respuestaLen);
+int solicitarBusqueda               (SOCKET sockQP, msgGet getInfo, void *respuesta, unsigned long *respuestaLen);
 
-SOCKET sockQP;
-SOCKADDR_IN dirQP;
 configuracion config;
 /*
  * 
@@ -45,14 +43,7 @@ int main(int argc, char** argv) {
     
     /*Lectura de Archivo de Configuracion*/
     if (leerArchivoConfiguracion(&config) != 0)
-       rutinaDeError("Lectura Archivo de configuracion");
-
-    /*Se establece conexion con el Query Procesor*/
-    if ((sockQP = establecerConexionQP(config.ipQP, config.puertoQP, &dirQP)) == INVALID_SOCKET)
-        rutinaDeError("Socket invalido");
-    
-    printf("Se establecio conexion con el QP satisfactoriamente. "
-            "Se comienzan a escuchar conexiones.\n\n");
+       rutinaDeError("Lectura Archivo de configuracion");  
 
     /*Se establece conexion a puerto de escucha*/
     if ((sockFrontEnd = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
@@ -105,13 +96,12 @@ int main(int argc, char** argv) {
     /*
      * ¿Esperar por todos los threads?
      */
-    
-    close(sockQP);
+     
     close(sockFrontEnd);
     return (EXIT_SUCCESS);
 }
 
-solicitarBusqueda(msgGet getInfo, void *respuesta, unsigned long *respuestaLen)
+solicitarBusqueda(SOCKET sockQP, msgGet getInfo, void *respuesta, unsigned long *respuestaLen)
 {
     char descriptorID[DESCRIPTORID_LEN];
 
@@ -142,11 +132,23 @@ void *rutinaAtencionCliente (void *args)
     SOCKET sockCliente = arg->socket;
     msgGet getThread = arg->getInfo, getInfo;
     SOCKADDR_IN dirCliente = arg->dir;
+    SOCKET sockQP;
+    SOCKADDR_IN dirQP;
 
     void *respuesta;
     unsigned long respuestaLen;
     struct timeb tiempoInicio;
 
+    /*Se establece conexion con el Query Procesor*/
+    if ((sockQP = establecerConexionQP(config.ipQP, config.puertoQP, &dirQP)) == INVALID_SOCKET)
+    {
+        perror("Establecer conexion QP");
+        close(sockCliente);
+        close(sockQP);
+        thr_exit(NULL);
+    }
+    
+    printf("Se establecio conexion con el QP satisfactoriamente.");
     printf ("Se comienza a atender Request de %s.\n\n", inet_ntoa(dirCliente.sin_addr));
 
     ftime(&tiempoInicio);
@@ -159,9 +161,11 @@ void *rutinaAtencionCliente (void *args)
         {
             printf("Error al enviar HTTP Not Found.\n\n");
             close(sockCliente);
+            close(sockQP);
             thr_exit(NULL);
         }
         close(sockCliente);
+        close(sockQP);
         thr_exit(NULL);
     }
     else
@@ -172,10 +176,11 @@ void *rutinaAtencionCliente (void *args)
     if (getInfo.searchType == OTROS)    respuesta = (so_URL_Archivos *)  malloc (sizeof(so_URL_Archivos));
 
     /*Se solicita la busqueda al Query Processor*/
-    if (solicitarBusqueda(getInfo, (void *) respuesta, &respuestaLen) < 0)
+    if (solicitarBusqueda(sockQP, getInfo, (void *) respuesta, &respuestaLen) < 0)
     {
         perror("Solicitar busqueda");
         close(sockCliente);
+        close(sockQP);
         thr_exit(NULL);
     }
 
@@ -185,6 +190,7 @@ void *rutinaAtencionCliente (void *args)
 
     free(respuesta);
     close(sockCliente);
+    close(sockQP);
     thr_exit(NULL);
 }
 

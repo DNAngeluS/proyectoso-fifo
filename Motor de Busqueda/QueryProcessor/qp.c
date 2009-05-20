@@ -14,35 +14,107 @@
 
 void rutinaDeError(char *string);
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
-SOCKET atenderConsulta(SOCKET sockfd, ldapObj ldap);
+int atenderConsulta(SOCKET sockfd, ldapObj ldap);
 
 int main()
 {
-    SOCKET sockFE;    
+    SOCKET sockQP;
+    
     configuracion config;
     ldapObj ldap;
     PLDAP_RESULT_SET resultSet;
-
+    
+    fd_set fdMaestro;
+	fd_set fdLectura;	
+	struct timeval timeout;
+    int fdMax;
+    
     /*Lectura de Archivo de Configuracion*/
     if (leerArchivoConfiguracion(&config) != 0)
       rutinaDeError("Lectura Archivo de configuracion");
 
-    if (establecerConexionEscucha(INADDR_ANY, config.puerto) != 0)
-      rutinaDeError("Establecer conexion de escucha");
-
     if(establecerConexionLDAP(&ldap, config)!=0)
       rutinaDeError("No se pudo establecer la conexion LDAP.");	
-    
     printf("Conexion establecida con LDAP\n");
-
-/*atenderConsulta(sockFE, ldap)*/
+    
+    if ((sockQP = establecerConexionEscucha(INADDR_ANY, config.puerto)) != 0)
+      rutinaDeError("Establecer conexion de escucha");
+    printf("Conexion establecida. Se comienzan a escuchar pedidos.\n\n");
+    
+    FD_ZERO (&fdMaestro);
+    FD_SET(sockQP, &fdMaestro);
+	fdMax = sockQP;
+    
+    while (1)
+    {
+        int rc, desc_ready, int cli;
+        
+        /*timeout.tv_sec = 0;
+		timeout.tv_usec = 0;*/
+        
+        FD_ZERO(&fdLectura);
+		memcpy(&fdLectura, &fdMaestro, sizeof(fdMaestro));
+        	
+		rc = select(fdMax+1, &fdLectura, NULL, NULL, NULL);
+    
+        if (rc < 0)
+			rutinaDeError("select");			
+		if (rc == 0) 
+        {
+			/*SELECT TIMEOUT*/
+		}
+		desc_ready = rc;
+		for (cli = 0; cli < fdMax+1 && desc_ready > 0; cli++) 
+		{			
+			if (FD_ISSET(cli, &fdLectura)) 
+			{
+				desc_ready--;
+				if (cli == sockQP)
+				/*Nueva conexion detectada -> Thread en front end*/
+				{
+                    /*Cliente*/
+                    SOCKET sockCliente;
+                    SOCKADDR_IN dirCliente;
+                    int nAddrSize = sizeof(dirCliente);
+                    
+                    memset(descriptorID, '\0', DESCRIPTORID_LEN);
+                    
+                    /*Acepta la conexion entrante. Thread en el front end*/
+                    sockCliente = accept(sockfd, (SOCKADDR *) &dirCliente, &nAddrSize);            
+                    if (sockCliente != INVALID_SOCKET)
+                        continue;            
+                    
+                    /*Agrega cliente y actualiza max*/
+                    FD_SET (sockCliente, &fdMaestro);
+					if (sockCliente > fdMax)			
+						fdMax = sockCliente;
+					
+                    printf ("Conexion aceptada de %s:%d.\n\n", inet_ntoa(dirCliente.sin_addr),
+                                                                    ntohs(dirCliente.sin_port));
+                }
+                else
+                /*Cliente detectado -> esta enviando consultas*/
+                {
+                    if (atenderConsulta(cli, ldap) < 0)
+                       perror("atender Consulta ldap");
+                    
+                    /*Eliminar cliente y actualizar nuevo maximo*/
+                    close(cli);
+					FD_CLR(cli, &fdMaestro);
+					if (cli == fdMax) 
+						while (FD_ISSET(fdMax, &fdMaestro) == 0)
+							fdMax--;
+                }		
+    }
 
     /*Cierra conexiones de Sockets*/
-    close(sockFE);    
+    for (cli = 0; cli < fdMax+1; ++cli) /*cerrar descriptores*/
+		close(cli);    
 
     /*Cierra conexiones LDAP*/
     ldap.sessionOp->endSession(ldap.session);
-    /*libero los objetos de operaciones*/
+    
+    /*Libero los objetos de operaciones*/
     freeLDAPSession(ldap.session);
     freeLDAPContext(ldap.context);
     freeLDAPContextOperations(ldap.ctxOp);
@@ -58,62 +130,50 @@ Recibe: Socket y estructura LDAP.
 Devuelve: ok? Socket del servidor: socket invalido.
 */
 
-SOCKET atenderConsulta(SOCKET sockfd, ldapObj ldap)
-{
-    /*Cliente*/
-    SOCKET sockCliente;
-    SOCKADDR_IN dirCliente;
-    int nAddrSize = sizeof(dirCliente);
+int atenderConsulta(SOCKET sockfd, ldapObj ldap)
+{ 
     /*IRC/IPC*/
-    msgGet *getInfo;
+    char queryString[BUF_SIZE];
     char descriptorID[DESCRIPTORID_LEN];
-    int mode;
-
-    while(1)
-    {/*Nose si iria el while para el nuevo caso que estas pensando*/
-
-        memset(descriptorID, '\0', DESCRIPTORID_LEN);
-        /*Acepta la conexion entrante. Ahora FrontEnd*/
-        sockCliente = accept(sockfd, (SOCKADDR *) &dirCliente, &nAddrSize);
-
-        if (sockCliente != INVALID_SOCKET)
-            continue;
-
-        printf ("Conexion aceptada de %s:%d.\n\n", inet_ntoa(dirCliente.sin_addr),
-                                                        ntohs(dirCliente.sin_port));
-        /*Recibe las palabras a buscar*/
-        if (ircRequest_recv (sockCliente, (void *) &getInfo, descriptorID, &mode) < 0)
-        {
-            close(sockCliente);
-            continue;
-        }
-        
-        /*Crea las estructuras para enviar el IRC*/
-        void *resultados = NULL;
-        unsigned long len;
-        
-        PLDAP_RESULT_SET resultSet;     
-
-        /*Indentifica el tipo de busqueda*/
-        if (getInfo->searchType == WEB) len = (sizeof(so_URL_HTML));
-        if (getInfo->searchType == IMG) len = (sizeof(so_URL_Archivos));
-        if (getInfo->searchType == OTROS) len = (sizeof(so_URL_Archivos));
-        
-        /*Realiza la busqueda*/        
-        if((resultSet = consultarLDAP(ldap, getInfo->palabras, getInfo->searchType))!=NULL)
-            continue;
-        /*Prepara la informacion a enviar por el IRC*/
-        if((resultados = armarPayload(resultSet, getInfo->searchType))!=NULL)
-            continue;
-        /*envia el IRC con los datos encontrados*/
-        if (ircResponse_send(sockCliente, descriptorID, resultados, len, mode) < 0)
-        {
-            close(sockCliente);
-            continue;
-        }
+    int mode;  
+    /*Crea las estructuras para enviar el IRC*/
+    void *resultados = NULL;
+    unsigned long len;  
+    PLDAP_RESULT_SET resultSet; 
+     
+    /*Recibe las palabras a buscar*/
+    if (ircRequest_recv (sockCliente, (void *) &getInfo, descriptorID, &mode) < 0)
+    {
+        perror("consultarLDAP");
+        return -1;
     }
-
-    close(sockCliente);
+    
+    /*Indentifica el tipo de busqueda*/
+    if (mode == IRC_REQUEST_HTML) len = (sizeof(so_URL_HTML));
+    if (mode == IRC_REQUEST_ARCHIVOS) len = (sizeof(so_URL_Archivos));
+    
+    /*Realiza la busqueda*/        
+    if ((resultSet = consultarLDAP(ldap, getInfo->palabras, getInfo->searchType))!=NULL)
+    {
+        perror("consultarLDAP");
+        return -1;
+    }
+    
+    /*Prepara la informacion a enviar por el IRC*/
+    if ((resultados = armarPayload(resultSet, getInfo->searchType)) != NULL)
+    {
+        perror("consultarLDAP");
+        return -1;
+    }
+    
+    /*envia el IRC con los datos encontrados*/
+    if (ircResponse_send(sockCliente, descriptorID, resultados, len, mode) < 0)
+    {
+        perror("consultarLDAP");
+        return -1;
+    }
+    
+    return 0;
 }
 
 /*      
