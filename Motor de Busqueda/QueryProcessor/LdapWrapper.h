@@ -7,12 +7,13 @@
  Description : OpenLDAP Wrapper declaration file
  ============================================================================
  */
-#ifndef _LDAPWRAPPER_H
-#define	_LDAPWRAPPER_H
 
 #include <errno.h>
 #include <stdarg.h>
 #include <ldap.h>
+#include <stdlib.h>
+#include <stdio.h>
+
 
 #ifndef FALSE
 #define FALSE               0
@@ -26,14 +27,10 @@
 #define CONST               const
 #endif
 
-#ifndef LDAP_OPT_SUCCESS
-#define LDAP_OPT_SUCCESS                0
-#endif
-
 typedef unsigned long 		ULONG;
 typedef 					ULONG *PULONG;
 typedef unsigned short 		USHORT;
-typedef                         		USHORT *PUSHORT;
+typedef 					USHORT *PUSHORT;
 typedef unsigned char 		UCHAR;
 typedef 					UCHAR *PUCHAR;
 typedef char 				*PSZ;
@@ -303,6 +300,3 @@ VOID					freeLDAPRecordOperations(PLDAP_RECORD_OP);
 VOID 					freeLDAPRecord(PLDAP_RECORD);
 
 VOID 					freeLDAPField(PLDAP_FIELD);
-
-#endif /*_LDAPWRAPPER_H*/
-

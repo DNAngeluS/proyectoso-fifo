@@ -29,7 +29,6 @@ PCHAR getErrorDescription(INT errorCode) {
 
 }
 
-
 VOID buildLDAPMod(PLDAP_ENTRY object) {
 
 	object->ldapMod = __LDAP_ALLOC(LDAPMod **, LDAPMod *, object->actualSize + 1);
@@ -137,16 +136,15 @@ PLDAP_SESSION newSession(PLDAP_CONTEXT context, PCHAR dn, PCHAR password) {
  *
  */
 VOID startSession(PLDAP_SESSION session) {
-	INT sessionOK;
 
 	PLDAP_CONTEXT context = session->context;
+	int ldapState = 0;
 
-	if((sessionOK = ldap_simple_bind_s(context->ldap, session->dn, session->password))!=(INT)LDAP_SUCCESS){
+	ldapState = ldap_simple_bind_s(context->ldap, session->dn, session->password);
+	if(ldapState!=LDAP_SUCCESS)
 		session->started = 0;
-		printf("start Error: %s\n", getErrorDescription(sessionOK));
-	}else
+	else
 		session->started = 1;
-
 }
 
 /**
@@ -267,21 +265,21 @@ PLDAP_RESULT_SET searchEntry(PLDAP_SESSION session, PCHAR baseDn, PCHAR filter) 
         LDAP_NO_LIMIT,
 		&resultSet->results
 	);
-        
+
 	if( returnValue != LDAP_OPT_SUCCESS) {
 
 		session->errorCode = returnValue;
-		printf("search Error: %s\n", getErrorDescription(returnValue));
+		printf("add Error: %s\n", getErrorDescription(returnValue));
 		return NULL;
 	}
 
-	/*guardo la cantidad de resultados obtenidos*/
+	/* guardo la cantidad de resultados obtenidos */
 	resultSet->count 	= ldap_count_messages(session->context->ldap, resultSet->results);
 	resultSet->iterator = iterator;
 	resultSet->session 	= session;
 
 	/* guardo el primer mensaje de los
-	 * resultador para el iterador*/
+	     resultador para el iterador */
 	resultSet->next = ldap_first_entry(session->context->ldap, resultSet->results);
 
 	return resultSet;
@@ -290,8 +288,6 @@ PLDAP_RESULT_SET searchEntry(PLDAP_SESSION session, PCHAR baseDn, PCHAR filter) 
 
 VOID searchEntryAsync(PLDAP_SESSION session, PCHAR baseDn, PCHAR filter) {
 
-	PLDAP_RESULT_SET	resultSet = __LDAP_ALLOC(PLDAP_RESULT_SET, LDAP_RESULT_SET, 1);
-	PLDAP_ITERATOR		iterator  = newLDAPIterator();
 	INT 				msgid;
 
 	INT returnValue = ldap_search_ext(
@@ -307,7 +303,7 @@ VOID searchEntryAsync(PLDAP_SESSION session, PCHAR baseDn, PCHAR filter) {
 			LDAP_NO_LIMIT,
 			&msgid
 	);
-        
+
 	if( returnValue != LDAP_OPT_SUCCESS) {
 
 		session->errorCode = returnValue;
@@ -338,7 +334,7 @@ PLDAP_ATTRIBUTE createAttribute(PCHAR attributeName, INT valueSize, ...) {
 	va_start(argPtr, valueSize);
 
 	/* extraigo los argumentos de la lista
-	 * y genero el array de attributes*/
+	     y genero el array de attributes */
 	for(index = 0; index < valueSize; index++) {
 
 		attributes[index] = va_arg(argPtr, PCHAR);
@@ -346,7 +342,7 @@ PLDAP_ATTRIBUTE createAttribute(PCHAR attributeName, INT valueSize, ...) {
 	}
 
 	/* se finaliza indicando con null
-	 * que no hay mas attributos*/
+	    que no hay mas attributos */
 	attributes[index] = NULL;
 
 	va_end(argPtr);
@@ -379,10 +375,10 @@ PLDAP_ENTRY createEntry() {
 
 VOID appendAttribute(PLDAP_ENTRY entry, PLDAP_ATTRIBUTE attribute, INT operationType) {
 
-	/*establesco el tipo de operacion*/
+	/* establesco el tipo de operacion */
 	attribute->modObj->mod_op = operationType;
 
-	/*si es el primer attribute*/
+	/* si es el primer attribute */
 	if(entry->firstAttribute == NULL) {
 
 		entry->firstAttribute = attribute;
@@ -391,7 +387,7 @@ VOID appendAttribute(PLDAP_ENTRY entry, PLDAP_ATTRIBUTE attribute, INT operation
 		return;
 	}
 
-	/*lo agrego al final*/
+	/* lo agrego al final */
 	entry->lastAttribute->next = attribute;
 	entry->lastAttribute = attribute;
 	entry->actualSize++;
@@ -465,7 +461,7 @@ PLDAP_FIELD nextField(PLDAP_RECORD record) {
 	}
 
 	field->name 	  = record->next;
-	field->values	  = ldap_get_values(record->ldap, record->message, record->next);
+	field->values	  = (char **)ldap_get_values( record->ldap,  record->message,  record->next);
 	field->valuesSize = ldap_count_values(field->values);
 	record->next 	  = ldap_next_attribute(record->ldap, record->message, record->ber);
 
