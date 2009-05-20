@@ -10,16 +10,19 @@
 #	-Carla Cadarola
 #----------------------
 
-
+#Libs
+SOCKLIBS=-lsocket -lnsl
+LIBDIR=
 #Flags
 CC = exec /opt/csw/gcc4/bin/gcc
-CFLAGS = -ansi -lsocket -lnsl -g
+CFLAGS =-ansi -g
+LIBS=-R -L $(SOCKLIBS)
 
 #Dependencias
 OBJS = frontend.o irc.o http.o config.o
 
 frontend: $(OBJS)
-	$(CC) $(CFLAGS) -o frontend $(OBJS)
+	$(CC) $(CFLAGS) $(LIBS) -o frontend $(OBJS)
 
 clean:
 	rm -f frontend $(OBJS)
