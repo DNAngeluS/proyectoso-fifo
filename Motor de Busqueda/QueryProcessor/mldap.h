@@ -24,8 +24,8 @@ typedef struct {
 } ldapObj;
 
 int establecerConexionLDAP(ldapObj *ldap, configuracion config);
-PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char *palabras, int searchType);
-VOID *armarPayload(PLDAP_RESULT_SET resultSet, int searchType);
+PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char *palabras, int mode);
+int armarPayload(PLDAP_RESULT_SET resultSet, int mode, void *resultados);
 
 
 #endif	/* _MLDAP_H */

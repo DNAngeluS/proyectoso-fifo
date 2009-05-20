@@ -25,8 +25,8 @@ int main()
     PLDAP_RESULT_SET resultSet;
     
     fd_set fdMaestro;
-	fd_set fdLectura;	
-	struct timeval timeout;
+	 fd_set fdLectura;	
+	 struct timeval timeout;
     int fdMax;
     
     /*Lectura de Archivo de Configuracion*/
@@ -43,24 +43,24 @@ int main()
     
     FD_ZERO (&fdMaestro);
     FD_SET(sockQP, &fdMaestro);
-	fdMax = sockQP;
+	 fdMax = sockQP;
     
     while (1)
     {
-        int rc, desc_ready, int cli;
+      int rc, desc_ready, int cli;
         
-        /*timeout.tv_sec = 0;
+      /*timeout.tv_sec = 0;
 		timeout.tv_usec = 0;*/
         
-        FD_ZERO(&fdLectura);
+      FD_ZERO(&fdLectura);
 		memcpy(&fdLectura, &fdMaestro, sizeof(fdMaestro));
         	
 		rc = select(fdMax+1, &fdLectura, NULL, NULL, NULL);
     
-        if (rc < 0)
+      if (rc < 0)
 			rutinaDeError("select");			
 		if (rc == 0) 
-        {
+      {
 			/*SELECT TIMEOUT*/
 		}
 		desc_ready = rc;
@@ -132,48 +132,56 @@ Devuelve: ok? Socket del servidor: socket invalido.
 
 int atenderConsulta(SOCKET sockfd, ldapObj ldap)
 { 
-    /*IRC/IPC*/
-    char queryString[BUF_SIZE];
-    char descriptorID[DESCRIPTORID_LEN];
-    int mode;  
-    /*Crea las estructuras para enviar el IRC*/
-    void *resultados = NULL;
-    unsigned long len;  
-    PLDAP_RESULT_SET resultSet; 
-     
-    /*Recibe las palabras a buscar*/
-    if (ircRequest_recv (sockCliente, (void *) &getInfo, descriptorID, &mode) < 0)
-    {
-        perror("consultarLDAP");
-        return -1;
-    }
-    
-    /*Indentifica el tipo de busqueda*/
-    if (mode == IRC_REQUEST_HTML) len = (sizeof(so_URL_HTML));
-    if (mode == IRC_REQUEST_ARCHIVOS) len = (sizeof(so_URL_Archivos));
-    
-    /*Realiza la busqueda*/        
-    if ((resultSet = consultarLDAP(ldap, getInfo->palabras, getInfo->searchType))!=NULL)
-    {
-        perror("consultarLDAP");
-        return -1;
-    }
-    
-    /*Prepara la informacion a enviar por el IRC*/
-    if ((resultados = armarPayload(resultSet, getInfo->searchType)) != NULL)
-    {
-        perror("consultarLDAP");
-        return -1;
-    }
-    
-    /*envia el IRC con los datos encontrados*/
-    if (ircResponse_send(sockCliente, descriptorID, resultados, len, mode) < 0)
-    {
-        perror("consultarLDAP");
-        return -1;
-    }
-    
-    return 0;
+	/*IRC/IPC*/
+	msgGet getInfo;
+	char descriptorID[DESCRIPTORID_LEN];
+	int mode; 
+	 
+	/*Crea las estructuras para enviar el IRC*/
+	void *resultados = NULL;
+	unsigned long len;  
+	PLDAP_RESULT_SET resultSet; 
+
+	/*Recibe las palabras a buscar*/
+	if (ircRequest_recv (sockCliente, (void *) &getInfo, descriptorID, &mode) < 0)
+	{
+		perror("ircRequest_recv");
+		return -1;
+	}
+
+	/*Indentifica el tipo de busqueda*/
+	if (mode == IRC_REQUEST_HTML) 		len = (sizeof(so_URL_HTML));
+	if (mode == IRC_REQUEST_ARCHIVOS) 	len = (sizeof(so_URL_Archivos));
+
+	/*Realiza la busqueda*/        
+	if ((resultSet = consultarLDAP(ldap, getInfo->queryString, mode))!=NULL)
+	{
+		perror("consultarLDAP");
+		return -1;
+	}
+
+	/*Aloca memoria para la estructura*/
+	if ((resultados = malloc(len)) == NULL)
+	{
+		perror("malloc");
+		return 1;
+	}
+
+	/*Prepara la informacion a enviar por el IRC*/
+	if (armarPayload(resultSet, getInfo->searchType, resultados) < 0)
+	{
+		perror("armarPayload");
+		return -1;
+	}
+
+	/*envia el IRC con los datos encontrados*/
+	if (ircResponse_send(sockCliente, descriptorID, resultados, len, mode) < 0)
+	{
+	  perror("ircResponse_send");
+	  return -1;
+	}
+
+	return 0;
 }
 
 /*      

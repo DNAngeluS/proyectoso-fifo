@@ -12,90 +12,103 @@ void generarArrayOTROS(so_URL_Archivos * resultados, PLDAP_FIELD field, int pos)
 
 int establecerConexionLDAP(ldapObj *ldap, configuracion config)
 {
-    /*Variables del LDAP*/
-    ldap->session;
-    ldap->context = newLDAPContext();
+	/*Variables del LDAP*/
+	ldap->session;
+	ldap->context = newLDAPContext();
 
-    ldap->ctxOp = newLDAPContextOperations();
-    ldap->sessionOp = newLDAPSessionOperations();
-    ldap->entryOp = newLDAPEntryOperations();
-    ldap->attribOp = newLDAPAttributeOperations();
+	ldap->ctxOp = newLDAPContextOperations();
+	ldap->sessionOp = newLDAPSessionOperations();
+	ldap->entryOp = newLDAPEntryOperations();
+	ldap->attribOp = newLDAPAttributeOperations();
 
-    /*Se establece la conexion con LDAP*/
-    ldap->ctxOp->initialize(ldap->context, config.ipPortLDAP);
-    if(ldap->context->errorCode!=LDAP_SUCCESS)
-	return 1;
-    ldap->session = ldap->ctxOp->newSession(ldap->context, "cn=Directory Manager", config.claveLDAP);
-    if(ldap->session == NULL)
-	return 1;
-    ldap->sessionOp->startSession(ldap->session);	
-    if(ldap->session->started!=1)    	
-	return 1;
-    
-    return 0;
+	/*Se establece la conexion con LDAP*/
+	ldap->ctxOp->initialize(ldap->context, config.ipPortLDAP);
+	if(ldap->context->errorCode != LDAP_SUCCESS)
+	{
+		perror("ldap initialize");
+		return 1;
+	}
+	
+	ldap->session = ldap->ctxOp->newSession(ldap->context, "cn=Directory Manager", config.claveLDAP);
+	if(ldap->session == NULL)
+	{
+		perror("ldap newSession");
+		return 1;
+	}
+		
+	ldap->sessionOp->startSession(ldap->session);	
+	if(ldap->session->started!=1)    	
+	{
+		perror("ldap startSession");
+		return 1;
+	}
+
+	return 0;
 }
 
-PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char buf[QUERYSTRING_SIZE], int searchType)
+PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char buf[QUERYSTRING_SIZE], int mode)
 {
-    PLDAP_RESULT_SET resultSet=NULL;
+    PLDAP_RESULT_SET resultSet = NULL;
 
-    if (searchType == WEB)
+    if (mode == IRC_REQUEST_HTML)
         resultSet = ldap.sessionOp->searchEntry(ldap.session, "ou=so,dc=utn,dc=edu", buf);
-    if ((searchType == IMG) || (searchType == OTROS))
+    if (mode == IRC_REQUEST_ARCHIVOS)
         resultSet = ldap.sessionOp->searchEntry(ldap.session, "ou=so,dc=utn,dc=edu", buf);
 
     return resultSet;
 }
 
 
-VOID* armarPayload(PLDAP_RESULT_SET resultSet, int searchType)
+int armarPayload(PLDAP_RESULT_SET resultSet, int mode, void *resultados)
 {
-    /* Hace una consulta en una determinada rama aplicando la siguiente condicion*/    
-    PLDAP_ITERATOR iterator = NULL;
-    PLDAP_RECORD_OP recordOp = newLDAPRecordOperations();
-    VOID *resultados = NULL;
-    int i;
-    /*Aloca memoria para la estructura*/
-    if (searchType == WEB) resultados = (so_URL_HTML *) 
-	malloc (sizeof(so_URL_HTML));
-    if ((searchType == IMG) || (searchType == OTROS))
-        resultados = (so_URL_Archivos *) malloc (sizeof(so_URL_Archivos));
-
+	/* Hace una consulta en una determinada rama aplicando la siguiente condicion*/    
+	PLDAP_ITERATOR iterator = NULL;
+	PLDAP_RECORD_OP recordOp = newLDAPRecordOperations();
+	int allocLen, i;
+   
+	/*Establece el tamaño de la estructura a allocar*/
+	if (mode == IRC_REQUEST_HTML) 
+		allocLen = sizeof(so_URL_HTML);
+	if (mode == IRC_REQUEST_ARCHIVOS)
+		allocLen = sizeof(so_URL_Archivos);
+   
     /* Itera sobre los registros obtenidos a traves de un iterador que conoce
      * la implementacion del recorset*/
     for(i = 0, iterator = resultSet->iterator; iterator->hasNext(resultSet); i++)
     {
-        PLDAP_RECORD record = iterator->next(resultSet);
-        /*Realoca memoria para la estructura*/
-        if (searchType == WEB) 
-	    resultados = (so_URL_HTML *) realloc(resultados, sizeof(so_URL_HTML));
-        if ((searchType == IMG) || (searchType == OTROS))
-            resultados = (so_URL_Archivos *) realloc(resultados, sizeof(so_URL_Archivos));
-	        
-        /* Itero sobre los campos de cada uno de los record*/
-        while(recordOp->hasNextField(record))
-        {
-            PLDAP_FIELD field = recordOp->nextField(record);                        
-            /*Por cada campo del record llama a la funcion correspondiente y asigna los valores
-	     *a la estructura*/
-            if (searchType == WEB)
-                generarArrayHTML((so_URL_HTML *) resultados, field, i);
-            if ((searchType == IMG) || (searchType == OTROS))
-                generarArrayOTROS((so_URL_Archivos *) resultados, field, i);
-        /* Se libera la memoria utilizada por el field si este ya no es
-         * necesario.*/
-         freeLDAPField(field);
-        }
+		PLDAP_RECORD record = iterator->next(resultSet);
 
-        /* Libero los recursos consumidos por el record*/
-        freeLDAPRecord(record);
+		/*Realoca memoria para la estructura*/
+		if (realloc(resultados, len) == NULL)
+		{
+			perror("realloc");
+	   	return -1;
+	   }    
+		
+		/*Itero sobre los campos de cada uno de los records*/
+		while(recordOp->hasNextField(record))
+		{
+			PLDAP_FIELD field = recordOp->nextField(record);                        
+	
+			/*Asigna los valores a la estructura*/
+			if (mode == IRC_REQUEST_HTML)
+				generarArrayHTML((so_URL_HTML *) resultados, field, i);
+			if (mode == IRC_REQUEST_ARCHIVOS) 
+				generarArrayOTROS((so_URL_Archivos *) resultados, field, i);
+
+		/*Se libera la memoria utilizada por el field*/
+		freeLDAPField(field);
+		}
+
+		/* Libero los recursos consumidos por el record*/
+		freeLDAPRecord(record);
     }
 
     /* Libero los recursos*/
     freeLDAPIterator(iterator);
     freeLDAPRecordOperations(recordOp);
 
-    return resultados;
+    return 0;
 }
 
 void generarArrayHTML(so_URL_HTML *resultados, PLDAP_FIELD field, int pos)
