@@ -18,7 +18,9 @@
 #define MAX_PATH 256
 #define SOCKET_ERROR -1
 #define BUF_SIZE 4096
-#define QUERYSTRING_SIZE 1024
+#define QUERYSTRING_SIZE 256
+#define MAX_HTML 512
+#define MAX_HTTP 512
 
 enum getType_t {FORMULARIO, BROWSER};
 enum searchType_t {WEB, IMG, OTROS};

@@ -31,7 +31,7 @@ int generarFinDeHtml                (int htmlFile);
 int generarEncabezadoHtml           (int htmlFile, msgGet getInfo,
                                         unsigned long respuestaLen, struct timeb tiempoInicio);
 
-int solicitarBusqueda               (SOCKET sockQP, msgGet getInfo, void *respuesta, unsigned long *respuestaLen);
+int solicitarBusqueda               (SOCKET sockQP, msgGet getInfo, void **respuesta, unsigned long *respuestaLen);
 
 configuracion config;
 /*
@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
     if ((sockFrontEnd = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
        rutinaDeError("Socket invalido");
 
-    printf("FRONT-END. Conexion establecida -> Esperando conexiones entrantes.\n\n");
+    printf("FRONT-END. Conexion establecida.\n");
 
     while(1)
     {
@@ -58,6 +58,8 @@ int main(int argc, char** argv) {
         int nAddrSize = sizeof(dirCliente);
         msgGet getInfo;
         int getType;
+
+        printf("Esperando conexiones entrantes.\n\n");
 
         /*Acepta la conexion entrante*/
         sockCliente = accept(sockFrontEnd, (SOCKADDR *) &dirCliente, &nAddrSize);
@@ -83,7 +85,6 @@ int main(int argc, char** argv) {
             if (EnviarFormularioHtml (sockCliente, getInfo) < 0)
                 printf("No se ha podido atender cliente de %s. Se cierra conexion.\n\n", inet_ntoa(dirCliente.sin_addr));
             close(sockCliente);
-            continue;
         }
         else if (getType == FORMULARIO)
         {
@@ -93,7 +94,6 @@ int main(int argc, char** argv) {
                 printf("No se ha podido atender cliente de %s. Se cierra conexion.\n\n", inet_ntoa(dirCliente.sin_addr));
                 close(sockCliente);
             }
-            continue;
         }
     }
 
@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
     return (EXIT_SUCCESS);
 }
 
-solicitarBusqueda(SOCKET sockQP, msgGet getInfo, void *respuesta, unsigned long *respuestaLen)
+solicitarBusqueda(SOCKET sockQP, msgGet getInfo, void **respuesta, unsigned long *respuestaLen)
 {
     char descriptorID[DESCRIPTORID_LEN];
 
@@ -116,11 +116,12 @@ solicitarBusqueda(SOCKET sockQP, msgGet getInfo, void *respuesta, unsigned long 
     if (getInfo.searchType == OTROS)    mode = IRC_REQUEST_ARCHIVOS;
 
     /*Enviar consulta a QP*/
-    if (ircRequest_send(sockQP, (void *) getInfo.queryString, BUF_SIZE, descriptorID, mode) < 0)
+    if (ircRequest_send(sockQP, (void *) &getInfo, sizeof(getInfo), descriptorID, mode) < 0)
     {
       printf("Error al enviar consulta a QP.\n\n");
       return -1;
     }
+    
     /*Recibir consulta de QP*/
     if (ircResponse_recv(sockQP, respuesta, descriptorID, respuestaLen, mode) < 0)
     {
@@ -180,7 +181,7 @@ void *rutinaAtencionCliente (void *args)
     if (getInfo.searchType == OTROS)    respuesta = (so_URL_Archivos *)  malloc (sizeof(so_URL_Archivos));
 
     /*Se solicita la busqueda al Query Processor*/
-    if (solicitarBusqueda(sockQP, getInfo, (void *) respuesta, &respuestaLen) < 0)
+    if (solicitarBusqueda(sockQP, getInfo, &respuesta, &respuestaLen) < 0)
     {
         perror("Solicitar busqueda");
         close(sockCliente);
@@ -188,11 +189,11 @@ void *rutinaAtencionCliente (void *args)
         thr_exit(NULL);
     }
 
-    if (EnviarRespuestaHtml(sockCliente, getInfo, (void *) respuesta,
+    if (EnviarRespuestaHtml(sockCliente, getInfo, respuesta,
                             respuestaLen, tiempoInicio) < 0)
         perror("Enviar respuesta html");
 
-    free(respuesta);
+    
     close(sockCliente);
     close(sockQP);
     thr_exit(NULL);
@@ -201,13 +202,13 @@ void *rutinaAtencionCliente (void *args)
 int generarHtmlWEB(int htmlFile, so_URL_HTML *respuesta, unsigned long respuestaLen)
 {
     int i;
-
+    
     for (i=0;i<respuestaLen/sizeof(so_URL_HTML);i++)
     {
         int nBytes;
-        char buffer[BUF_SIZE];
+        char buffer[MAX_HTML];
 
-        memset(buffer,'\0',BUF_SIZE);
+        memset(buffer,'\0',MAX_HTML);
         sprintf(buffer, "<b>%d</b>.<br/>Titulo: %s<br/>"
                     "Descripcion: %s<br/>"
                     "Link: http://%s<br/>"
@@ -234,9 +235,9 @@ int generarHtmlOTROS(int htmlFile, so_URL_Archivos *respuesta, unsigned long res
     for (i=0;i<respuestaLen/sizeof(so_URL_Archivos);i++)
     {
         int nBytes;
-        char buffer[BUF_SIZE];
+        char buffer[MAX_HTML];
 
-        memset(buffer,'\0',BUF_SIZE);
+        memset(buffer,'\0',MAX_HTML);
         sprintf(buffer, "<b>%d</b>.<br/>Nombre: %s<br/>"
                     "Formato: %s<br/>"
                     "Size: %s<br/>"
@@ -257,35 +258,45 @@ int generarHtmlOTROS(int htmlFile, so_URL_Archivos *respuesta, unsigned long res
 int generarEncabezadoHtml(int htmlFile, msgGet getInfo,
                             unsigned long respuestaLen, struct timeb tiempoInicio)
 {
-    char buffer[BUF_SIZE];
-    char contenidoHtml[BUF_SIZE];
-
     int nBytes;
-    char tipoDeResultado[20];
     int cantidad;
     int secTiempoRespuesta;
     int milliTiempoRespuesta;
     struct timeb tiempoFinal;
+    char buffer[MAX_HTML];
+    char contenidoHtml[MAX_HTML];
+    char tipoDeResultado[20];
+
+    memset(buffer,'\0', MAX_HTML);
+    memset(contenidoHtml,'\0', MAX_HTML);
+    memset(tipoDeResultado,'\0',20);
 
     ftime(&tiempoFinal);
     secTiempoRespuesta = tiempoFinal.time - tiempoInicio.time;
     milliTiempoRespuesta = tiempoFinal.millitm - tiempoInicio.millitm;
+
+    if (milliTiempoRespuesta < 0)
+    {
+        secTiempoRespuesta++;
+        milliTiempoRespuesta = abs(milliTiempoRespuesta);
+    }
+
     itoa_SearchType(getInfo.searchType, tipoDeResultado);
     if (getInfo.searchType == WEB)
         cantidad = respuestaLen/sizeof(so_URL_HTML);
     else
         cantidad = respuestaLen/sizeof(so_URL_Archivos);
 
-    memset(buffer,'\0',BUF_SIZE);
+    
     sprintf(contenidoHtml,"<html><head><title>%s</title></head><body>", "SOogle - Resultados de Busqueda");
-    strcat(buffer,contenidoHtml);
+    strcpy(buffer,contenidoHtml);
 
     sprintf(contenidoHtml, "<p>Resultados obtenidos:</p>"
                     "<p>Tipo de resultados: %s</p>"
                     "<p>Cantidad: %d</p>"
-                    "<p>Tiempo de respuesta: %d,%d segundos</p>"
+                    "<p>Tiempo de respuesta: %d,%2d segundos</p>"
                     "<p>Palabras: \"<b>%s</b>\"</p>"
-                    "<p>-------------------------------------------------\n</p>"
+                    "<p>-------------------------------------------------</p>"
                     , tipoDeResultado, cantidad
                     , secTiempoRespuesta, milliTiempoRespuesta
                     , getInfo.palabras);
@@ -308,10 +319,10 @@ int generarEncabezadoHtml(int htmlFile, msgGet getInfo,
 
 int generarFinDeHtml(int htmlFile)
 {
-    char buffer[BUF_SIZE];
+    char buffer[MAX_HTML];
     int nBytes;
 
-    memset(buffer,'\0',BUF_SIZE);
+    memset(buffer,'\0',MAX_HTML);
     strcpy(buffer, "-------------------------------------------------<br/><br/>"
     					 "</body></html>");
 
@@ -346,16 +357,38 @@ int EnviarRespuestaHtml(SOCKET socket, msgGet getInfo, void *respuesta,
         return -1;
     }
 
-    if (getInfo.searchType == WEB)
-        control = generarHtmlWEB(htmlFile, (so_URL_HTML *) respuesta, respuestaLen);
-    else if (getInfo.searchType == IMG || getInfo.searchType == OTROS)
-        control = generarHtmlOTROS(htmlFile, (so_URL_Archivos *) respuesta, respuestaLen);
+    if (respuestaLen == 0)
+    {
+        int nBytes;
+        char buffer[MAX_HTML];
+
+        memset(buffer,'\0',MAX_HTML);
+        strcpy(buffer, "No se encontro ningun match <br/>");
+
+        lseek(htmlFile,0L,2);
+        nBytes = write(htmlFile, buffer, strlen(buffer));
+        if (nBytes != strlen(buffer))
+        {
+            perror("write: Html file");
+            return -1;
+        }
+    }
     else
     {
-        perror("Error de tipo de Busqueda");
-        return -1;
+        if (getInfo.searchType == WEB)
+            control = generarHtmlWEB(htmlFile, (so_URL_HTML *) respuesta, respuestaLen);
+        else if (getInfo.searchType == IMG || getInfo.searchType == OTROS)
+            control = generarHtmlOTROS(htmlFile, (so_URL_Archivos *) respuesta, respuestaLen);
+        else
+        {
+            perror("Error de tipo de Busqueda");
+            return -1;
+        }
     }
 
+    /*Libero respuestas ya copiadas al html*/
+    free(respuesta);
+    
     if (generarFinDeHtml(htmlFile) < 0)
     {
         perror("Generar fin de Html");
@@ -388,6 +421,7 @@ int EnviarRespuestaHtml(SOCKET socket, msgGet getInfo, void *respuesta,
         close(htmlFile);
         return -1;
     }
+
     if (EnviarArchivo(socket, htmlFile) != getFileSize(htmlFile))
     {
         printf("Error al enviar Archivo.\n\n");
@@ -422,7 +456,7 @@ int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo, S
     args.getInfo = getInfo;
     args.dir = dir;
 
-    if (thr_create((void *) NULL, /*PTHREAD_STACK_MIN*/ thr_min_stack() +1024, funcion, (void *) &args, 0, &thr) < 0)
+    if (thr_create((void *) NULL, /*PTHREAD_STACK_MIN*/ thr_min_stack() +1024, funcion, (void *) &args, THR_DETACHED, &thr) < 0)
     {
         printf("Error al crear thread: %d", errno);
         return -1;

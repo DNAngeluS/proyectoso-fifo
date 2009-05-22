@@ -22,89 +22,97 @@ int main()
     
     configuracion config;
     ldapObj ldap;
-    PLDAP_RESULT_SET resultSet;
     
     fd_set fdMaestro;
-	 fd_set fdLectura;	
-	 struct timeval timeout;
-    int fdMax;
+    fd_set fdLectura;
+    struct timeval timeout;
+    int fdMax, cli;
     
     /*Lectura de Archivo de Configuracion*/
-    if (leerArchivoConfiguracion(&config) != 0)
+    if (leerArchivoConfiguracion(&config) < 0)
       rutinaDeError("Lectura Archivo de configuracion");
 
-    if(establecerConexionLDAP(&ldap, config)!=0)
+    if(establecerConexionLDAP(&ldap, config) < 0)
       rutinaDeError("No se pudo establecer la conexion LDAP.");	
     printf("Conexion establecida con LDAP\n");
     
-    if ((sockQP = establecerConexionEscucha(INADDR_ANY, config.puerto)) != 0)
+    if ((sockQP = establecerConexionEscucha(INADDR_ANY, config.puerto)) < 0)
       rutinaDeError("Establecer conexion de escucha");
-    printf("Conexion establecida. Se comienzan a escuchar pedidos.\n\n");
+    printf("QUERY PROCESSOR. Conexion establecida.\n");
     
     FD_ZERO (&fdMaestro);
     FD_SET(sockQP, &fdMaestro);
-	 fdMax = sockQP;
+    fdMax = sockQP;
     
     while (1)
     {
-      int rc, desc_ready, int cli;
+        int rc, desc_ready;
         
-      /*timeout.tv_sec = 0;
-		timeout.tv_usec = 0;*/
-        
-      FD_ZERO(&fdLectura);
-		memcpy(&fdLectura, &fdMaestro, sizeof(fdMaestro));
-        	
-		rc = select(fdMax+1, &fdLectura, NULL, NULL, NULL);
-    
-      if (rc < 0)
-			rutinaDeError("select");			
-		if (rc == 0) 
-      {
-			/*SELECT TIMEOUT*/
-		}
-		desc_ready = rc;
-		for (cli = 0; cli < fdMax+1 && desc_ready > 0; cli++) 
-		{			
-			if (FD_ISSET(cli, &fdLectura)) 
-			{
-				desc_ready--;
-				if (cli == sockQP)
-				/*Nueva conexion detectada -> Thread en front end*/
-				{
-                    /*Cliente*/
-                    SOCKET sockCliente;
-                    SOCKADDR_IN dirCliente;
-                    int nAddrSize = sizeof(dirCliente);
-                    
-                    memset(descriptorID, '\0', DESCRIPTORID_LEN);
-                    
-                    /*Acepta la conexion entrante. Thread en el front end*/
-                    sockCliente = accept(sockfd, (SOCKADDR *) &dirCliente, &nAddrSize);            
-                    if (sockCliente != INVALID_SOCKET)
-                        continue;            
-                    
-                    /*Agrega cliente y actualiza max*/
-                    FD_SET (sockCliente, &fdMaestro);
-					if (sockCliente > fdMax)			
-						fdMax = sockCliente;
-					
-                    printf ("Conexion aceptada de %s:%d.\n\n", inet_ntoa(dirCliente.sin_addr),
-                                                                    ntohs(dirCliente.sin_port));
-                }
-                else
-                /*Cliente detectado -> esta enviando consultas*/
+        timeout.tv_sec = 60*3;
+        timeout.tv_usec = 0;
+
+        FD_ZERO(&fdLectura);
+        memcpy(&fdLectura, &fdMaestro, sizeof(fdMaestro));
+
+        printf("Se comienzan a escuchar pedidos.\n\n");
+        rc = select(fdMax+1, &fdLectura, NULL, NULL, &timeout);
+
+        if (rc < 0)
+            rutinaDeError("select");
+        if (rc == 0)
+        {
+        /*SELECT TIMEOUT*/
+        }
+        if (rc > 0)
+        {
+            desc_ready = rc;
+            for (cli = 0; cli < fdMax+1 && desc_ready > 0; cli++)
+            {
+                if (FD_ISSET(cli, &fdLectura))
                 {
-                    if (atenderConsulta(cli, ldap) < 0)
-                       perror("atender Consulta ldap");
-                    
-                    /*Eliminar cliente y actualizar nuevo maximo*/
-                    close(cli);
-					FD_CLR(cli, &fdMaestro);
-					if (cli == fdMax) 
-						while (FD_ISSET(fdMax, &fdMaestro) == 0)
-							fdMax--;
-                }		
+                    desc_ready--;
+                    if (cli == sockQP)
+                    /*Nueva conexion detectada -> Thread en front end*/
+                    {
+                        /*Cliente*/
+                        SOCKET sockCliente;
+                        SOCKADDR_IN dirCliente;
+                        int nAddrSize = sizeof(dirCliente);
+                        char descriptorID[DESCRIPTORID_LEN];
+
+                        memset(descriptorID, '\0', DESCRIPTORID_LEN);
+
+                        /*Acepta la conexion entrante. Thread en el front end*/
+                        sockCliente = accept(sockQP, (SOCKADDR *) &dirCliente, &nAddrSize);
+                        if (sockCliente == INVALID_SOCKET)
+                            continue;
+
+                        /*Agrega cliente y actualiza max*/
+                        FD_SET (sockCliente, &fdMaestro);
+                        if (sockCliente > fdMax)
+                                fdMax = sockCliente;
+
+                        printf ("Conexion aceptada de %s.\n", inet_ntoa(dirCliente.sin_addr));
+                    }
+                    else
+                    /*Cliente detectado -> esta enviando consultas*/
+                    {
+                        if (atenderConsulta(cli, ldap) < 0)
+                            printf("Hubo un error al atender Cliente.");
+                        else
+                            printf("Atencion de cliente finalizada satisfactoriamente.");
+
+                        printf("Se cierra conexion.\n\n");
+                        /*Eliminar cliente y actualizar nuevo maximo*/
+                        close(cli);
+                        FD_CLR(cli, &fdMaestro);
+                        if (cli == fdMax)
+                            while (FD_ISSET(fdMax, &fdMaestro) == 0)
+                                fdMax--;
+                    }
+                }
+            }
+        }
     }
 
     /*Cierra conexiones de Sockets*/
@@ -130,51 +138,45 @@ Recibe: Socket y estructura LDAP.
 Devuelve: ok? Socket del servidor: socket invalido.
 */
 
-int atenderConsulta(SOCKET sockfd, ldapObj ldap)
+int atenderConsulta(SOCKET sockCliente, ldapObj ldap)
 { 
 	/*IRC/IPC*/
 	msgGet getInfo;
 	char descriptorID[DESCRIPTORID_LEN];
-	int mode; 
+	int mode;
 	 
 	/*Crea las estructuras para enviar el IRC*/
 	void *resultados = NULL;
 	unsigned long len;  
-	PLDAP_RESULT_SET resultSet; 
+	PLDAP_RESULT_SET resultSet;
+        unsigned int cantBloques = 0;
 
 	/*Recibe las palabras a buscar*/
 	if (ircRequest_recv (sockCliente, (void *) &getInfo, descriptorID, &mode) < 0)
 	{
-		perror("ircRequest_recv");
-		return -1;
+            perror("ircRequest_recv");
+            return -1;
 	}
 
-	/*Indentifica el tipo de busqueda*/
-	if (mode == IRC_REQUEST_HTML) 		len = (sizeof(so_URL_HTML));
-	if (mode == IRC_REQUEST_ARCHIVOS) 	len = (sizeof(so_URL_Archivos));
-
-	/*Realiza la busqueda*/        
-	if ((resultSet = consultarLDAP(ldap, getInfo->queryString, mode))!=NULL)
+	/*Realiza la busqueda*/
+	if ((resultSet = consultarLDAP(ldap, getInfo.queryString, mode)) == NULL)
 	{
-		perror("consultarLDAP");
-		return -1;
-	}
-
-	/*Aloca memoria para la estructura*/
-	if ((resultados = malloc(len)) == NULL)
-	{
-		perror("malloc");
-		return 1;
+            perror("consultarLDAP");
+            return -1;
 	}
 
 	/*Prepara la informacion a enviar por el IRC*/
-	if (armarPayload(resultSet, getInfo->searchType, resultados) < 0)
+	if ((armarPayload(resultSet, &resultados, mode, &cantBloques)) < 0)
 	{
-		perror("armarPayload");
-		return -1;
+            perror("armarPayload");
+            return -1;
 	}
 
-	/*envia el IRC con los datos encontrados*/
+        /*Indentifica el tipo de busqueda*/
+	if (mode == IRC_REQUEST_HTML)       len = (sizeof(so_URL_HTML))*cantBloques;
+	if (mode == IRC_REQUEST_ARCHIVOS)   len = (sizeof(so_URL_Archivos))*cantBloques;
+
+	/*Envia el IRC con los datos encontrados*/
 	if (ircResponse_send(sockCliente, descriptorID, resultados, len, mode) < 0)
 	{
 	  perror("ircResponse_send");
@@ -201,8 +203,8 @@ SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort)
     if (sockfd != INVALID_SOCKET)
     {
         SOCKADDR_IN addrServidorWeb; /*Address del Web server*/
-        char yes = '1';
-        int NonBlock = 1;
+        char yes = 1;
+        /*int NonBlock = 1;*/
 
         /*Impide el error "addres already in use" y setea non blocking el socket*/
         if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(int)) == -1)

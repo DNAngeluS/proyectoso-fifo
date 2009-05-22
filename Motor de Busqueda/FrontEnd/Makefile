@@ -15,7 +15,7 @@ SOCKLIBS=-lsocket -lnsl
 LIBDIR=
 #Flags
 CC = exec /opt/csw/gcc4/bin/gcc
-CFLAGS =-ansi -g
+CFLAGS =-ansi -g# -Wall
 LIBS=-R -L $(SOCKLIBS)
 
 #Dependencias

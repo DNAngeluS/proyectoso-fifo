@@ -7,6 +7,9 @@
  Description : OpenLDAP Wrapper declaration file
  ============================================================================
  */
+#ifndef _LDAPWRAPPER_H
+#define	_LDAPWRAPPER_H
+
 
 #include <errno.h>
 #include <stdarg.h>
@@ -300,3 +303,5 @@ VOID					freeLDAPRecordOperations(PLDAP_RECORD_OP);
 VOID 					freeLDAPRecord(PLDAP_RECORD);
 
 VOID 					freeLDAPField(PLDAP_FIELD);
+
+#endif

@@ -25,7 +25,7 @@ typedef struct {
 
 int establecerConexionLDAP(ldapObj *ldap, configuracion config);
 PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char *palabras, int mode);
-int armarPayload(PLDAP_RESULT_SET resultSet, int mode, void *resultados);
+int armarPayload(PLDAP_RESULT_SET resultSet, void **resultados, int mode, unsigned int *cantBloques);
 
 
 #endif	/* _MLDAP_H */

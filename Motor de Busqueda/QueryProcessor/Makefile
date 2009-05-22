@@ -27,8 +27,8 @@ LIBDIR=/opt/csw/lib
 LIBS=-R $(LIBDIR) -L $(LIBDIR) $(LDAPLIB) $(EXTRALDFLAGS)
 
 #Flags
-CC = exec gcc
-CFLAGS =-ansi -g
+CC = exec /opt/csw/gcc4/bin/gcc
+CFLAGS =-ansi -g# -Wall
 
 #Dependencias
 OBJS = LdapWrapper.o config.o http.o irc.o mldap.o qp.o
