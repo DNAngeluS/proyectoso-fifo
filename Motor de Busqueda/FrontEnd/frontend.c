@@ -570,12 +570,8 @@ int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo, S
     args.getInfo = getInfo;
     args.dir = dir;
 
-<<<<<<< .mine
     /*Se crea el thread de atencion de cliente*/
-    if (thr_create((void *) NULL, /*PTHREAD_STACK_MIN*/ thr_min_stack() +1024, funcion, (void *) &args, THR_DETACHED, &thr) < 0)
-=======
     if (thr_create((void *) NULL, /*PTHREAD_STACK_MIN*/ thr_min_stack() +1024, funcion, (void *) &args, 0, &thr) < 0)
->>>>>>> .r95
     {
         printf("Error al crear thread: %d", errno);
         return -1;
