@@ -16,7 +16,7 @@ CC = exec gcc-4.1
 CFLAGS = -g  -ansi# -lpthread
 
 #Dependencias
-OBJS = webstore.o
+OBJS = webstore.o config.o
 
 webstore: $(OBJS)
 	$(CC) $(CFLAGS) -o webstore  $(OBJS)

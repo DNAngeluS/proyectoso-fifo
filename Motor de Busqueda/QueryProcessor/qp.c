@@ -85,7 +85,10 @@ int main()
                         /*Acepta la conexion entrante. Thread en el front end*/
                         sockCliente = accept(sockQP, (SOCKADDR *) &dirCliente, &nAddrSize);
                         if (sockCliente == INVALID_SOCKET)
+                        {
+                            perror("No se pudo conectar cliente");
                             continue;
+                        }
 
                         /*Agrega cliente y actualiza max*/
                         FD_SET (sockCliente, &fdMaestro);

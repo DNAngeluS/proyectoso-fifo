@@ -17,11 +17,15 @@
 #include <sys/ioctl.h>
 #include <sys/timeb.h>
 #include <fcntl.h>
+#include <sys/select.h>
 #include <sys/file.h>
 #include <netinet/in.h>
 #include <errno.h>
 #include <ctype.h>
 
+#define SOCKET int
+#define SOCKADDR struct sockaddr
+#define SOCKADDR_IN struct sockaddr_in
 #define INVALID_SOCKET -1
 #define MAX_PATH 256
 #define SOCKET_ERROR -1
