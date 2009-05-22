@@ -19,7 +19,7 @@ SOCKET establecerConexionQP         (in_addr_t nDireccionIP, in_port_t nPort, SO
 
 void *rutinaAtencionCliente         (void *sock);
 int rutinaCrearThread               (void *(*funcion)(void *), SOCKET sockfd,
-                                    msgGet getInfo, SOCKADDR_IN dir);
+                                        msgGet getInfo, SOCKADDR_IN dir);
 
 int EnviarFormularioHtml            (SOCKET sockfd, msgGet getInfo);
 int EnviarRespuestaHtml             (SOCKET socket, msgGet getInfo, void *respuesta,
@@ -59,6 +59,7 @@ int main(int argc, char** argv) {
         msgGet getInfo;
         int getType;
 
+        memset(&getInfo, '\0', sizeof(msgGet));
         printf("Esperando conexiones entrantes.\n\n");
 
         /*Acepta la conexion entrante*/
@@ -108,8 +109,9 @@ int main(int argc, char** argv) {
 solicitarBusqueda(SOCKET sockQP, msgGet getInfo, void **respuesta, unsigned long *respuestaLen)
 {
     char descriptorID[DESCRIPTORID_LEN];
-
     int mode;
+
+    memset(descriptorID, '\0', DESCRIPTORID_LEN);
 
     if (getInfo.searchType == WEB)      mode = IRC_REQUEST_HTML;
     if (getInfo.searchType == IMG)      mode = IRC_REQUEST_ARCHIVOS;
@@ -140,9 +142,11 @@ void *rutinaAtencionCliente (void *args)
     SOCKET sockQP;
     SOCKADDR_IN dirQP;
 
-    void *respuesta;
-    unsigned long respuestaLen;
+    void *respuesta = NULL;
+    unsigned long respuestaLen = 0;
     struct timeb tiempoInicio;
+
+    memset(&getInfo, '\0', sizeof(msgGet));
 
     /*Se establece conexion con el Query Procesor*/
     if ((sockQP = establecerConexionQP(config.ipQP, config.puertoQP, &dirQP)) == INVALID_SOCKET)
@@ -211,8 +215,8 @@ int generarHtmlWEB(int htmlFile, so_URL_HTML *respuesta, unsigned long respuesta
         memset(buffer,'\0',MAX_HTML);
         sprintf(buffer, "<b>%d</b>.<br/>Titulo: %s<br/>"
                     "Descripcion: %s<br/>"
-                    "Link: http://%s<br/>"
-                    "En cache: http://%s/cache=%s<br/><br/>"
+                    "Link: %s<br/>"
+                    "En cache: %s/cache=%s<br/><br/>"
                     , i+1, respuesta[i].titulo, respuesta[i].descripcion
                     , respuesta[i].URL, respuesta[i].URL, respuesta[i].UUID);
 
@@ -241,7 +245,7 @@ int generarHtmlOTROS(int htmlFile, so_URL_Archivos *respuesta, unsigned long res
         sprintf(buffer, "<b>%d</b>.<br/>Nombre: %s<br/>"
                     "Formato: %s<br/>"
                     "Size: %s<br/>"
-                    "Link: http://%s<br/><br/>"
+                    "Link: %s<br/><br/>"
                     , i+1, respuesta[i].nombre, respuesta[i].tipo
                     , respuesta[i].length, respuesta[i].URL);
 
@@ -456,7 +460,7 @@ int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo, S
     args.getInfo = getInfo;
     args.dir = dir;
 
-    if (thr_create((void *) NULL, /*PTHREAD_STACK_MIN*/ thr_min_stack() +1024, funcion, (void *) &args, THR_DETACHED, &thr) < 0)
+    if (thr_create((void *) NULL, /*PTHREAD_STACK_MIN*/ thr_min_stack() +1024, funcion, (void *) &args, 0, &thr) < 0)
     {
         printf("Error al crear thread: %d", errno);
         return -1;

@@ -379,6 +379,9 @@ int obtenerQueryString(msgGet getThread, msgGet *getInfo)
     char busqueda[MAX_PATH];
     char queryString[QUERYSTRING_SIZE];
 
+    memset(busqueda, '\0', MAX_PATH);
+    memset(queryString, '\0', QUERYSTRING_SIZE);
+
     strcpy(busqueda, getThread.palabras);
     
     ptr = strstr(busqueda, "buscar=");
