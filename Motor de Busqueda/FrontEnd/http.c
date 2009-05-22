@@ -12,39 +12,61 @@ void desplazarCadena                    (char *ptr, char caracter);
 void transformarCaracteresEspeciales    (char *palabra);
 void formatQueryString                  (char *palabras, char *queryString);
 
+
+
+/*
+Descripcion: Envia un bloque de datos
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket, longitud del bloque, bloque
+Devuelve: ok? bytes enviados: -1
+*/
 int EnviarBloque(SOCKET sockfd, unsigned long len, void *buffer)
 {
     int bHastaAhora = 0;
     int bytesEnviados = 0;
 
     do {
-                    if ((bHastaAhora = send(sockfd, buffer, len, 0)) == -1){
-                            break;
-                    }
-                    bytesEnviados += bHastaAhora;
+        if ((bHastaAhora = send(sockfd, buffer, len, 0)) == -1){
+                break;
+        }
+        bytesEnviados += bHastaAhora;
     } while (bytesEnviados != len);
 
     return bHastaAhora == -1? -1: bytesEnviados;
 }
 
+
+/*
+Descripcion: Recibe n bytes de un bloque de datos
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket, bloque, longitud del bloque
+Devuelve: ok? bytes recibidos: -1
+*/
 int RecibirNBloque(SOCKET socket, void *buffer, unsigned long length)
 {
     int bRecibidos = 0;
     int bHastaAhora = 0;
 
     do {
-            if ((bHastaAhora = recv(socket, buffer, length, 0)) == -1) {
-                    break;
-            }
-            if (bHastaAhora == 0)
-                    return 0;
-            bRecibidos += bHastaAhora;
+        if ((bHastaAhora = recv(socket, buffer, length, 0)) == -1) {
+                break;
+        }
+        if (bHastaAhora == 0)
+                return 0;
+        bRecibidos += bHastaAhora;
     } while (bRecibidos != length);
 
     return bHastaAhora == -1? -1: bRecibidos;
 }
 
 
+
+/*
+Descripcion: Recibe un bloque de datos que no se sabe la longitud
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket, bloque
+Devuelve: ok? bytes recibidos: -1
+*/
 int RecibirBloque(SOCKET sockfd, char *bloque) {
 
     int bRecibidos = 0;
@@ -86,6 +108,14 @@ int RecibirBloque(SOCKET sockfd, char *bloque) {
     return bRecibidos;
 }
 
+
+
+/*
+Descripcion: Recibe un mensaje GET del protocolo Html
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket, estructura msgGet vacia, tipo del pedido vacio
+Devuelve: ok? 0: -1. Esctructura msgGet y tipo del pedido llenos.
+*/
 int httpGet_recv(SOCKET sockfd, msgGet *getInfo, int *getType)
 {
     char buffer[MAX_HTTP], *ptr;
@@ -138,6 +168,14 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo, int *getType)
     else return 0;
 }
 
+
+
+/*
+Descripcion: Envia un archivo atraves de un socket
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket, descriptor del archivo
+Devuelve: ok? bytes enviados: -1
+*/
 int EnviarArchivo(SOCKET sockRemoto, int filefd)
 {
     char buf[BUF_SIZE];
@@ -192,6 +230,14 @@ int EnviarArchivo(SOCKET sockRemoto, int filefd)
     return error==0? bEnviadosTot: -1;
 }
 
+
+
+/*
+Descripcion: Recibe un mensaje Not Found del protocolo Html
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket, estructura msgGet
+Devuelve: ok? 0: -1
+*/
 int httpNotFound_send(SOCKET sockfd, msgGet getInfo)
 {
     char buffer[MAX_HTTP];
@@ -212,6 +258,14 @@ int httpNotFound_send(SOCKET sockfd, msgGet getInfo)
     }
 }
 
+
+
+/*
+Descripcion: Recibe un mensaje Ok del protocolo Html
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket, estructura msgGet
+Devuelve: ok? 0: -1
+*/
 int httpOk_send(SOCKET sockfd, msgGet getInfo)
 {
     char buffer[MAX_HTTP];
@@ -300,6 +354,14 @@ int httpOk_send(SOCKET sockfd, msgGet getInfo)
     return error? -1: 0;
 }
 
+
+
+/*
+Descripcion: Obtiene el tamaño en bytes de un archivo
+Ultima modificacion: Scheinkman, Mariano
+Recibe: descriptor del archivo
+Devuelve: ok? tamaño: -1
+*/
 unsigned long getFileSize(int fdFile)
 {
     unsigned long size;
@@ -308,13 +370,21 @@ unsigned long getFileSize(int fdFile)
     if (fstat(fdFile, &fileInfo) < 0)
     {
         perror("Error de fstat");
-        exit(1);
+        return -1;
     }
     size = (unsigned long) fileInfo.st_size;
 
     return size;
 }
 
+
+
+/*
+Descripcion: Obtiene el tipo de un archivo
+Ultima modificacion: Scheinkman, Mariano
+Recibe: nombre del archivo
+Devuelve: codigo del tipo
+*/
 int getFileType(const char *nombre)
 {
     char *ptr;
@@ -352,6 +422,14 @@ int getFileType(const char *nombre)
     return ARCHIVO;
 }
 
+
+
+/*
+Descripcion: Obtiene el tipo de pedido GET
+Ultima modificacion: Scheinkman, Mariano
+Recibe: palabras recibidas en el GET
+Devuelve: codigo del tipo de pedido
+*/
 int obtenerGetType(const char *palabras)
 {
     char *ptr;
@@ -373,6 +451,13 @@ int obtenerGetType(const char *palabras)
     }
 }
 
+
+/*
+Descripcion: Obtiene el query string de una busqueda
+Ultima modificacion: Scheinkman, Mariano
+Recibe: estructura GET con la busqueda, y estructura GET vacia
+Devuelve: ok? 0: -1. Estructura GET llena con el querystring
+*/
 int obtenerQueryString(msgGet getThread, msgGet *getInfo)
 {
     char *palabra, *tipo, *ptr;
@@ -413,6 +498,13 @@ int obtenerQueryString(msgGet getThread, msgGet *getInfo)
     return 0;
 }
 
+
+/*
+Descripcion: Formatea el query string segun los filtros utilizados por ldap
+Ultima modificacion: Scheinkman, Mariano
+Recibe: query string a formatear, query string vacio.
+Devuelve: query String formateado
+*/
 void formatQueryString(char *palabras, char *queryString)
 {
     char *ptrInit = palabras;
@@ -498,6 +590,15 @@ void formatQueryString(char *palabras, char *queryString)
     strcat(queryString, or? ")": andBuf);
 }
 
+
+
+/*
+Descripcion: Cambia los caracteres que se modifican por el
+ *              protocolo http en hexa, a su correspondiente en ascii
+Ultima modificacion: Scheinkman, Mariano
+Recibe: palabra
+Devuelve: palabra formateada
+*/
 void transformarCaracteresEspeciales(char *palabra)
 {
 
@@ -563,6 +664,13 @@ void transformarCaracteresEspeciales(char *palabra)
 
 }
 
+
+/*
+Descripcion: Desplaza una cadena a la izquierda
+Ultima modificacion: Scheinkman, Mariano
+Recibe: puntero a la posicion, caracter de control
+Devuelve: puntero a la nueva posicion
+*/
 void desplazarCadena(char *ptr, char caracter)
 {
     int i=1;

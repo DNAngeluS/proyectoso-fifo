@@ -11,6 +11,15 @@
 
 void GenerarID(char *cadenaOUT);
 
+
+
+/*
+Descripcion: Envia un mensaje Request del protocolo IRC atraves de un  socket
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket, bloque a enviar, su tamaño, un descriptorID del mensaje vacio,
+ *      payload descriptor del mensaje.
+Devuelve: ok? 0: -1. descriptorID utilizado en el mensaje
+*/
 int ircRequest_send(SOCKET sock, void *bloque, unsigned long bloqueLen,
                     char *descriptorID, int mode)
 {
@@ -39,6 +48,14 @@ int ircRequest_send(SOCKET sock, void *bloque, unsigned long bloqueLen,
     return 0;
 }
 
+
+/*
+Descripcion: Recibe un mensaje Request del protocolo IRC atraves de un  socket
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket, bloque donde recibir vacio, un descriptorID del mensaje,
+ *      payload descriptor del mensaje vacio.
+Devuelve: ok? 0: -1. bloque lleno y payload descriptor del mensaje recibido.
+*/
 int ircRequest_recv (SOCKET sock, void *bloque, char *descriptorID, int *mode)
 {
     headerIRC header;
@@ -65,6 +82,14 @@ int ircRequest_recv (SOCKET sock, void *bloque, char *descriptorID, int *mode)
     return 0;
 }
 
+
+/*
+Descripcion: Envia un mensaje Response del protocolo IRC atraves de un  socket
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket, un descriptorID del mensaje, bloque a enviar, su tamaño,
+ *      payload descriptor del mensaje.
+Devuelve: ok? 0: -1
+*/
 int ircResponse_send (SOCKET sock, char *descriptorID, void *bloque,
                         unsigned long bloqueLen, int mode)
 {
@@ -92,6 +117,14 @@ int ircResponse_send (SOCKET sock, char *descriptorID, void *bloque,
     return 0;
 }
 
+
+/*
+Descripcion: Recibe un mensaje Response del protocolo IRC atraves de un  socket
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket, bloque vacio donde recibir, un descriptorID del mensaje,
+ *      tamaño de la respuesta, payload descriptor del mensaje.
+Devuelve: ok? 0: -1. tamaño de la respuesta, bloque con la respuesta
+*/
 int ircResponse_recv (SOCKET sock, void **bloque, char *descriptorID,
                     unsigned long *respuestaLen, int mode)
 {
@@ -125,13 +158,12 @@ int ircResponse_recv (SOCKET sock, void **bloque, char *descriptorID,
     return -1;
 }
 
-/*******************************************
-Función: GenerarID()
-Propósito: genera un id aleatorio
-Devuelve: -
-Fecha última modificación: 12/09/2008 15:13
-Último en modificar: Mariano Scheinkman
-*******************************************/
+/*
+Descripcion: Genera un descriptorID aleatorio
+Ultima modificacion: Scheinkman, Mariano
+Recibe: cadena vacia.
+Devuelve: cadena con el nuevo descriptorID
+*/
 void GenerarID(char *cadenaOUT){
 
 	int i;

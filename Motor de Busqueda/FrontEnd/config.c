@@ -14,6 +14,13 @@
 #include <arpa/inet.h> /* inet_addr */
 #include "config.h"
 
+
+/*
+Descripcion: Lee archivo de configuracion
+Ultima modificacion: Scheinkman, Mariano
+Recibe: Estructura configuracion vacia
+Devuelve: ok? 0: -1. Estructura configuracion llena.
+*/
 int leerArchivoConfiguracion (configuracion *config)
 {
     char buf[BUF_SIZE];
@@ -60,6 +67,14 @@ int leerArchivoConfiguracion (configuracion *config)
     return 0;
 }
 
+
+
+/*
+Descripcion: Asigna datos a estructura configuracion segun clave y valor
+Ultima modificacion: Scheinkman, Mariano
+Recibe: Estructura configuracion, clave y valor
+Devuelve: ok? 0: -1
+*/
 int asignarDatos (configuracion *config, char *key, char *value)
 {
     if (strcmp(key, "IP_QUERY_PROCESSOR") == 0)
