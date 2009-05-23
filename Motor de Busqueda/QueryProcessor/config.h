@@ -11,11 +11,16 @@
 typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
 
+enum tipoRecurso_t {HTML, ARCHIVOS, AMBOS};
+
 typedef struct {
-    in_addr_t ip;			/*ip local*/
+    in_addr_t ip;		/*ip local*/
     in_port_t puerto;		/*puerto*/
     char ipPortLDAP[30];	/*ip servidor LDAP*/
     char claveLDAP[20];		/*Clave servidor LDAP*/
+    int tipoRecurso;            /*Tipo de recurso que atendera*/
+    int cantidadConexiones;     /*Cantidad de conexiones simultaneas*/
+    int tiempoDemora;           /*Tiempo de demora en enviar rta al Front-end*/
 } configuracion;
 
 int leerArchivoConfiguracion (configuracion *config);
