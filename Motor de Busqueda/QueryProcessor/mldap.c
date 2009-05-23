@@ -46,14 +46,14 @@ int establecerConexionLDAP(ldapObj *ldap, configuracion config)
 	return 0;
 }
 
-PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char buf[QUERYSTRING_SIZE], int mode)
+PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char querystring[QUERYSTRING_SIZE], int mode)
 {
     PLDAP_RESULT_SET resultSet = NULL;
 
     if (mode == IRC_REQUEST_HTML)
-        resultSet = ldap.sessionOp->searchEntry(ldap.session, "ou=so,dc=utn,dc=edu", buf);
+        resultSet = ldap.sessionOp->searchEntry(ldap.session, "ou=so,dc=utn,dc=edu", querystring);
     if (mode == IRC_REQUEST_ARCHIVOS)
-        resultSet = ldap.sessionOp->searchEntry(ldap.session, "ou=so,dc=utn,dc=edu", buf);
+        resultSet = ldap.sessionOp->searchEntry(ldap.session, "ou=so,dc=utn,dc=edu", querystring);
 
     return resultSet;
 }

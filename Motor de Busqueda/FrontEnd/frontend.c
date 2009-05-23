@@ -420,7 +420,7 @@ int EnviarRespuestaHtml(SOCKET socket, msgGet getInfo, void *respuesta,
 {
     int htmlFile;
     int control;
-    int cantidadRespuestas
+    int cantidadRespuestas;
 
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
