@@ -1,11 +1,10 @@
 #include "crawler-create.h"
-#include "http.h"
 #include "irc.h"
 
 void rutinaDeError(char *error);
 void signalHandler(int sig);
 
-int establecerConexionServidorWeb(in_addr_t nDireccion, in_port_t nPort)
+int establecerConexionServidorWeb(in_addr_t nDireccion, in_port_t nPort, SOCKADDR_IN *dir);
 int EnviarCrawlerCreate(in_addr_t nDireccion, in_port_t nPort);
 
 
@@ -128,8 +127,10 @@ int EnviarCrawlerCreate(in_addr_t nDireccion, in_port_t nPort)
     return 0;
 }
 
-SOCKET establecerConexionServidorWeb(in_addr_t nDireccion, in_port_t nPort, SOCKADDR_IN *their_addr)
+SOCKET establecerConexionServidorWeb(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr)
 {
+    SOCKET sockfd;
+
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
         rutinaDeError("socket");
 

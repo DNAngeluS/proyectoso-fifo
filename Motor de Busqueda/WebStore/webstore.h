@@ -25,6 +25,7 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <signal.h>
+#include <pthread.h>
 
 #define SOCKET int
 #define SOCKADDR struct sockaddr
@@ -49,12 +50,6 @@ typedef struct {
     char formato        [MAX_PATH];
     char *palabras      [MAX_PATH];
 } crawler_URL_ARCHIVOS;
-
-typedef struct {
-    in_addr_t hostIP;
-    in_port_t hostPort;
-    unsigned long uts;
-} webServerHosts;
 
 #endif	/* _WEBSTORE_H */
 

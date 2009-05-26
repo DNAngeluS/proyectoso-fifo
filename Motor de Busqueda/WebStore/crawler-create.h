@@ -38,8 +38,13 @@ typedef unsigned short in_port_t;
 #define MAX_PATH 256
 #define SOCKET_ERROR -1
 #define BUF_SIZE 1024
-#define MAX_HTMLCODE 4096
-#define QUERYSTRING_SIZE 1024
+
+
+typedef struct {
+    in_addr_t hostIP;
+    in_port_t hostPort;
+    unsigned long uts;
+} webServerHosts;
 
 #endif	/* _CRAWLER_CREATE_H */
 

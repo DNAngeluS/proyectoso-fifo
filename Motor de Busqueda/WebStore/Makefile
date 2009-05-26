@@ -10,17 +10,20 @@
 #	-Carla Caldarola
 #----------------------
 
+#Libs
+THREADLIBS=-lpthread
 
 #Flags
 CC = exec gcc-4.1
-CFLAGS = -g  -ansi# -lpthread
+CFLAGS = -g  -ansi
 
 #Dependencias
 OBJS_WS = webstore.o config.o
 OBJS_CR = crawler-create.o irc.o
+LIBS=-L $(THREADLIBS)
 
 webstore: $(OBJS_WS)
-	$(CC) $(CFLAGS) -o webstore  $(OBJS_WS)
+	$(CC) $(CFLAGS) $(LIBS) -o webstore  $(OBJS_WS)
 
 crawler-create: $(OBJS_CR)
 	$(CC) $(CFLAGS) -o crawler-create $(OBJS_CR)

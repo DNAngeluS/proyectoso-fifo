@@ -13,8 +13,10 @@ SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
 
 int atenderCrawler(SOCKET sockfd);
 
-int childID;
+int childID=0;
 configuracion config;
+pthread_mutex_t condition_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t  condition_start  = PTHREAD_COND_INITIALIZER;
 
 /*
  * 
@@ -45,6 +47,16 @@ int main(int argc, char** argv)
      */
     if (signal(SIGUSR1, signalHandler) == SIG_ERR)
         rutinaDeError("signal");
+
+
+    /*Se espera por el SIGUSR1 para comenzar a procesar*/
+    printf("Esperando SIGUSR1...\n");
+    pthread_mutex_lock( &condition_mutex );
+    while(childID != 0)
+    {
+        pthread_cond_wait( &condition_start, &condition_mutex );
+    }
+    pthread_mutex_unlock( &condition_mutex );
 
     /*Se inicializan datos para el select()*/
     FD_ZERO (&fdMaestro);
@@ -145,14 +157,22 @@ void signalHandler(int sig)
     {
         case SIGUSR1:
         {
-            char *argv[] = {"crawler-create",
-                            config.ipWebServer - '0',
-                            config.puertoWebServer - '0',
-                            config.tiempoMigracionCrawler - '0',
-                            NULL};
+            char *argv[] = {"crawler-create", "NULL", "NULL", "NULL", "NULL"};
+            int i;
+
+            for (i=1;i<=3;i++)
+                argv[i] = (char *) malloc (sizeof(char)*20);
+
+            sprintf(argv[1], "%d", config.ipWebServer);
+            sprintf(argv[2], "%d", config.puertoWebServer);
+            sprintf(argv[3], "%d", config.tiempoNuevaConsulta);
 
             if ((childID = fork()) < 0)
+            {
+                for (i=1;i<=3;i++)
+                    free(argv[i]);
                 rutinaDeError("fork. Creacion de proceso crawler-create");
+            }
             else if (childID == 0)
             {
                 execv("crawler-create", argv);
@@ -161,13 +181,25 @@ void signalHandler(int sig)
                 rutinaDeError("execv");
             }
             else if (childID > 0)
+            {
                 printf("Se a creado proceso crawler-create");
+                for (i=1;i<=3;i++)
+                    free(argv[i]);
+                pthread_mutex_lock( &condition_mutex );
+                pthread_cond_signal( &condition_start );
+                pthread_mutex_unlock( &condition_mutex );
+            }
         }
             break;
             
         case SIGCHLD:
             while(waitpid(-1, NULL, WNOHANG) > 0);
             break;
+
+        /*case SIGINT:
+         *   //if (childID != 0 VOLVER A SELECT() else sigint
+         *   break;
+         */
     }
 
     if (sig != SIGUSR1)
