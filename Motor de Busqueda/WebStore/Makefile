@@ -16,10 +16,14 @@ CC = exec gcc-4.1
 CFLAGS = -g  -ansi# -lpthread
 
 #Dependencias
-OBJS = webstore.o config.o
+OBJS_WS = webstore.o config.o
+OBJS_CR = crawler-create.o irc.o
 
-webstore: $(OBJS)
-	$(CC) $(CFLAGS) -o webstore  $(OBJS)
+webstore: $(OBJS_WS)
+	$(CC) $(CFLAGS) -o webstore  $(OBJS_WS)
+
+crawler-create: $(OBJS_CR)
+	$(CC) $(CFLAGS) -o crawler-create $(OBJS_CR)
 
 clean:
-	rm -f webstore $(OBJS)
+	rm -f webstore crawler-create $(OBJS_WS) $(OBJS_CR)

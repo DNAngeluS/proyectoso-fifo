@@ -74,6 +74,9 @@ int asignarDatos (configuracion *config, char *key, char *value)
     else if (strcmp(key, "TIEMPO_MIGRACION_CRAWLER") == 0)
         config->tiempoMigracionCrawler = (atoi(value));
 
+    else if (strcmp(key, "TIEMPO_NUEVA_CONSULTA") == 0)
+        config->tiempoNuevaConsulta = (atoi(value));
+
     else
     {
         printf("Archivo de configuracion: Opcion inexistente ('%s')\n", key);

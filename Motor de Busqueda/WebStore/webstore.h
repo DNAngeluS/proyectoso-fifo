@@ -16,12 +16,15 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/timeb.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <sys/select.h>
 #include <sys/file.h>
 #include <netinet/in.h>
 #include <errno.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <signal.h>
 
 #define SOCKET int
 #define SOCKADDR struct sockaddr
@@ -46,6 +49,12 @@ typedef struct {
     char formato        [MAX_PATH];
     char *palabras      [MAX_PATH];
 } crawler_URL_ARCHIVOS;
+
+typedef struct {
+    in_addr_t hostIP;
+    in_port_t hostPort;
+    unsigned long uts;
+} webServerHosts;
 
 #endif	/* _WEBSTORE_H */
 

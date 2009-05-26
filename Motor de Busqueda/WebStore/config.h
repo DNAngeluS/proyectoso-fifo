@@ -16,6 +16,7 @@ typedef struct {
     in_port_t puertoWebServer;
     in_port_t puertoL;
     int tiempoMigracionCrawler;
+    int tiempoNuevaConsulta;
 } configuracion;
 
 int leerArchivoConfiguracion (configuracion *config);

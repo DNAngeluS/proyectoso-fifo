@@ -8,9 +8,12 @@
 #include "config.h"
 
 void rutinaDeError(char* error);
+void signalHandler(int signal);
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
+
 int atenderCrawler(SOCKET sockfd);
 
+int childID;
 configuracion config;
 
 /*
@@ -18,21 +21,32 @@ configuracion config;
  */
 int main(int argc, char** argv)
 {
-
     SOCKET sockWebStore;
     fd_set fdMaestro;
     fd_set fdLectura;
     struct timeval timeout;
     int fdMax, cli;
 
+    /*Se agrega a SIGCHLD como señal a atenderse*/
+    if (signal(SIGCHLD, signalHandler) == SIG_ERR)
+        rutinaDeError("signal");
+
     /*Lectura de Archivo de Configuracion*/
     if (leerArchivoConfiguracion(&config) != 0)
-       rutinaDeError("Lectura Archivo de configuracion");
+        rutinaDeError("Lectura Archivo de configuracion");
 
     /*Se establece conexion a puerto de escucha*/
     if ((sockWebStore = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
-       rutinaDeError("Socket invalido");
+        rutinaDeError("Socket invalido");
 
+    /*Se atiendera UNA UNICA VEZ la señal SIGUSR1, por eso se usa signal()
+     *que una vez atendida reinicia el handler original de la señal
+     *que para SIGURS1 no existe, justo lo que queremos
+     */
+    if (signal(SIGUSR1, signalHandler) == SIG_ERR)
+        rutinaDeError("signal");
+
+    /*Se inicializan datos para el select()*/
     FD_ZERO (&fdMaestro);
     FD_SET(sockWebStore, &fdMaestro);
     fdMax = sockWebStore;
@@ -41,7 +55,8 @@ int main(int argc, char** argv)
     {
         int rc, desc_ready;
 
-        timeout.tv_sec = 60*3;
+        /*Se establece un tiempo de timeout para select()*/
+        timeout.tv_sec = config.tiempoNuevaConsulta;
         timeout.tv_usec = 0;
 
         FD_ZERO(&fdLectura);
@@ -51,14 +66,19 @@ int main(int argc, char** argv)
         rc = select(fdMax+1, &fdLectura, NULL, NULL, &timeout);
 
         if (rc < 0)
+        /*Error en select()*/
             rutinaDeError("select");
         if (rc == 0)
+        /*Select timeout*/
         {
-        /*SELECT TIMEOUT*/
+            kill(childID, SIGUSR1);
         }
         if (rc > 0)
+        /*Se detectaron sockets con actividad*/
         {
             desc_ready = rc;
+            
+            /*Se recorren todos los posibles sockets buscando los que tuvieron actividad*/
             for (cli = 0; cli < fdMax+1 && desc_ready > 0; cli++)
             {
                 if (FD_ISSET(cli, &fdLectura))
@@ -90,6 +110,7 @@ int main(int argc, char** argv)
                     else
                     /*Crawler detectado -> esta enviando consultas*/
                     {
+                        /*Atiende al Crawler*/
                         if (atenderCrawler(cli) < 0)
                             printf("Hubo un error al atender Crawler.");
                         else
@@ -97,7 +118,7 @@ int main(int argc, char** argv)
 
                         printf("Se cierra conexion.\n\n");
 
-                        /*Eliminar crawler y actualizar nuevo maximo*/
+                        /*Eliminar Crawler y actualizar nuevo maximo*/
                         close(cli);
                         FD_CLR(cli, &fdMaestro);
                         if (cli == fdMax)
@@ -118,6 +139,41 @@ int atenderCrawler(SOCKET sockfd)
     /*HACER*/
 }
 
+void signalHandler(int sig)
+{
+    switch(sig)
+    {
+        case SIGUSR1:
+        {
+            char *argv[] = {"crawler-create",
+                            config.ipWebServer - '0',
+                            config.puertoWebServer - '0',
+                            config.tiempoMigracionCrawler - '0',
+                            NULL};
+
+            if ((childID = fork()) < 0)
+                rutinaDeError("fork. Creacion de proceso crawler-create");
+            else if (childID == 0)
+            {
+                execv("crawler-create", argv);
+                
+                /*Si ejectua esto fue porque fallo execv*/
+                rutinaDeError("execv");
+            }
+            else if (childID > 0)
+                printf("Se a creado proceso crawler-create");
+        }
+            break;
+            
+        case SIGCHLD:
+            while(waitpid(-1, NULL, WNOHANG) > 0);
+            break;
+    }
+
+    if (sig != SIGUSR1)
+        if (signal(sig, signalHandler) == SIG_ERR)
+            rutinaDeError("signal");
+}
 
 /*
 Descripcion: Establece la conexion del servidor web a la escucha en un puerto y direccion ip.
