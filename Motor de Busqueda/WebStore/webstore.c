@@ -167,7 +167,10 @@ void signalHandler(int sig)
             sprintf(argv[2], "%d", config.puertoWebServer);
             sprintf(argv[3], "%d", config.tiempoNuevaConsulta);
 
-            if ((childID = fork()) < 0)
+            pthread_mutex_lock( &condition_mutex );
+            childID = fork();
+  
+            if ((childID) < 0)
             {
                 for (i=1;i<=3;i++)
                     free(argv[i]);
@@ -185,7 +188,6 @@ void signalHandler(int sig)
                 printf("Se a creado proceso crawler-create");
                 for (i=1;i<=3;i++)
                     free(argv[i]);
-                pthread_mutex_lock( &condition_mutex );
                 pthread_cond_signal( &condition_start );
                 pthread_mutex_unlock( &condition_mutex );
             }

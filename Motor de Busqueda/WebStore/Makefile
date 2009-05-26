@@ -26,7 +26,7 @@ webstore: $(OBJS_WS)
 	$(CC) $(CFLAGS) $(LIBS) -o webstore  $(OBJS_WS)
 
 crawler-create: $(OBJS_CR)
-	$(CC) $(CFLAGS) -o crawler-create $(OBJS_CR)
+	$(CC) $(CFLAGS) $(LIBS) -o crawler-create $(OBJS_CR)
 
 clean:
 	rm -f webstore crawler-create $(OBJS_WS) $(OBJS_CR)

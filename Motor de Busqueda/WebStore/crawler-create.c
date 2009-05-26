@@ -9,6 +9,8 @@ int EnviarCrawlerCreate(in_addr_t nDireccion, in_port_t nPort);
 
 
 int sigRecibida = 0;
+pthread_mutex_t condition_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t  condition_start  = PTHREAD_COND_INITIALIZER;
 
 int main(int argc, char **argv)
 {
@@ -35,45 +37,52 @@ int main(int argc, char **argv)
 
     while (1)
     {
-        if (sigRecibida)
-        /*Si se recibio la señal para iniciar la migracion*/
+        /*Se espera por el SIGUSR1 para consultar tabla y migrar nuevos Crawlers*/
+	printf("Esperando SIGUSR1...\n");
+	pthread_mutex_lock( &condition_mutex );
+	while(!sigRecibida)
+	{
+   	pthread_cond_wait( &condition_start, &condition_mutex );
+	}
+	pthread_mutex_unlock( &condition_mutex );
+
+        int maxHosts, i;
+        webServerHosts *hosts = NULL;
+
+        memset(hosts,'\0',sizeof(webServerHosts));
+        maxHosts = 0;
+
+        /*Se consulta el dir de expiracion y obtiene la tabla actualizada*/
+        if (consultarHostsExpiracion(&hosts, &maxHosts) < 0)
+            rutinaDeError("consulta hosts expiracion");
+
+        for (i=0; i<maxHosts; i++)
+        /*Para cada hosts en la tabla*/
         {
-            int maxHosts, i;
-            webServerHosts *hosts = NULL;
-
-            memset(hosts,'\0',sizeof(webServerHosts));
-            maxHosts = 0;
-
-            /*Se consulta el dir de expiracion y obtiene la tabla actualizada*/
-            if (consultarHostsExpiracion(&hosts, &maxHosts) < 0)
-                rutinaDeError("consulta hosts expiracion");
-   
-            for (i=0; i<maxHosts; i++)
-            /*Para cada hosts en la tabla*/
+            actualTime = time(NULL);
+            if ((actualTime - hosts[i].uts) >= tiempoMigracion)
+            /*Si el tiempo que paso desde la ultima migracion es mayor al configurado*/
             {
-                actualTime = time(NULL);
-                if ((actualTime - hosts[i].uts) >= tiempoMigracion)
-                /*Si el tiempo que paso desde la ultima migracion es mayor al configurado*/
+                /*Envia pedido de creacion de Crawler*/
+                if (EnviarCrawlerCreate(hosts[i].hostIP, hosts[i].hostPort) < 0)
                 {
-                    /*Envia pedido de creacion de Crawler*/
-                    if (EnviarCrawlerCreate(hosts[i].hostIP, hosts[i].hostPort) < 0)
-                    {
-                        fprintf(stderr, "Error: Instanciacion de un Crawler a %s:%d\n",
-                                inet_aton(hosts[i].hostIP), ntohs(hosts[i].hostPort));
-                        continue;
-                    }
-                    else
-                    {
-                        if (actualizarHostsExpiracion(time(NULL)) < 0)
-                            rutinaDeError("consulta hosts expiracion");
-                    }
+                    fprintf(stderr, "Error: Instanciacion de un Crawler a %s:%d\n",
+                            inet_aton(hosts[i].hostIP), ntohs(hosts[i].hostPort));
+                    continue;
+                }
+                else
+                {
+                    if (actualizarHostsExpiracion(time(NULL)) < 0)
+                        rutinaDeError("consulta hosts expiracion");
                 }
             }
-            free(hosts);
-            
-            /*Vuelve a establecer la señal como no recibida*/
-            sigRecibida = 0;
         }
+        free(hosts);
+
+        pthread_mutex_lock( &condition_mutex );
+        sigRecibida=0;
+        pthread_mutex_unlock( &condition_mutex );
+        
     }
 
 
@@ -152,7 +161,10 @@ void signalHandler(int sig)
     {
         case SIGUSR1:
             /*Señal recibida*/
-            sigRecibida = 1;
+            pthread_mutex_lock( &condition_mutex );
+            sigRecibida=1;
+            pthread_cond_signal( &condition_start );
+            pthread_mutex_unlock( &condition_mutex );
             break;
     }
     if (signal(sig, signalHandler) == SIG_ERR)

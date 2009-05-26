@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <pthread.h>
 
 
 typedef unsigned int in_addr_t;
