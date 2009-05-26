@@ -44,7 +44,7 @@ typedef unsigned short in_port_t;
 typedef struct {
     in_addr_t hostIP;
     in_port_t hostPort;
-    unsigned long uts;
+    time_t uts;
 } webServerHosts;
 
 #endif	/* _CRAWLER_CREATE_H */

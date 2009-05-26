@@ -8,7 +8,7 @@
 #include "config.h"
 
 void rutinaDeError(char* error);
-void signalHandler(int signal);
+void signalHandler(int sig);
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
 
 int atenderCrawler(SOCKET sockfd);
@@ -172,8 +172,8 @@ void signalHandler(int sig)
   
             if ((childID) < 0)
             {
-                for (i=1;i<=3;i++)
-                    free(argv[i]);
+                /*for (i=1;i<=3;i++)
+                    free(argv[i]);*/
                 rutinaDeError("fork. Creacion de proceso crawler-create");
             }
             else if (childID == 0)

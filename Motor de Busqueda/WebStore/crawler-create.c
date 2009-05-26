@@ -8,28 +8,34 @@ int establecerConexionServidorWeb(in_addr_t nDireccion, in_port_t nPort, SOCKADD
 int EnviarCrawlerCreate(in_addr_t nDireccion, in_port_t nPort);
 
 
-int sigRecibida = 0;
-pthread_mutex_t condition_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t  condition_start  = PTHREAD_COND_INITIALIZER;
+volatile sig_atomic_t sigRecibida = 0;
 
 int main(int argc, char **argv)
 {
     in_addr_t ipWebServer;
     in_port_t puertoWebServer;
-    unsigned int tiempoMigracion;
+    long tiempoMigracion;
     time_t actualTime;
+    struct sigaction new_action, old_action;
 
-    if (argc != 3)
+    if (argc != 4)
         rutinaDeError("Argumentos invalidos");
 
     /*Inicializa parametros de Web Server conocido y tiempo de nueva Migracion*/
-    ipWebServer = atoi(argv[1]);
-    puertoWebServer = atoi(argv[2]);
+    ipWebServer = inet_addr(argv[1]);
+    puertoWebServer = htons(atoi(argv[2]));/*ESTE ES PARA LA PRUEBA*/
+    /*puertoWebServer = atoi(argv[2]);*/
     tiempoMigracion = atoi(argv[3]);
 
-    /*Se asigna un handler a la señal*/
-    if (signal(SIGUSR1, signalHandler) == SIG_ERR)
-        rutinaDeError("signal");
+    /*Se establecen los valores de la nueva accion para manejar señales*/
+    new_action.sa_handler = signalHandler;
+    sigemptyset (&new_action.sa_mask);
+    new_action.sa_flags = SA_RESTART;
+
+    /*Se asigna un handler a la señal, si no se bloqueo su captura antes*/
+    sigaction (SIGUSR1, NULL, &old_action);
+    if (old_action.sa_handler != SIG_IGN)
+        sigaction (SIGUSR1, &new_action, NULL);
 
     /*Se envia pedido de creacion de Crawler al primer WebServer conocido*/
     if (EnviarCrawlerCreate(ipWebServer, puertoWebServer) < 0)
@@ -37,30 +43,47 @@ int main(int argc, char **argv)
 
     while (1)
     {
-        /*Se espera por el SIGUSR1 para consultar tabla y migrar nuevos Crawlers*/
-	printf("Esperando SIGUSR1...\n");
-	pthread_mutex_lock( &condition_mutex );
-	while(!sigRecibida)
-	{
-   	pthread_cond_wait( &condition_start, &condition_mutex );
-	}
-	pthread_mutex_unlock( &condition_mutex );
-
-        int maxHosts, i;
+        int i = 0;
+        int maxHosts = 0;
         webServerHosts *hosts = NULL;
 
-        memset(hosts,'\0',sizeof(webServerHosts));
-        maxHosts = 0;
+        /*Se inicialian controladores para bloquear hasta recibir SIGUSR1*/
+        sigemptyset (&new_action.sa_mask);
+        sigaddset (&new_action.sa_mask, SIGUSR1);
+        printf("Esperando SIGUSR1... pid(%d)\n", getpid());
+
+        /*Se espera por el SIGUSR1 para comenzar*/
+        sigprocmask (SIG_BLOCK, &new_action.sa_mask, &old_action.sa_mask);
+        while (!sigRecibida)
+            sigsuspend (&old_action.sa_mask);
+        sigprocmask (SIG_UNBLOCK, &new_action.sa_mask, NULL);
+
+        sigRecibida=0;
+
+        /*ESTO ES PARA LA PRUEBA*/
+        hosts = (webServerHosts *) malloc(sizeof(webServerHosts));
+        maxHosts=1;
+        hosts[0].hostIP=ipWebServer;
+        hosts[0].hostPort=puertoWebServer;
+        hosts[0].uts=time(NULL);
+        /***********************/
+
 
         /*Se consulta el dir de expiracion y obtiene la tabla actualizada*/
         if (consultarHostsExpiracion(&hosts, &maxHosts) < 0)
             rutinaDeError("consulta hosts expiracion");
 
-        for (i=0; i<maxHosts; i++)
+        printf("Se consulto directorio de hosts satisfactoriamente.\n");
+        printf("Se dispararan Crawlers a hosts desactualizados\n");
+        
+        while (i < maxHosts)
         /*Para cada hosts en la tabla*/
         {
+            long tiempoRestante;
             actualTime = time(NULL);
-            if ((actualTime - hosts[i].uts) >= tiempoMigracion)
+            tiempoRestante = (actualTime - hosts[i].uts);
+
+            if (tiempoRestante >= tiempoMigracion)
             /*Si el tiempo que paso desde la ultima migracion es mayor al configurado*/
             {
                 /*Envia pedido de creacion de Crawler*/
@@ -72,20 +95,23 @@ int main(int argc, char **argv)
                 }
                 else
                 {
-                    if (actualizarHostsExpiracion(time(NULL)) < 0)
+                    char ipPuerto[MAX_PATH];
+
+                    sprintf(ipPuerto, "%s:%d", inet_ntoa(hosts[i].hostIP), ntohs(hosts[i].hostPort));
+
+                    printf("Se envio peticion de Crawler a %s.\n", inet_ntoa(hosts[i].hostIP));
+                    printf("Se actualizara su Unix Timestamp\n\n");
+                    if (actualizarHostsExpiracion(ipPuerto, time(NULL)) < 0)
                         rutinaDeError("consulta hosts expiracion");
                 }
             }
-        }
-        free(hosts);
-
-        pthread_mutex_lock( &condition_mutex );
-        sigRecibida=0;
-        pthread_mutex_unlock( &condition_mutex );
-        
+            else printf("Aun quedan %ld para enviar Crawler a %s\n\n",
+                                tiempoMigracion - tiempoRestante, inet_ntoa(hosts[i].hostIP));
+            i++;
+        }        
+        if (hosts != NULL)  free(hosts);
     }
-
-
+    
     exit(EXIT_SUCCESS);
 }
 
@@ -98,6 +124,8 @@ Devuelve: ok? 0: -1. lista de hosts actualizada, y numero maximo de hosts
 int consultarHostsExpiracion(webServerHosts **hosts, int *maxHosts)
 {
     /*HACER*/
+
+    return 0;
 }
 
 /*
@@ -109,6 +137,8 @@ Devuelve: ok? 0: -1.
 int actualizarHostsExpiracion(time_t nuevoUts)
 {
     /*HACER*/
+
+    return 0;
 }
 
 
@@ -124,7 +154,7 @@ int EnviarCrawlerCreate(in_addr_t nDireccion, in_port_t nPort)
     printf("Se establecio conexion con WebServer en %s.\n", inet_ntoa(dirServidorWeb.sin_addr));
 
     /*Se envia mensaje de instanciacion de un Crawler*/
-    if (ircRequest_send(sockWebServer, NULL, sizeof(NULL), descriptorID, IRC_CRAWLER_CREATE) < 0)
+    if (ircRequest_send(sockWebServer, NULL, 0, descriptorID, IRC_CRAWLER_CREATE) < 0)
     {
         close(sockWebServer);
         return -1;
@@ -161,10 +191,8 @@ void signalHandler(int sig)
     {
         case SIGUSR1:
             /*Señal recibida*/
-            pthread_mutex_lock( &condition_mutex );
             sigRecibida=1;
-            pthread_cond_signal( &condition_start );
-            pthread_mutex_unlock( &condition_mutex );
+            printf("Señal recibida, sigRecibida = %d\n\n", sigRecibida);
             break;
     }
     if (signal(sig, signalHandler) == SIG_ERR)
@@ -173,6 +201,7 @@ void signalHandler(int sig)
 
 void rutinaDeError(char *error)
 {
-    fprintf(stderr, "Error al disparar Crawlers. %s", error);
+    fprintf(stderr, "Error al disparar Crawlers. ");
+    perror(error);
     exit(EXIT_FAILURE);
 }
