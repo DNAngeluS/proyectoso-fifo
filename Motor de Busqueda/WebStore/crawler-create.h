@@ -42,12 +42,5 @@ typedef unsigned short in_port_t;
 #define SOCKET_ERROR -1
 #define BUF_SIZE 1024
 
-
-typedef struct {
-    in_addr_t hostIP;
-    in_port_t hostPort;
-    time_t uts;
-} webServerHosts;
-
 #endif	/* _CRAWLER_CREATE_H */
 

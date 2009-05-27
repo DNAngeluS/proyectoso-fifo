@@ -8,9 +8,6 @@ void signalHandler(int sig);
 int establecerConexionServidorWeb(in_addr_t nDireccion, in_port_t nPort, SOCKADDR_IN *dir);
 int EnviarCrawlerCreate(in_addr_t nDireccion, in_port_t nPort);
 
-int actualizarHostsExpiracion(const char *ipPuerto, time_t nuevoUts);
-int consultarHostsExpiracion(webServerHosts **hosts, int *maxHosts);
-
 volatile sig_atomic_t sigRecibida = 0;
 
 int main(int argc, char **argv)
@@ -18,15 +15,22 @@ int main(int argc, char **argv)
     configuracion config;
     time_t actualTime;
     struct sigaction new_action, old_action;
+    ldapObj ldap;
 
     if (argc != 7)
         rutinaDeError("Argumentos invalidos");
 
+    /*Inicializar estructura config con valores pasado por argv*/
     config.ipWebServer = inet_addr(argv[1]);
     config.puertoWebServer = atoi(argv[2]);
     config.tiempoMigracionCrawler = atoi(argv[3]);
     strcpy(config.ipPortLDAP, argv[4]);
     strcpy(config.claveLDAP, argv[5]);
+
+    /*Establecer conexion LDAP*/
+    if(establecerConexionLDAP(&ldap, config) < 0)
+      rutinaDeError("No se pudo establecer la conexion LDAP.");
+    printf("Conexion establecida con LDAP\n");
 
     /*Se establecen los valores de la nueva accion para manejar señales*/
     new_action.sa_handler = signalHandler;
@@ -57,7 +61,7 @@ int main(int argc, char **argv)
         sigRecibida=0;
 
         /*Se consulta el dir de expiracion y obtiene la tabla actualizada*/
-        if (consultarHostsExpiracion(&hosts, &maxHosts) < 0)
+        if (ldapObtenerHosts(ldap, &hosts, &maxHosts) < 0)
             rutinaDeError("consulta hosts expiracion");
 
         printf("Se consulto directorio de hosts satisfactoriamente.\n");
@@ -88,7 +92,7 @@ int main(int argc, char **argv)
 
                     printf("Se envio peticion de Crawler a %s.\n", inet_ntoa(hosts[i].hostIP));
                     printf("Se actualizara su Unix Timestamp\n\n");
-                    if (actualizarHostsExpiracion(ipPuerto, time(NULL)) < 0)
+                    if (ldapActualizarHost(ldap, ipPuerto, time(NULL)) < 0)
                         rutinaDeError("consulta hosts expiracion");
                 }
             }
@@ -108,7 +112,7 @@ Ultima modificacion: Scheinkman, Mariano
 Recibe: lista de hosts actuales, numero maximo de hosts
 Devuelve: ok? 0: -1. lista de hosts actualizada, y numero maximo de hosts
 */
-int consultarHostsExpiracion(webServerHosts **hosts, int *maxHosts)
+int ldapObtenerHosts(ldapObj ldap, webServerHosts **hosts, int *maxHosts)
 {
     /*HACER*/
 
@@ -121,7 +125,7 @@ Ultima modificacion: Scheinkman, Mariano
 Recibe: nuevo uts
 Devuelve: ok? 0: -1.
 */
-int actualizarHostsExpiracion(const char *ipPuerto, time_t nuevoUts)
+int ldapActualizarHost(ldapObj ldap, const char *ipPuerto, time_t nuevoUts)
 {
     /*HACER*/
 

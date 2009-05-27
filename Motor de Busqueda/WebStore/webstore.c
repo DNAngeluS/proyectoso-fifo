@@ -13,9 +13,9 @@ void rutinaDeError(char* error);
 void signalHandler(int sig);
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
 
-int atenderCrawler(SOCKET sockCrawler);
-int atenderAltaURL(ldapObj *ldap, crawler_URL *entrada, int mode);
-int atenderModificarURL(ldapObj *ldap, crawler_URL *entrada, int mode);
+int atenderCrawler(SOCKET sockCrawler, ldapObj ldap);
+int atenderAltaURL(ldapObj *ldap, crawler_URL *entrada, unsigned int sizePalabras, int mode);
+int atenderModificarURL(ldapObj *ldap, crawler_URL *entrada, unsigned int sizePalabras, int mode);
 
 configuracion config;
 volatile sig_atomic_t sigRecibida=0;
@@ -246,13 +246,34 @@ int atenderCrawler(SOCKET sockCrawler, ldapObj ldap)
     return 0;
 }
 
-int atenderAltaURL(ldapObj *ldap, crawler_URL *entrada, unsigned int cantidadPalabras, int mode)
+int atenderAltaURL(ldapObj *ldap, crawler_URL *entrada, unsigned int sizePalabras, int mode)
 {
+    char ipPuerto[MAX_PATH];
+    char *ptr;
+    int existeHost;
+
+    /*Obtiene la clave IP:PUERTO del URL*/
+    memset(ipPuerto, '\0', sizeof(ipPuerto));
+    ptr = strchr(entrada->URL, '/');
+    strncpy(ipPuerto, entrada->URL,ptr - entrada->URL);
+
+    /*Si el host no existe aun lo agrega con un nuevo Unix Timestamp*/
+    existeHost = ldapComprobarExistencia(ldap, ipPuerto, IRC_CRAWLER_HOST);
+    if (!existeHost)
+        ldapActualizarHost(ldap, ipPuerto, time(NULL));
+
+    if (ldapAltaURL(ldap, entrada, mode, sizePalabras/MAX_SIZE_PALABRA) < 0)
+        return -1;
+
     return 0;
 }
 
-int atenderModificarURL(ldapObj *ldap, crawler_URL *entrada, unsigned int cantidadPalabras, int mode)
+int atenderModificarURL(ldapObj *ldap, crawler_URL *entrada, unsigned int sizePalabras, int mode)
 {
+
+    if (ldapModificarURL(ldap, entrada, mode, sizePalabras/MAX_SIZE_PALABRA) < 0)
+        return -1;
+
     return 0;
 }
 

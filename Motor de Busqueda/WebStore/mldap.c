@@ -55,7 +55,7 @@ PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char buf[QUERYSTRING_SIZE], int mod
     return resultSet;
 }
 
-int ldapAltaURL(ldapObj *ldap, webstore_URL* entrada, int mode, unsigned int sizePalabras)
+int ldapAltaURL(ldapObj *ldap, webstore_URL* entrada, int mode, unsigned int cantidadPalabras)
 {
     char uuid[MAX_UUID];
     char dn[MAX_UUID+25];
@@ -75,7 +75,7 @@ int ldapAltaURL(ldapObj *ldap, webstore_URL* entrada, int mode, unsigned int siz
 
     ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("objectclass", 2, "top", "utnUrl"));
     ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("labeledURL", 2, "labeledURL", entrada->URL));
-    for (i=0; i<sizePalabras / MAX_SIZE_PALABRA ;i++)
+    for (i=0; i<cantidadPalabras ;i++)
         ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1, entrada->palabras[i]));
 
     /*Si es un Archivo guarda los campos espeficos del mismo*/
@@ -106,7 +106,7 @@ int ldapAltaURL(ldapObj *ldap, webstore_URL* entrada, int mode, unsigned int siz
 }
 
 /*Devuelve 1 si existe, 0 si no existe*/
-int ldapComprobarExistencia(ldapObj ldap, char clave[MAX_PATH], int mode)
+int ldapComprobarExistencia(ldapObj ldap, char *clave, int mode)
 {
     PLDAP_RESULT_SET resultSet = NULL;
     char busqueda[MAX_PATH+15];
@@ -137,4 +137,44 @@ int ldapComprobarExistencia(ldapObj ldap, char clave[MAX_PATH], int mode)
     }
 
     return resultSet != NULL ?  1: 0;
+}
+
+
+/*
+Descripcion: Modifica una entrada ldap URL segun entrada y mode
+Ultima modificacion: Scheinkman, Mariano
+Recibe: entrada con los datos modificados, tipo de archivo, cantidad de palabras
+Devuelve: ok? 0: -1.
+*/
+int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int cantidadPalabras)
+{
+    /*HACER*/
+
+    return 0;
+}
+
+/*
+Descripcion: Genera una tabla de hosts segun lo almacenado en el dir de expiracion de ldap
+Ultima modificacion: Scheinkman, Mariano
+Recibe: lista de hosts actuales, numero maximo de hosts
+Devuelve: ok? 0: -1. lista de hosts actualizada, y numero maximo de hosts
+*/
+int ldapObtenerHosts(ldapObj ldap, webServerHosts **hosts, int *maxHosts)
+{
+    /*HACER*/
+
+    return 0;
+}
+
+/*
+Descripcion: Actualiza el dir de expiracion de ldap, con el tiempo enviado
+Ultima modificacion: Scheinkman, Mariano
+Recibe: nuevo uts
+Devuelve: ok? 0: -1.
+*/
+int ldapActualizarHost(ldapObj ldap, const char *ipPuerto, time_t nuevoUts)
+{
+    /*HACER*/
+
+    return 0;
 }

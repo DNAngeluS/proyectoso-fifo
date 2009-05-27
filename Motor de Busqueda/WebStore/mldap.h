@@ -14,10 +14,21 @@ typedef struct {
     PLDAP_ATTRIBUTE_OP attribOp;
 } ldapObj;
 
+typedef struct {
+    in_addr_t hostIP;
+    in_port_t hostPort;
+    time_t uts;
+} webServerHosts;
+
 int establecerConexionLDAP(ldapObj *ldap, configuracion config);
 PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char *palabras, int mode);
-int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int sizePalabras);
-int ldapComprobarExistencia(ldapObj ldap, char clave[MAX_PATH], int mode);
+
+int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int cantidadPalabras);
+int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int cantidadPalabras);
+int ldapComprobarExistencia(ldapObj ldap, char *clave, int mode);
+
+int ldapActualizarHost(ldapObj ldap, const char *ipPuerto, time_t nuevoUts);
+int ldapObtenerHosts(ldapObj ldap, webServerHosts **hosts, int *maxHosts);
 
 
 
