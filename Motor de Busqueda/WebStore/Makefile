@@ -15,11 +15,12 @@ THREADLIBS=-lpthread
 
 #Flags
 CC = exec gcc-4.1
-CFLAGS = -g -ansi -D_XOPEN_SOURCE=600  #-W -Wall -Werror -pedantic-errors -O2 -Wformat=2 -Wno-unused -DPOSIX -DPOSIX_SOURCE
+CFLAGS = -g -ansi -D_XOPEN_SOURCE=600 #-W -Wall -Werror -pedantic-errors -O2 -Wformat=2 -Wno-unused -DPOSIX -DPOSIX_SOURCE
 
 #Dependencias
-OBJS_WS = webstore.o config.o
-OBJS_CR = crawler-create.o irc.o
+OBJS = config.o irc.o mldap.o LdapWrapper.o
+OBJS_WS = webstore.o $(OBJS)
+OBJS_CR = crawler-create.o $(OBJS)
 LIBS=-L $(THREADLIBS)
 
 webstore: $(OBJS_WS)

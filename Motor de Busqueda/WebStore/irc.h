@@ -13,20 +13,16 @@
 #define MAX_UUID 35
 #define DESCRIPTORID_LEN 16
 
-#define IRC_ALTA_HTML 0x10
-#define IRC_ALTA_ARCHIVOS 0x11
-#define IRC_MODIFICACION_HTML 0x20
-#define IRC_MODIFICACION_ARCHIVOS 0x22
-
-#define IRC_CRAWLER_CREATE 0x30
-#define IRC_CRAWLER_CONNECT 0x31
-#define HANDSHAKE_CRAWLER_CONNECT "SOOGLE CRAWLER CONNECT/1.0\n\n"
-#define HANDSHAKE_CRAWLER_OK "CRAWLER OK\n\n"
-#define HANDSHAKE_CRAWLER_FAIL "CRAWLER FAIL\n\n"
-
-
-
-
+#define IRC_CRAWLER_ALTA_HTML 0x30
+#define IRC_CRAWLER_ALTA_ARCHIVOS 0x31
+#define IRC_CRAWLER_MODIFICACION_HTML 0x32
+#define IRC_CRAWLER_MODIFICACION_ARCHIVOS 0x33
+#define IRC_CRAWLER_HOST 0x34
+#define IRC_CRAWLER_CREATE 0x35
+#define IRC_CRAWLER_CONNECT 0x36
+#define IRC_CRAWLER_HANDSHAKE_CONNECT "SOOGLE CRAWLER CONNECT/1.0\n\n"
+#define IRC_CRAWLER_HANDSHAKE_OK "CRAWLER OK\n\n"
+#define IRC_CRAWLER_HANDSHAKE_FAIL "CRAWLER FAIL\n\n"
 
 typedef struct {
     char descriptorID [DESCRIPTORID_LEN];
@@ -37,20 +33,14 @@ typedef struct {
 
 typedef struct {
     char URL            [MAX_PATH];
-    char UUID           [MAX_UUID];
-    char palabras       [MAX_PATH];
+    void *palabras;
     char titulo         [MAX_PATH];
     char descripcion    [MAX_PATH];
-} so_URL_HTML;
-
-typedef struct {
-    char URL            [MAX_PATH];
-    char nombre         [MAX_PATH];
-    char palabras       [MAX_PATH];
+    char htmlCode       [MAX_HTMLCODE];
     char tipo           [2];
-    char formato        [4];
     char length         [20];
-} so_URL_Archivos;
+    char formato        [MAX_PATH];
+} crawler_URL;
 
 typedef struct {
     char UUID [MAX_UUID];

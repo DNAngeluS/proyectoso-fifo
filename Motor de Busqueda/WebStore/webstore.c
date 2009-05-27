@@ -6,12 +6,16 @@
  */
 #include "webstore.h"
 #include "config.h"
+#include "irc.h"
+#include "mldap.h"
 
 void rutinaDeError(char* error);
 void signalHandler(int sig);
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
 
 int atenderCrawler(SOCKET sockCrawler);
+int atenderAltaURL(ldapObj *ldap, crawler_URL *entrada, int mode);
+int atenderModificarURL(ldapObj *ldap, crawler_URL *entrada, int mode);
 
 configuracion config;
 volatile sig_atomic_t sigRecibida=0;
@@ -23,10 +27,13 @@ int main()
 {
     SOCKET sockWebStore;
     struct sigaction new_action, old_action;
+    ldapObj ldap;
+
     fd_set fdMaestro;
     fd_set fdLectura;
     struct timeval timeout;
     int fdMax, cli;
+
     pid_t childID;
 
     /*Se establecen los valores de la nueva accion para manejar señales*/
@@ -46,9 +53,15 @@ int main()
     if (leerArchivoConfiguracion(&config) != 0)
         rutinaDeError("Lectura Archivo de configuracion");
 
+    /*Establecer conexion LDAP*/
+    if(establecerConexionLDAP(&ldap, config) < 0)
+      rutinaDeError("No se pudo establecer la conexion LDAP.");
+    printf("Conexion establecida con LDAP\n");
+
     /*Se establece conexion a puerto de escucha*/
     if ((sockWebStore = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
         rutinaDeError("Socket invalido");
+    printf("WEB STORE. Conexion establecida.\n");
 
     /*Se atiendera UNA UNICA VEZ la señal SIGUSR1, por eso se usa signal()
      *que una vez atendida reinicia el handler original de la señal
@@ -72,11 +85,15 @@ int main()
     if (sigRecibida)
     {
         char ip[20], puerto[20], tiempoNuevaConsulta[20];
+        char ipPortLDAP[30], claveLDAP[20];
         char path[MAX_PATH];
 
+        /*Se cargan los datos para enviar al proceso Hijo como parametro*/
         sprintf(ip, "%s", inet_ntoa(config.ipWebServer));
         sprintf(puerto, "%d", config.puertoWebServer);
         sprintf(tiempoNuevaConsulta, "%d", config.tiempoNuevaConsulta);
+        strcpy(ipPortLDAP, config.ipPortLDAP);
+        strcpy(claveLDAP, config.claveLDAP);
         sprintf(path, "%s/crawler-create", getcwd(NULL, 0));
 
         if ((childID = fork()) < 0)
@@ -84,8 +101,9 @@ int main()
             rutinaDeError("fork. Creacion de proceso crawler-create");
         }
         else if (childID == 0)
+        /*Este es el hijo*/
         {
-            char *argv[] = {"crawler-create", ip, puerto, tiempoNuevaConsulta, "NULL"};
+            char *argv[] = {"crawler-create", ip, puerto, tiempoNuevaConsulta, ipPortLDAP, claveLDAP, "NULL"};
             execv(path, argv);
 
             /*Si ejectua esto fue porque fallo execv*/
@@ -94,6 +112,7 @@ int main()
             exit(EXIT_FAILURE);
         }
         else if (childID > 0)
+        /*Este es el padre*/
         {
             printf("Se a creado proceso crawler-create.\n\n");
         }
@@ -103,9 +122,6 @@ int main()
     FD_ZERO (&fdMaestro);
     FD_SET(sockWebStore, &fdMaestro);
     fdMax = sockWebStore;
-
-    printf("PROCESO HIJO: %d\n\n", childID);
-
 
     while (1)
     {
@@ -168,7 +184,7 @@ int main()
                     /*Crawler detectado -> esta enviando consultas*/
                     {
                         /*Atiende al Crawler*/
-                        if (atenderCrawler(cli) < 0)
+                        if (atenderCrawler(cli, ldap) < 0)
                             printf("Hubo un error al atender Crawler.");
                         else
                             printf("Atencion del Crawler finalizada satisfactoriamente.\n");
@@ -187,38 +203,56 @@ int main()
         }
     }
 
+    /*Cierra conexiones de Sockets*/
     close(sockWebStore);
+    for (cli = 0; cli < fdMax+1; ++cli)
+        close(cli);
+
+    /*Cierra conexiones LDAP*/
+    ldap.sessionOp->endSession(ldap.session);
+
+    /*Libero los objetos de operaciones*/
+    freeLDAPSession(ldap.session);
+    freeLDAPContext(ldap.context);
+    freeLDAPContextOperations(ldap.ctxOp);
+    freeLDAPSessionOperations(ldap.sessionOp);
+    
     return (EXIT_SUCCESS);
 }
 
-int atenderCrawler(SOCKET sockCrawler)
+int atenderCrawler(SOCKET sockCrawler, ldapObj ldap)
 {
-    /*HACER*/
-
     void *bloque;
     unsigned long bloqueLen;
     int mode;
+    unsigned int sizePalabras;
 
     if (ircResponse_recv(sockCrawler, &bloque, &bloqueLen, &mode) < 0)
         rutinaDeError("ircResponse_recv");
 
-    if (mode == IRC_ALTA_HTML)
-        LDAP_AltaHtml((crawler_URL_HTML *) bloque);
+    sizePalabras = bloqueLen / sizeof(crawler_URL);
 
-    else if (mode == IRC_MODIFICACION_HTML)
-        LDAP_ModificarHtml((crawler_URL_HTML *) bloque);
+    if (mode == IRC_CRAWLER_ALTA_HTML || mode == IRC_CRAWLER_ALTA_ARCHIVOS)
+       atenderAltaURL(ldap, (crawler_URL *) bloque, sizePalabras, mode);
 
-    else if (mode == IRC_ALTA_ARCHIVOS)
-        LDAP_AltaArchivos((crawler_URL_ARCHIVOS *) bloque);
-
-    else if (mode == IRC_MODIFIACION_ARCHIVOS)
-        LDAP_ModificarArchivos((crawler_URL_ARCHIVOS *) bloque);
+    else if (mode == IRC_CRAWLER_MODIFICACION_HTML || mode == IRC_CRAWLER_MODIFICACION_ARCHIVOS)
+       atenderModificarURL(lda, (crawler_URL *) bloque, sizePalabras, mode);
 
     else
     {
         printf("Inconcistencia en Payload Descriptor.\n");
         return -1;
     }
+    return 0;
+}
+
+int atenderAltaURL(ldapObj *ldap, crawler_URL *entrada, unsigned int cantidadPalabras, int mode)
+{
+    return 0;
+}
+
+int atenderModificarURL(ldapObj *ldap, crawler_URL *entrada, unsigned int cantidadPalabras, int mode)
+{
     return 0;
 }
 

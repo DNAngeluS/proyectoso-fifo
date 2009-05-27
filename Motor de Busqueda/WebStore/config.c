@@ -77,6 +77,12 @@ int asignarDatos (configuracion *config, char *key, char *value)
     else if (strcmp(key, "TIEMPO_NUEVA_CONSULTA") == 0)
         config->tiempoNuevaConsulta = (atoi(value));
 
+    else if (strcmp(key, "IP_PUERTO_LDAP") == 0)
+        strcpy(config->ipPortLDAP, value);
+
+    else if (strcmp(key, "CLAVE_LDAP") == 0)
+        strcpy(config->claveLDAP,value);
+
     else
     {
         printf("Archivo de configuracion: Opcion inexistente ('%s')\n", key);

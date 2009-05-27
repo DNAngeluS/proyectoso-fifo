@@ -27,6 +27,8 @@
 #include <signal.h>
 #include <pthread.h>
 #include <setjmp.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 #define SOCKET int
 #define SOCKADDR struct sockaddr
@@ -36,21 +38,7 @@
 #define SOCKET_ERROR -1
 #define BUF_SIZE 1024
 #define MAX_HTMLCODE 4096
-
-typedef struct {
-    char URL            [MAX_PATH];
-    char titulo         [MAX_PATH];
-    char descripcion    [MAX_PATH];
-    char *palabras      [MAX_PATH];
-    char htmlCode       [MAX_HTMLCODE];
-} crawler_URL_HTML;
-
-typedef struct {
-    char URL            [MAX_PATH];
-    char length         [20];
-    char formato        [MAX_PATH];
-    char *palabras      [MAX_PATH];
-} crawler_URL_ARCHIVOS;
+#define MAX_SIZE_PALABRA 50     /*El tamaño maximo de una palabra dentro de crawler_URL*/
 
 #endif	/* _WEBSTORE_H */
 

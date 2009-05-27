@@ -1,5 +1,6 @@
 #include "crawler-create.h"
 #include "irc.h"
+#include "mldap.h"
 
 void rutinaDeError(char *error);
 void signalHandler(int sig);
@@ -14,14 +15,18 @@ volatile sig_atomic_t sigRecibida = 0;
 
 int main(int argc, char **argv)
 {
-    in_addr_t ipWebServer = inet_addr(argv[1]);
-    in_port_t puertoWebServer = atoi(argv[2]);
-    long tiempoMigracion = atoi(argv[3]);
+    configuracion config;
     time_t actualTime;
     struct sigaction new_action, old_action;
 
-    if (argc != 5)
+    if (argc != 7)
         rutinaDeError("Argumentos invalidos");
+
+    config.ipWebServer = inet_addr(argv[1]);
+    config.puertoWebServer = atoi(argv[2]);
+    config.tiempoMigracionCrawler = atoi(argv[3]);
+    strcpy(config.ipPortLDAP, argv[4]);
+    strcpy(config.claveLDAP, argv[5]);
 
     /*Se establecen los valores de la nueva accion para manejar señales*/
     new_action.sa_handler = signalHandler;
@@ -72,7 +77,7 @@ int main(int argc, char **argv)
                 if (EnviarCrawlerCreate(hosts[i].hostIP, hosts[i].hostPort) < 0)
                 {
                     fprintf(stderr, "Error: Instanciacion de un Crawler a %s:%d\n",
-                            inet_aton(hosts[i].hostIP), ntohs(hosts[i].hostPort));
+                            inet_ntoa(hosts[i].hostIP), ntohs(hosts[i].hostPort));
                     continue;
                 }
                 else
@@ -141,7 +146,7 @@ int EnviarCrawlerCreate(in_addr_t nDireccion, in_port_t nPort)
         close(sockWebServer);
         return -1;
     }
-    printf("Crawler disparado a dirServidorWeb.sin_addr.\n\n", inet_ntoa(dirServidorWeb.sin_addr));
+    printf("Crawler disparado a %s.\n\n", inet_ntoa(dirServidorWeb.sin_addr));
 
     close(sockWebServer);
     

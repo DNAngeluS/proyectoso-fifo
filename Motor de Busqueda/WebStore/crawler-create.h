@@ -26,6 +26,8 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 
 typedef unsigned int in_addr_t;

@@ -233,8 +233,6 @@ int ircResponse_recv (SOCKET sock, void **bloque, unsigned long *respuestaLen, i
     *mode = header.payloadDesc;
     /*if (!memcmp(header.descriptorID, descriptorID, DESCRIPTORID_LEN))*/
     {
-        int i;
-
         len = header.payloadLen;
         *respuestaLen = header.payloadLen;
         
