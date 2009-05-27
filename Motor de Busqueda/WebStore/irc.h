@@ -13,20 +13,18 @@
 #define MAX_UUID 35
 #define DESCRIPTORID_LEN 16
 
-#define IRC_REQUEST_HTML 0x10
-#define IRC_REQUEST_ARCHIVOS 0x11
-#define IRC_REQUEST_CACHE 0x12
-
-#define IRC_RESPONSE_HTML 0x20
-#define IRC_RESPONSE_ARCHIVOS 0x22
-#define IRC_RESPONSE_CACHE 0x22
+#define IRC_ALTA_HTML 0x10
+#define IRC_ALTA_ARCHIVOS 0x11
+#define IRC_MODIFICACION_HTML 0x20
+#define IRC_MODIFICACION_ARCHIVOS 0x22
 
 #define IRC_CRAWLER_CREATE 0x30
 #define IRC_CRAWLER_CONNECT 0x31
-
 #define HANDSHAKE_CRAWLER_CONNECT "SOOGLE CRAWLER CONNECT/1.0\n\n"
 #define HANDSHAKE_CRAWLER_OK "CRAWLER OK\n\n"
 #define HANDSHAKE_CRAWLER_FAIL "CRAWLER FAIL\n\n"
+
+
 
 
 
@@ -67,7 +65,7 @@ typedef struct {
 int ircRequest_send(SOCKET sock, void *bloque, unsigned long bloqueLen, char *descriptorID, int mode);
 int ircRequest_recv (SOCKET sock, void *bloque, char *descriptorID, int *mode);
 int ircResponse_send (SOCKET sock, char *descriptorID, void *bloque, unsigned long bloqueLen, int mode);
-int ircResponse_recv (SOCKET sock, void **bloque, char *descriptorID, unsigned long *respuestaLen, int mode);
+int ircResponse_recv (SOCKET sock, void **bloque, unsigned long *respuestaLen, int *mode);
 
 int EnviarBloque                        (SOCKET sockfd, unsigned long bAEnviar, void *bloque);
 int RecibirBloque                       (SOCKET sockfd, char *bloque);

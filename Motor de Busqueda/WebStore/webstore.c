@@ -11,7 +11,7 @@ void rutinaDeError(char* error);
 void signalHandler(int sig);
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
 
-int atenderCrawler(SOCKET sockfd);
+int atenderCrawler(SOCKET sockCrawler);
 
 configuracion config;
 volatile sig_atomic_t sigRecibida=0;
@@ -191,9 +191,35 @@ int main()
     return (EXIT_SUCCESS);
 }
 
-int atenderCrawler(SOCKET sockfd)
+int atenderCrawler(SOCKET sockCrawler)
 {
     /*HACER*/
+
+    void *bloque;
+    unsigned long bloqueLen;
+    int mode;
+
+    if (ircResponse_recv(sockCrawler, &bloque, &bloqueLen, &mode) < 0)
+        rutinaDeError("ircResponse_recv");
+
+    if (mode == IRC_ALTA_HTML)
+        LDAP_AltaHtml((crawler_URL_HTML *) bloque);
+
+    else if (mode == IRC_MODIFICACION_HTML)
+        LDAP_ModificarHtml((crawler_URL_HTML *) bloque);
+
+    else if (mode == IRC_ALTA_ARCHIVOS)
+        LDAP_AltaArchivos((crawler_URL_ARCHIVOS *) bloque);
+
+    else if (mode == IRC_MODIFIACION_ARCHIVOS)
+        LDAP_ModificarArchivos((crawler_URL_ARCHIVOS *) bloque);
+
+    else
+    {
+        printf("Inconcistencia en Payload Descriptor.\n");
+        return -1;
+    }
+    return 0;
 }
 
 void signalHandler(int sig)

@@ -218,8 +218,7 @@ Recibe: socket, bloque vacio donde recibir, un descriptorID del mensaje,
  *      tamaño de la respuesta, payload descriptor del mensaje.
 Devuelve: ok? 0: -1. tamaño de la respuesta, bloque con la respuesta
 */
-int ircResponse_recv (SOCKET sock, void **bloque, char *descriptorID,
-                    unsigned long *respuestaLen, int mode)
+int ircResponse_recv (SOCKET sock, void **bloque, unsigned long *respuestaLen, int *mode)
 {
     headerIRC header;
     unsigned long len = sizeof(headerIRC);
@@ -229,9 +228,10 @@ int ircResponse_recv (SOCKET sock, void **bloque, char *descriptorID,
         printf("Error en irc request recv header\n");
         return -1;
     }
-    if (header.payloadDesc != mode)
-        return -1;
-    if (!memcmp(header.descriptorID, descriptorID, DESCRIPTORID_LEN))
+    /*if (header.payloadDesc != mode)
+        return -1;*/
+    *mode = header.payloadDesc;
+    /*if (!memcmp(header.descriptorID, descriptorID, DESCRIPTORID_LEN))*/
     {
         int i;
 
