@@ -13,26 +13,35 @@ SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
 
 int atenderCrawler(SOCKET sockfd);
 
-int childID=0;
 configuracion config;
-pthread_mutex_t condition_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t  condition_start  = PTHREAD_COND_INITIALIZER;
+volatile sig_atomic_t sigRecibida=0;
 
 /*
  * 
  */
-int main(int argc, char** argv)
+int main()
 {
     SOCKET sockWebStore;
+    struct sigaction new_action, old_action;
     fd_set fdMaestro;
     fd_set fdLectura;
     struct timeval timeout;
     int fdMax, cli;
+    pid_t childID;
 
-    /*Se agrega a SIGCHLD como señal a atenderse*/
-    if (signal(SIGCHLD, signalHandler) == SIG_ERR)
-        rutinaDeError("signal");
+    /*Se establecen los valores de la nueva accion para manejar señales*/
+    new_action.sa_handler = signalHandler;
+    sigemptyset (&new_action.sa_mask);
+    new_action.sa_flags = SA_RESTART;
 
+    /*Se asigna un handler a las señales, si no se bloqueo su captura antes*/    
+    sigaction (SIGCHLD, NULL, &old_action);
+    if (old_action.sa_handler != SIG_IGN)
+        sigaction (SIGCHLD, &new_action, NULL);
+    /*sigaction (SIGINT, NULL, &old_action);
+    if (old_action.sa_handler != SIG_IGN)
+        sigaction (SIGINT, &new_action, NULL);*/
+    
     /*Lectura de Archivo de Configuracion*/
     if (leerArchivoConfiguracion(&config) != 0)
         rutinaDeError("Lectura Archivo de configuracion");
@@ -45,23 +54,58 @@ int main(int argc, char** argv)
      *que una vez atendida reinicia el handler original de la señal
      *que para SIGURS1 no existe, justo lo que queremos
      */
-    if (signal(SIGUSR1, signalHandler) == SIG_ERR)
-        rutinaDeError("signal");
+    sigaction (SIGUSR1, NULL, &old_action);
+    if (old_action.sa_handler != SIG_IGN)
+        sigaction (SIGUSR1, &new_action, NULL);
 
 
-    /*Se espera por el SIGUSR1 para comenzar a procesar*/
-    printf("Esperando SIGUSR1...\n");
-    pthread_mutex_lock( &condition_mutex );
-    while(childID != 0)
+    /*Se inicialian controladores para bloquear hasta recibir SIGUSR1*/
+    sigemptyset (&new_action.sa_mask);
+    sigaddset (&new_action.sa_mask, SIGUSR1);
+    printf("Esperando SIGUSR1... pid(%d)\n", getpid());
+
+    /*Se espera por el SIGUSR1 para comenzar y de aqui en mas no se atendera mas*/
+    while (!sigRecibida)
+        sigsuspend (&old_action.sa_mask);
+    sigprocmask (SIG_BLOCK, &new_action.sa_mask, &old_action.sa_mask);
+
+    if (sigRecibida)
     {
-        pthread_cond_wait( &condition_start, &condition_mutex );
+        char ip[20], puerto[20], tiempoNuevaConsulta[20];
+        char path[MAX_PATH];
+
+        sprintf(ip, "%s", inet_ntoa(config.ipWebServer));
+        sprintf(puerto, "%d", config.puertoWebServer);
+        sprintf(tiempoNuevaConsulta, "%d", config.tiempoNuevaConsulta);
+        sprintf(path, "%s/crawler-create", getcwd(NULL, 0));
+
+        if ((childID = fork()) < 0)
+        {
+            rutinaDeError("fork. Creacion de proceso crawler-create");
+        }
+        else if (childID == 0)
+        {
+            char *argv[] = {"crawler-create", ip, puerto, tiempoNuevaConsulta, "NULL"};
+            execv(path, argv);
+
+            /*Si ejectua esto fue porque fallo execv*/
+            perror("execv");
+            kill(getppid(), SIGCHLD);
+            exit(EXIT_FAILURE);
+        }
+        else if (childID > 0)
+        {
+            printf("Se a creado proceso crawler-create.\n\n");
+        }
     }
-    pthread_mutex_unlock( &condition_mutex );
 
     /*Se inicializan datos para el select()*/
     FD_ZERO (&fdMaestro);
     FD_SET(sockWebStore, &fdMaestro);
     fdMax = sockWebStore;
+
+    printf("PROCESO HIJO: %d\n\n", childID);
+
 
     while (1)
     {
@@ -84,6 +128,7 @@ int main(int argc, char** argv)
         /*Select timeout*/
         {
             kill(childID, SIGUSR1);
+            printf("Se a enviado señal SIGURS1 a proceso hijo: %d\n", childID);
         }
         if (rc > 0)
         /*Se detectaron sockets con actividad*/
@@ -126,7 +171,7 @@ int main(int argc, char** argv)
                         if (atenderCrawler(cli) < 0)
                             printf("Hubo un error al atender Crawler.");
                         else
-                            printf("Atencion del Crawler finalizada satisfactoriamente.");
+                            printf("Atencion del Crawler finalizada satisfactoriamente.\n");
 
                         printf("Se cierra conexion.\n\n");
 
@@ -156,57 +201,18 @@ void signalHandler(int sig)
     switch(sig)
     {
         case SIGUSR1:
-        {
-            char *argv[] = {"crawler-create", "NULL", "NULL", "NULL", "NULL"};
-            int i;
-
-            for (i=1;i<=3;i++)
-                argv[i] = (char *) malloc (sizeof(char)*20);
-
-            sprintf(argv[1], "%d", config.ipWebServer);
-            sprintf(argv[2], "%d", config.puertoWebServer);
-            sprintf(argv[3], "%d", config.tiempoNuevaConsulta);
-
-            pthread_mutex_lock( &condition_mutex );
-            childID = fork();
-  
-            if ((childID) < 0)
-            {
-                /*for (i=1;i<=3;i++)
-                    free(argv[i]);*/
-                rutinaDeError("fork. Creacion de proceso crawler-create");
-            }
-            else if (childID == 0)
-            {
-                execv("crawler-create", argv);
-                
-                /*Si ejectua esto fue porque fallo execv*/
-                rutinaDeError("execv");
-            }
-            else if (childID > 0)
-            {
-                printf("Se a creado proceso crawler-create");
-                for (i=1;i<=3;i++)
-                    free(argv[i]);
-                pthread_cond_signal( &condition_start );
-                pthread_mutex_unlock( &condition_mutex );
-            }
-        }
+            sigRecibida = 1;
             break;
             
         case SIGCHLD:
             while(waitpid(-1, NULL, WNOHANG) > 0);
             break;
-
+            
         /*case SIGINT:
          *   //if (childID != 0 VOLVER A SELECT() else sigint
          *   break;
          */
     }
-
-    if (sig != SIGUSR1)
-        if (signal(sig, signalHandler) == SIG_ERR)
-            rutinaDeError("signal");
 }
 
 /*
@@ -233,7 +239,7 @@ SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort)
 
         /*if (ioctlsocket(sockfd, FIONBIO, &NonBlock) == SOCKET_ERROR)
         {
-        rutinaDeError("ioctlsocket");
+            rutinaDeError("ioctlsocket");
         }*/
 
         addrServidorWeb.sin_family = AF_INET;

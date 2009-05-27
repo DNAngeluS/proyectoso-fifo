@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <pthread.h>
+#include <setjmp.h>
 
 #define SOCKET int
 #define SOCKADDR struct sockaddr
