@@ -298,8 +298,11 @@ int EnviarArchivo(SOCKET sockRemoto, char *fileBuscado)
 	DWORD valor;
 	DWORD dato1, dato2;
 
-	fileHandle = CreateFile(fileBuscado, GENERIC_READ, FILE_SHARE_READ, 
+	/*fileHandle = CreateFile(fileBuscado, GENERIC_READ, FILE_SHARE_READ, 
 						NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_READONLY, NULL);
+	*/
+	fileHandle = CreateFile(fileBuscado, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_READ, 
+						NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	
 	fileSize = GetFileSize(fileHandle, NULL);
 

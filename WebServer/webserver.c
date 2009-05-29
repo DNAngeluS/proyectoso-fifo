@@ -231,50 +231,45 @@ Ultima modificacion: Scheinkman, Mariano
 Recibe: Direccion ip y puerto a escuchar.
 Devuelve: ok? Socket del servidor: socket invalido.
 */
-
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort)
 {
     SOCKET sockfd;
-	
-	if (nDireccionIP != INADDR_NONE) 
-	{
-		/*Obtiene un socket*/
-		sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        if (sockfd != INVALID_SOCKET) 
-		{
-			SOCKADDR_IN addrServidorWeb; /*Address del Web server*/
-			char yes = 1;
-			int NonBlock = 1;
 
-			/*Impide el error "addres already in use" y setea non blocking el socket*/
-			if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(int)) == -1)
-				rutinaDeError("Setsockopt");
+    /*Obtiene un socket*/
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd != INVALID_SOCKET)
+    {
+        SOCKADDR_IN addrServidorWeb; /*Address del Web server*/
+        char yes = 1;
+        /*int NonBlock = 1;*/
 
-			/*if (ioctlsocket(sockfd, FIONBIO, &NonBlock) == SOCKET_ERROR)
-			{
-				rutinaDeError("ioctlsocket");
-			}*/
-            
-			addrServidorWeb.sin_family = AF_INET;
-            addrServidorWeb.sin_addr.s_addr = nDireccionIP;
-            addrServidorWeb.sin_port = nPort;
-			memset((&addrServidorWeb.sin_zero), '\0', 8);
+        /*Impide el error "addres already in use" y setea non blocking el socket*/
+        if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(int)) == -1)
+            rutinaDeError("Setsockopt");
 
-			/*Liga socket al puerto y direccion*/
-            if ((bind (sockfd, (SOCKADDR *) &addrServidorWeb, sizeof(SOCKADDR_IN))) != SOCKET_ERROR) 
-			{
-				/*Pone el puerto a la escucha de conexiones entrantes*/
-                if (listen(sockfd, SOMAXCONN) == -1)
-					rutinaDeError("Listen");
-				else
-					return sockfd;
-            }
-            else 
-				rutinaDeError("Bind");
+        /*if (ioctlsocket(sockfd, FIONBIO, &NonBlock) == SOCKET_ERROR)
+        {
+        rutinaDeError("ioctlsocket");
+        }*/
+
+        addrServidorWeb.sin_family = AF_INET;
+        addrServidorWeb.sin_addr.s_addr = nDireccionIP;
+        addrServidorWeb.sin_port = nPort;
+        memset((&addrServidorWeb.sin_zero), '\0', 8);
+
+        /*Liga socket al puerto y direccion*/
+        if ((bind (sockfd, (SOCKADDR *) &addrServidorWeb, sizeof(SOCKADDR_IN))) != SOCKET_ERROR)
+        {
+            /*Pone el puerto a la escucha de conexiones entrantes*/
+            if (listen(sockfd, SOMAXCONN) == -1)
+                rutinaDeError("Listen");
+            else
+            return sockfd;
         }
+        else
+            rutinaDeError("Bind");
     }
-	else
-		rutinaDeError("Direccion IP invalida\r\n");
+
     return INVALID_SOCKET;
 }
 

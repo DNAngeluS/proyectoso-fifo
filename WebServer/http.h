@@ -18,7 +18,7 @@ int EnviarBloque		(SOCKET sockfd, DWORD bAEnviar, char *bloque);
 int RecibirBloque		(SOCKET sockfd, char *bloque);
 int RecibirNBloque		(SOCKET sockfd, char *bloque, DWORD nBytes);
 int EnviarArchivo		(SOCKET sockRemoto, char *fileBuscado);
-int BuscarArchivo	(char *filename);
+int BuscarArchivo		(char *filename);
 
 int httpOk_send			(SOCKET sockfd, msgGet getInfo);
 int httpGet_recv		(SOCKET sockfd, msgGet *getInfo);
