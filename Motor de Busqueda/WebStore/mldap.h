@@ -5,6 +5,11 @@
 #include "LdapWrapper.h"
 #include "irc.h"
 
+#define DN_LEN 40
+#define UTS_LEN 40
+
+enum hosts_t {ALTA, MODIFICACION};
+
 typedef struct {
     PLDAP_SESSION session;
     PLDAP_CONTEXT context;
@@ -21,14 +26,14 @@ typedef struct {
 } webServerHosts;
 
 int establecerConexionLDAP(ldapObj *ldap, configuracion config);
-PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char *palabras, int mode);
+int ldapObtenerDN(ldapObj *ldap,char *key, int mode, char *dn);
 
 int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int cantidadPalabras);
 int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int cantidadPalabras);
-int ldapComprobarExistencia(ldapObj ldap, char *clave, int mode);
+int ldapComprobarExistencia(ldapObj *ldap, const char *clave, int mode);
 
-int ldapActualizarHost(ldapObj ldap, const char *ipPuerto, time_t nuevoUts);
-int ldapObtenerHosts(ldapObj ldap, webServerHosts **hosts, int *maxHosts);
+int ldapActualizarHost(ldapObj *ldap, const char *ipPuerto, time_t nuevoUts, int mode);
+int ldapObtenerHosts(ldapObj *ldap, webServerHosts **hosts, int *maxHosts);
 
 
 
