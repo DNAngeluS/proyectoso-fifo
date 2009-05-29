@@ -12,7 +12,7 @@
 
 #Libs
 THREADLIBS=-lpthread
-LIBDIR=/usr/lib
+LIBDIR=#/usr/lib
 LDAPLIB=-lldap -llber
 
 #Flags

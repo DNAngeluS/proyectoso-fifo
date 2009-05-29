@@ -8,6 +8,7 @@
 #ifndef _IRC_H
 #define	_IRC_H
 
+#include "webstore.h"
 #include "crawler-create.h"
 
 #define MAX_UUID 35

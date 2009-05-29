@@ -89,7 +89,7 @@ int main()
         char path[MAX_PATH];
 
         /*Se cargan los datos para enviar al proceso Hijo como parametro*/
-        sprintf(ip, "%s", inet_ntoa(config.ipWebServer));
+        sprintf(ip, "%s", config.ipWebServer);
         sprintf(puerto, "%d", config.puertoWebServer);
         sprintf(tiempoNuevaConsulta, "%d", config.tiempoNuevaConsulta);
         strcpy(ipPortLDAP, config.ipPortLDAP);
@@ -233,10 +233,10 @@ int atenderCrawler(SOCKET sockCrawler, ldapObj ldap)
     sizePalabras = bloqueLen / sizeof(crawler_URL);
 
     if (mode == IRC_CRAWLER_ALTA_HTML || mode == IRC_CRAWLER_ALTA_ARCHIVOS)
-       atenderAltaURL(ldap, (crawler_URL *) bloque, sizePalabras, mode);
+       atenderAltaURL(&ldap, (crawler_URL *) bloque, sizePalabras, mode);
 
     else if (mode == IRC_CRAWLER_MODIFICACION_HTML || mode == IRC_CRAWLER_MODIFICACION_ARCHIVOS)
-       atenderModificarURL(lda, (crawler_URL *) bloque, sizePalabras, mode);
+       atenderModificarURL(&ldap, (crawler_URL *) bloque, sizePalabras, mode);
 
     else
     {
@@ -260,7 +260,7 @@ int atenderAltaURL(ldapObj *ldap, crawler_URL *entrada, unsigned int sizePalabra
     /*Si el host no existe aun lo agrega con un nuevo Unix Timestamp*/
     existeHost = ldapComprobarExistencia(ldap, ipPuerto, IRC_CRAWLER_HOST);
     if (!existeHost)
-        ldapActualizarHost(ldap, ipPuerto, time(NULL));
+        ldapActualizarHost(ldap, ipPuerto, time(NULL), ALTA);
 
     if (ldapAltaURL(ldap, entrada, mode, sizePalabras/MAX_SIZE_PALABRA) < 0)
         return -1;

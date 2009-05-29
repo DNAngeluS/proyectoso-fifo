@@ -43,7 +43,7 @@ int main(int argc, char **argv)
         sigaction (SIGUSR1, &new_action, NULL);
 
     /*Se envia pedido de creacion de Crawler al primer WebServer conocido*/
-    if (EnviarCrawlerCreate(ipWebServer, puertoWebServer) < 0)
+    if (EnviarCrawlerCreate(config.ipWebServer, config.puertoWebServer) < 0)
         rutinaDeError("Enviando primer Crawler");
 
     while (1)
@@ -58,10 +58,11 @@ int main(int argc, char **argv)
         while (!sigRecibida)
             sigsuspend (&old_action.sa_mask);
 
+        /*Se devuelve el valor a la variable, para esperar una nueva señal*/
         sigRecibida=0;
 
         /*Se consulta el dir de expiracion y obtiene la tabla actualizada*/
-        if (ldapObtenerHosts(ldap, &hosts, &maxHosts) < 0)
+        if (ldapObtenerHosts(&ldap, &hosts, &maxHosts) < 0)
             rutinaDeError("consulta hosts expiracion");
 
         printf("Se consulto directorio de hosts satisfactoriamente.\n");
@@ -74,62 +75,40 @@ int main(int argc, char **argv)
             actualTime = time(NULL);
             tiempoRestante = (actualTime - hosts[i].uts);
 
-            if (tiempoRestante >= tiempoMigracion)
+            if (tiempoRestante >= config.tiempoMigracionCrawler)
             /*Si el tiempo que paso desde la ultima migracion es mayor al configurado*/
             {
                 /*Envia pedido de creacion de Crawler*/
                 if (EnviarCrawlerCreate(hosts[i].hostIP, hosts[i].hostPort) < 0)
                 {
                     fprintf(stderr, "Error: Instanciacion de un Crawler a %s:%d\n",
-                            inet_ntoa(hosts[i].hostIP), ntohs(hosts[i].hostPort));
+                            inet_ntoa(*(struct in_addr *) (hosts[i].hostIP)), ntohs(hosts[i].hostPort));
                     continue;
                 }
                 else
                 {
                     char ipPuerto[MAX_PATH];
 
-                    sprintf(ipPuerto, "%s:%d", inet_ntoa(hosts[i].hostIP), ntohs(hosts[i].hostPort));
+                    sprintf(ipPuerto, "%s:%d", inet_ntoa(*(struct in_addr *) (hosts[i].hostIP)), ntohs(hosts[i].hostPort));
 
-                    printf("Se envio peticion de Crawler a %s.\n", inet_ntoa(hosts[i].hostIP));
+                    printf("Se envio peticion de Crawler a %s.\n", inet_ntoa(*(struct in_addr *) (hosts[i].hostIP)));
                     printf("Se actualizara su Unix Timestamp\n\n");
-                    if (ldapActualizarHost(ldap, ipPuerto, time(NULL)) < 0)
+
+                    /*Se actualiza el timestamp del host al que se le envio el Crawler*/
+                    if (ldapActualizarHost(&ldap, ipPuerto, time(NULL), MODIFICACION) < 0)
                         rutinaDeError("consulta hosts expiracion");
                 }
             }
-            else printf("Aun quedan %ld para enviar Crawler a %s\n\n",
-                                tiempoMigracion - tiempoRestante, inet_ntoa(hosts[i].hostIP));
+            else printf("Aun quedan %ld segundos para enviar Crawler a %s\n\n",
+                                        config.tiempoMigracionCrawler - tiempoRestante,
+                                        inet_ntoa(*(struct in_addr *) (hosts[i].hostIP)));
             i++;
         }        
         if (hosts != NULL)  free(hosts);
+        else printf("No se encontraron hosts en el Directorio de Expiracion de Hosts\n\n");
     }
     
     exit(EXIT_SUCCESS);
-}
-
-/*
-Descripcion: Genera una tabla de hosts segun lo almacenado en el dir de expiracion de ldap
-Ultima modificacion: Scheinkman, Mariano
-Recibe: lista de hosts actuales, numero maximo de hosts
-Devuelve: ok? 0: -1. lista de hosts actualizada, y numero maximo de hosts
-*/
-int ldapObtenerHosts(ldapObj ldap, webServerHosts **hosts, int *maxHosts)
-{
-    /*HACER*/
-
-    return 0;
-}
-
-/*
-Descripcion: Actualiza el dir de expiracion de ldap, con el tiempo enviado
-Ultima modificacion: Scheinkman, Mariano
-Recibe: nuevo uts
-Devuelve: ok? 0: -1.
-*/
-int ldapActualizarHost(ldapObj ldap, const char *ipPuerto, time_t nuevoUts)
-{
-    /*HACER*/
-
-    return 0;
 }
 
 

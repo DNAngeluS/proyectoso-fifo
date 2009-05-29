@@ -123,7 +123,7 @@ int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int
     entry->dn = dn;
        
     for (i=0; i<cantidadPalabras ;i++)
-        ldap->entryOp->editAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1, entrada->palabras[i]));
+        ldap->entryOp->editAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1, ((char *) entrada->palabras)[i]));
 
 
     /*Si es un Archivo guarda los campos espeficos del mismo*/
