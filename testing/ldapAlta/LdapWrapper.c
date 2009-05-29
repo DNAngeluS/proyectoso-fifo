@@ -249,7 +249,7 @@ PLDAP_RESULT_SET searchEntry(PLDAP_SESSION session, PCHAR baseDn, PCHAR filter) 
 
 	PLDAP_RESULT_SET	resultSet = __LDAP_ALLOC(PLDAP_RESULT_SET, LDAP_RESULT_SET, 1);
 	PLDAP_ITERATOR		iterator  = newLDAPIterator();
-
+    
 	INT returnValue = ldap_search_ext_s(
 		session->context->ldap,
 		baseDn,
@@ -263,7 +263,7 @@ PLDAP_RESULT_SET searchEntry(PLDAP_SESSION session, PCHAR baseDn, PCHAR filter) 
         LDAP_NO_LIMIT,
 		&resultSet->results
 	);
-
+    
 	if( returnValue != LDAP_OPT_SUCCESS) {
 
 		session->errorCode = returnValue;
@@ -275,7 +275,7 @@ PLDAP_RESULT_SET searchEntry(PLDAP_SESSION session, PCHAR baseDn, PCHAR filter) 
 	resultSet->count 	= ldap_count_messages(session->context->ldap, resultSet->results);
 	resultSet->iterator = iterator;
 	resultSet->session 	= session;
-
+    
 	/* guardo el primer mensaje de los
 	     resultador para el iterador */
 	resultSet->next = ldap_first_entry(session->context->ldap, resultSet->results);

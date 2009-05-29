@@ -2,7 +2,7 @@
  * File:   config.h
  * Author: marianoyfer
  *
- * Created on 2 de mayo de 2009, 20:08
+ * Created on 22 de mayo de 2009, 11:18
  */
 
 #ifndef _CONFIG_H
@@ -12,11 +12,13 @@ typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
 
 typedef struct {
-    in_addr_t ip;			/*ip local*/
-    in_port_t puerto;		/*puerto*/
-    char ipPortLDAP[30];	/*ip servidor LDAP*/
-    in_port_t puertoLDAP;	/*puerto servidor LDAP*/
-    char claveLDAP[20];		/*Clave servidor LDAP*/
+    in_addr_t ipWebServer;
+    in_port_t puertoWebServer;
+    in_port_t puertoL;
+    int tiempoMigracionCrawler;
+    int tiempoNuevaConsulta;
+    char ipPortLDAP[30];            /*ip servidor LDAP*/
+    char claveLDAP[20];             /*Clave servidor LDAP*/
 } configuracion;
 
 int leerArchivoConfiguracion (configuracion *config);

@@ -6,6 +6,8 @@
  */
 
 #include "ldapAlta.h"
+#include "config.h"
+#include "irc.h"
 #include "mldap.h"
 
 void GenerarUUID(char *cadenaOUT);
@@ -31,21 +33,41 @@ int main() {
   printf("Conexion LDAP Establecida\n\n");
   /* TODO: operacion de datos aqui */
 
+  /*PARA URL Y ARCHIVOS*/
   printf("Crear Registro\n\n");
-  webstore_URL datos;
-  strcpy(datos.palabras,"pal1");  
-  strcpy(datos.URL,"www.unaUrl.com");  
-  strcpy(datos.titulo,"Un titulo para la url");  
-  strcpy(datos.descripcion,"Esta es la descripcion de la url esta");  
-  strcpy(datos.htmlCode,"<HTML> <HEAD> <TITLE>El contenido</title> </HEAD> <B>Esto es todo</B> </HTML>");
+  crawler_URL datos;
+  strcpy(datos.palabras,"pal2");
+  strcpy(datos.URL,"www.unaUrl.com");
+  strcpy(datos.titulo,"Otro VEZ 3 Titulo para la url");
+  strcpy(datos.descripcion,"Esta VEZ 3 es la NUEVA descripcion de la url esta");
+  strcpy(datos.htmlCode,"<HTML> <HEAD> <TITLE>El NUEVO 3 contenido</title> </HEAD> <B>Esto es todo</B> </HTML>");
+
+  /*PARA HOSTS*/
+  webServerHosts *hosts;
+  int maxHosts, i;
   
-  /*PUREBAS*/
-  /*ldapAltaURL(&ldap, &datos, IRC_RESPONSE_HTML);*/
+  /*PUREBAS*/  
+ /* ldapAltaURL(&ldap, &datos, IRC_CRAWLER_ALTA_HTML, 1);*/
+
+  /*ldapModificarURL(&ldap, &datos, IRC_CRAWLER_MODIFICACION_HTML, 1);*/
+
+  /*
+  ldapObtenerHosts(&ldap, &hosts, &maxHosts);
+  for(i = 0; i < maxHosts; i++){
+    printf("IP: %d\n", hosts[i].hostIP );
+    printf("Port: %d\n", hosts[i].hostPort );
+    printf("TimeStamp: %d\n\n", (int) hosts[i].uts);
+  }
+  */
+
+  ldapActualizarHost(&ldap,"192.168.1.4:80" , time(NULL), MODIFICACION);
+
+  /*
   if(ldapComprobarExistencia(ldap, "129.0.1.82:90", IRC_RESPONSE_HOST)!=-1)
     printf("Se encontro\n");
   else
     printf("No esta en Dir SO");
-
+  */
   
   /* cierro la session con el servidor */
   ldap.sessionOp->endSession(ldap.session);

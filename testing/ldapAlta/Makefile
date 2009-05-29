@@ -20,7 +20,7 @@ CC = exec gcc
 CFLAGS =-ansi -g
 LIBS= -L $(LIBDIR) $(SOCKLIBS) $(LDAPLIB)
 #Dependencias
-OBJS = LdapWrapper.o mldap.o ldapAlta.o
+OBJS = LdapWrapper.o config.o irc.o mldap.o ldapAlta.o
 
 frontend: $(OBJS)
 	$(CC) $(CFLAGS) $(LIBS) -o lda $(OBJS)
