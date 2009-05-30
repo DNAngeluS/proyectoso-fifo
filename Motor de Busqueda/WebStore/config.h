@@ -17,7 +17,7 @@ typedef struct {
     in_port_t puertoL;
     int tiempoMigracionCrawler;
     int tiempoNuevaConsulta;
-    char ipPortLDAP[30];            /*ip servidor LDAP*/
+    char ipPortLDAP[40];            /*ip servidor LDAP*/
     char claveLDAP[20];             /*Clave servidor LDAP*/
 } configuracion;
 

@@ -77,24 +77,25 @@ int main()
     sigaddset (&new_action.sa_mask, SIGUSR1);
     printf("Esperando SIGUSR1... pid(%d)\n", getpid());
 
+    sigprocmask (SIG_BLOCK, &new_action.sa_mask, &old_action.sa_mask);
     /*Se espera por el SIGUSR1 para comenzar y de aqui en mas no se atendera mas*/
     while (!sigRecibida)
         sigsuspend (&old_action.sa_mask);
-    sigprocmask (SIG_BLOCK, &new_action.sa_mask, &old_action.sa_mask);
+    sigprocmask (SIG_UNBLOCK, &new_action.sa_mask, &old_action.sa_mask);
 
     if (sigRecibida)
     {
-        char ip[20], puerto[20], tiempoNuevaConsulta[20];
-        char ipPortLDAP[30], claveLDAP[20];
+        char puerto[20], tiempoNuevaConsulta[20];
         char path[MAX_PATH];
 
+        memset(puerto, '\0', 20);
+        memset(tiempoNuevaConsulta, '\0', 20);
+        memset(path, '\0', MAX_PATH);
+
         /*Se cargan los datos para enviar al proceso Hijo como parametro*/
-        sprintf(ip, "%s", config.ipWebServer);
+        sprintf(path, "%s/crawler-create", getcwd(NULL, 0));
         sprintf(puerto, "%d", config.puertoWebServer);
         sprintf(tiempoNuevaConsulta, "%d", config.tiempoNuevaConsulta);
-        strcpy(ipPortLDAP, config.ipPortLDAP);
-        strcpy(claveLDAP, config.claveLDAP);
-        sprintf(path, "%s/crawler-create", getcwd(NULL, 0));
 
         if ((childID = fork()) < 0)
         {
@@ -103,7 +104,8 @@ int main()
         else if (childID == 0)
         /*Este es el hijo*/
         {
-            char *argv[] = {"crawler-create", ip, puerto, tiempoNuevaConsulta, ipPortLDAP, claveLDAP, "NULL"};
+            char *argv[] = {"crawler-create", inet_ntoa(*(struct in_addr *) config.ipWebServer)
+                            , puerto, tiempoNuevaConsulta, config.ipPortLDAP, config.claveLDAP, "NULL"};
             execv(path, argv);
 
             /*Si ejectua esto fue porque fallo execv*/

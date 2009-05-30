@@ -20,6 +20,8 @@ int main(int argc, char **argv)
     if (argc != 7)
         rutinaDeError("Argumentos invalidos");
 
+    memset(&config, '\0', sizeof(configuracion));
+
     /*Inicializar estructura config con valores pasado por argv*/
     config.ipWebServer = inet_addr(argv[1]);
     config.puertoWebServer = atoi(argv[2]);

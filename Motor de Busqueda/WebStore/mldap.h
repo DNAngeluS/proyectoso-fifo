@@ -5,7 +5,7 @@
 #include "LdapWrapper.h"
 #include "irc.h"
 
-#define DN_LEN 40
+#define DN_LEN 60
 #define UTS_LEN 40
 
 enum hosts_t {ALTA, MODIFICACION};
