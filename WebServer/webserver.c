@@ -664,7 +664,7 @@ int generarReporteLog (HANDLE archLog, infoLogFile infoLog)
 
 	tiempoTotal = GetTickCount() - infoLog.arrival;
 	memset(buffer, '\0', BUF_SIZE);
-	sprintf(buffer, "%sCantidad de Requests Aceptados: %d\r\n"
+	sprintf_s(buffer, sizeof(buffer), "%sCantidad de Requests Aceptados: %d\r\n"
 						"Cantidad de Bytes Transferidos: %ld\r\n"
 						"Tiempo Total de Ejecucion (en segundos): %d\r\n", ENCABEZADO_LOG, 
 															infoLog.numRequests, 
@@ -682,7 +682,7 @@ int generarReporteLog (HANDLE archLog, infoLogFile infoLog)
 	*/
 
 
-	if (WriteFile(archLog, buffer, strlen(buffer)+1, &bytesEscritos, NULL) == FALSE)
+	if (WriteFile(archLog, buffer,(DWORD) strlen(buffer)+1, &bytesEscritos, NULL) == FALSE)
 		error = 1;
 	CloseHandle(archLog);
 

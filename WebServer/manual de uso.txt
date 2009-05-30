@@ -1,1 +1,0 @@
-Configurar el archivo config.cfg en algun editor de texto, segun las caracteristicas de su servidor.
