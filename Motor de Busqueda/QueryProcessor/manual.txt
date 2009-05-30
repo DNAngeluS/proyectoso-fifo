@@ -1,0 +1,20 @@
+# Manual de Uso y configuracion del Solaris QueryProcessor
+
+1)Configurar el archivo config.cfg segun los parametros de su ambito de prueba. 
+	- IP, puerto del Query Processor
+	- IP, puerto y contraseña de la base LDAP.
+2)Ajustar las varialbes del Makefile a su entorno de prueba. 
+	- Directorios de las bibliotecas
+	- Compilador
+3)Compilar el Proyecto con el comando Make, luego ejecutar ./qp
+
+
+# Grupo Fifo
+#
+# Integrantes:
+#	Ariel Pacay (lider)
+#	Ariel Dias Navia
+#	Lucio Moya Farina
+#	Mauro Echardt
+#	Mariano Scheinkman
+#
