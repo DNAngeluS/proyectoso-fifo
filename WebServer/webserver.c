@@ -338,52 +338,111 @@ void rutinaAtencionConsola (LPVOID args)
 	while (codop != FINISH)
 	{
 		char consolaStdin[MAX_INPUT_CONSOLA];
+		char arg[MAX_INPUT_CONSOLA];
 		int centinela=0;	    
 
 /**------	Validaciones a la hora de ingresar comandos	------**/
 		
-		centinela = scanf_s("%s", consolaStdin, MAX_INPUT_CONSOLA);
-
-		if (centinela == 1)
-			if (*consolaStdin == '-')
+		gets(consolaStdin);
+		if (*consolaStdin == '-')
+		{
+			if (!lstrcmp(&consolaStdin[1], "queuestatus"))
 			{
-				if (!lstrcmp(consolaStdin, "-queuestatus"))
-				{
-					printf("%s", STR_MSG_QUEUESTATUS);
-					imprimeLista (listaThread);
-                }
-                else if (!lstrcmp(&consolaStdin[1], "run"))
-                {
-                     if (codop != RUNNING)
-                     {
-                        printf("%s", STR_MSG_RUN);
-                        codop = RUNNING;
-                     }
-                     else
-                         printf("%s", STR_MSG_INVALID_RUN);
-                }
-                else if (!lstrcmp(&consolaStdin[1], "finish"))
-                {
-                     printf("%s", STR_MSG_FINISH);
-                     codop = FINISH;
-                }
-                else if (!lstrcmp(&consolaStdin[1], "outofservice"))
-                {
-                     if (codop != OUTOFSERVICE)
-                     {
-                        printf("%s", STR_MSG_OUTOFSERVICE);
-                        codop = OUTOFSERVICE;
-                     }
-                     else
-                         printf("%s", STR_MSG_INVALID_OUTOFSERVICE);
-                }
-                else if (!lstrcmp(&consolaStdin[1], "help"))
-				   printf("%s", STR_MSG_HELP);
-                else
-                    printf("%s", STR_MSG_INVALID_INPUT);
+				printf("%s", STR_MSG_QUEUESTATUS);
+				imprimeLista (listaThread);
             }
+            else if (!lstrcmp(&consolaStdin[1], "run"))
+            {
+                 if (codop != RUNNING)
+                 {
+                    printf("%s", STR_MSG_RUN);
+                    codop = RUNNING;
+                 }
+                 else
+                     printf("%s", STR_MSG_INVALID_RUN);
+            }
+            else if (!lstrcmp(&consolaStdin[1], "finish"))
+            {
+                 printf("%s", STR_MSG_FINISH);
+                 codop = FINISH;
+            }
+            else if (!lstrcmp(&consolaStdin[1], "outofservice"))
+            {
+                 if (codop != OUTOFSERVICE)
+                 {
+                    printf("%s", STR_MSG_OUTOFSERVICE);
+                    codop = OUTOFSERVICE;
+                 }
+                 else
+                     printf("%s", STR_MSG_INVALID_OUTOFSERVICE);
+            }
+			else if (!strncmp(&consolaStdin[1], "private", strlen("private")))
+			{
+				char *file = NULL, *next = NULL;
+
+				file = strtok_s(consolaStdin, " ", &next);
+				file = strtok_s(NULL, "\0", &next);
+				
+				if (!(file != NULL && isalnum(*file)))
+					printf("%s", STR_MSG_INVALID_ARG);
+				else
+				{
+					char path[MAX_PATH];
+					DWORD attr;
+
+					sprintf_s(path, MAX_PATH, "%s\\%s", config.directorioFiles, file);
+					attr = GetFileAttributes(path);
+					
+					if (attr == 0)
+						rutinaDeError("GetFile Attributes");
+					else if (attr == INVALID_FILE_ATTRIBUTES)
+						printf("%s", STR_MSG_INVALID_FILE);
+					else if (attr == FILE_ATTRIBUTE_READONLY)
+						printf("%s", STR_MSG_INVALID_PRIVATE);
+					else
+						if (SetFileAttributes(path, FILE_ATTRIBUTE_READONLY) == 0)
+							rutinaDeError("SetFileAttributes");
+				}
+			}
+			else if (!strncmp(&consolaStdin[1], "public", strlen("public")))
+			{
+				char *file = NULL, *next = NULL;
+
+				file = strtok_s(consolaStdin, " ", &next);
+				file = strtok_s(NULL, "\0", &next);
+				
+				if (!(file != NULL && isalnum(*file)))
+					printf("%s", STR_MSG_INVALID_ARG);
+				else
+				{
+					char path[MAX_PATH];
+					DWORD attr;
+
+					sprintf_s(path, MAX_PATH, "%s\\%s", config.directorioFiles, file);
+					attr = GetFileAttributes(path);
+					
+					if (attr == 0)
+						rutinaDeError("GetFile Attributes");
+					else if (attr == INVALID_FILE_ATTRIBUTES)
+						printf("%s", STR_MSG_INVALID_FILE);
+					else if (attr == FILE_ATTRIBUTE_NORMAL)
+						printf("%s", STR_MSG_INVALID_PUBLIC);
+					else
+						if (SetFileAttributes(path, FILE_ATTRIBUTE_NORMAL) == 0)
+							rutinaDeError("SetFileAttributes");
+				}
+			}
+			else if (!lstrcmp(&consolaStdin[1], "files"))
+			{
+				printf("%s", STR_MSG_HASH);
+			}
+            else if (!lstrcmp(&consolaStdin[1], "help"))
+			   printf("%s", STR_MSG_HELP);
             else
                 printf("%s", STR_MSG_INVALID_INPUT);
+		}
+        else
+            printf("%s", STR_MSG_INVALID_INPUT);
 	 
 	}
 	_endthreadex(0);
