@@ -15,6 +15,8 @@ typedef struct {
 	in_port_t puerto;					/*puerto local*/
 	unsigned cantidadClientes;			/*cantidad de atenciones simultaneas*/
 	unsigned esperaMaxima;				/*tiempo de espera maxima*/
+	in_port_t puertoCrawler;			/*puerto local para escuchar Crawlers*/
+	unsigned esperaCrawler;				/*tiempo de espera de un crawler*/
 } configuracion;
 
 int leerArchivoConfiguracion (configuracion *config);

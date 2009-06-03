@@ -5,7 +5,7 @@
 #include <winsock2.h>
 #include <windows.h>
 
-#define BUF_SIZE 4096
+#define BUF_SIZE 1024
 
 enum filetype_t {HTML, TXT, PHP, JPG, GIF, PNG, JPEG, PDF, ARCHIVO, EXE, ZIP, DOC, XLS, PPT };
 

@@ -99,6 +99,12 @@ int asignarDatos (configuracion *config, char *key, char *value)
 	else if (!lstrcmp(key, "MAX_ESPERA_CLIENTES"))
 		config->esperaMaxima = (unsigned) atoi(value);
 
+	else if (!lstrcmp(key, "PUERTO_CRAWLER"))
+		config->puertoCrawler = htons(atoi(value));
+
+	else if (!lstrcmp(key, "MAX_ESPERA_CRAWLER"))
+		config->esperaCrawler = (unsigned) atoi(value);
+
 	else if (!lstrcmp(key, "PATH_LOG"))
 	{
 		config->archivoLog = CreateFileA(value, GENERIC_WRITE,

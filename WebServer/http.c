@@ -301,9 +301,13 @@ int EnviarArchivo(SOCKET sockRemoto, char *fileBuscado)
 	/*fileHandle = CreateFile(fileBuscado, GENERIC_READ, FILE_SHARE_READ, 
 						NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_READONLY, NULL);
 	*/
-	fileHandle = CreateFile(fileBuscado, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_READ, 
+	fileHandle = CreateFile(fileBuscado, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 
 						NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	
+
+	/*fileHandle = CreateFile(fileBuscado, GENERIC_READ, FILE_SHARE_READ, 
+						NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY | FILE_FLAG_OVERLAPPED, NULL);*/
+
 	fileSize = GetFileSize(fileHandle, NULL);
 
 	dato1 = fileSize / BUF_SIZE;

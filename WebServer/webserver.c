@@ -1,6 +1,7 @@
 #include "config.h"
 #include "webserver.h"
 #include "http.h"
+#include "irc.h"
 
 /************************=== Funciones ===***********************************/
 
@@ -21,7 +22,12 @@ int rutinaCrearThread				(void (*funcion)(LPVOID), SOCKET sockfd);
 ptrListaThread BuscarThread			(ptrListaThread listaThread, SOCKET sockfd);
 ptrListaThread BuscarProximoThread	(ptrListaThread listaThread);
 
-int generarReporteLog (HANDLE archLog, infoLogFile infoLog); /*HACER Genera archivo log con datos estadisticos obtenidos*/
+int comprobarCondicionesMigracion	(unsigned esperaCrawler);
+SOCKET rutinaConexionCrawler		(SOCKET sockWebServer);
+void rutinaCrawler					(LPVOID args);
+
+int generarReporteLog				(HANDLE archLog, infoLogFile infoLog); 
+									/*HACER Genera archivo log con datos estadisticos obtenidos*/
 
 
 
@@ -42,6 +48,9 @@ int codop = RUNNING;	/*
 							2 = out of service
 						*/
 
+HANDLE crawMutex;
+int crawPresence = -1;
+DWORD crawTimestamp = 0;
 
 /*      
 Descripcion: Provee de archivos a clientes solicitantes en la red.
@@ -55,6 +64,7 @@ int main()
 	
 	WSADATA wsaData;					/*Version del socket*/
 	SOCKET sockWebServer;				/*Socket del Web Server*/
+	SOCKET sockWebServerCrawler;		/*Socket del Web Server de atencion a Crawlers*/
 
 	HANDLE hThreadConsola;				/*Thread handle de la atencion de Consola*/
 	DWORD nThreadConsolaID;				/*ID del thread de atencion de Consola*/
@@ -79,6 +89,8 @@ int main()
 	if ((logMutex = CreateMutex(NULL, FALSE, NULL)) == NULL)
 		rutinaDeError("Error en CreateMutex()");
 /*	if ((threadListMutex = CreateMutex(NULL, FALSE, NULL)) == NULL)
+		rutinaDeError("Error en CreateMutex()");*/
+	if ((crawMutex = CreateMutex(NULL, FALSE, NULL)) == NULL)
 		rutinaDeError("Error en CreateMutex()");
 	
 	/*Inicializacion de los sockets*/
@@ -90,6 +102,10 @@ int main()
 	if (hThreadConsola == 0)
 		rutinaDeError("Creacion de Thread");
 
+	/*Se establece conexion a puerto de escucha de Crawlers*/
+	if ((sockWebServerCrawler = establecerConexionEscucha(config.ip, config.puertoCrawler)) == INVALID_SOCKET)
+		rutinaDeError("Socket invalido");
+
 	/*Se establece conexion a puerto de escucha*/
 	if ((sockWebServer = establecerConexionEscucha(config.ip, config.puerto)) == INVALID_SOCKET)
 		rutinaDeError("Socket invalido");
@@ -99,6 +115,7 @@ int main()
 	/*Se inicializan los FD_SET para select*/
 	FD_ZERO(&fdMaestro);
 	FD_SET(sockWebServer, &fdMaestro);
+	FD_SET(sockWebServerCrawler, &fdMaestro);
 
 /*------------------------Atencion de Clientes-------------------------*/
 	/*Mientras no se indique la finalizacion*/
@@ -173,6 +190,37 @@ int main()
 			}	
 		}
 
+		/*== Hay un Crawler queriendo instanciarse ==*/
+		else if (FD_ISSET(sockWebServerCrawler, &fdLectura) && codop != FINISH)
+		{	
+			SOCKET sockCrawler;
+			
+			if ((sockCrawler = rutinaConexionCrawler(sockWebServerCrawler)) < 0)
+			{
+				printf("No se a podido conectar Crawler.");
+				if (sockCrawler == -2)
+					printf(" Servidor esta fuera de servicio.\r\nIngrese -run para reanudar ejecucion.\r\n");
+				else if (sockCrawler == -3)
+					printf(" No se prestan las condiciones de migracion de Crawler.\r\n");
+				else printf("\r\n");
+			}
+			else
+			{
+				HANDLE threadHandle;
+				DWORD threadID;
+
+				printf ("A migrado un Web Crawler.\r\n\r\n");
+				
+				/*Se crea el thread Crawler*/
+				threadHandle = (HANDLE) _beginthreadex (NULL, 1, (void *) rutinaCrawler, (LPVOID) NULL, 0, &threadID);
+				if (threadHandle == 0)
+				{
+					printf("No se pudo crear el thread Crawler\r\n\r\n");
+					closesocket(sockCrawler);
+				}
+			}
+		}
+
 		/*== Hay usuario desconectandose ==*/
 		else
 		{
@@ -183,22 +231,24 @@ int main()
 				ptrAux = ptrAux->sgte;
 			if (ptrAux == NULL)
 				rutinaDeError("Inconcistencia en lista o usuario no desconectado mal detectado");
-			
-			WaitForSingleObject(ptrAux->info.threadHandle, INFINITE);
-			EliminarThread(cli);
-			FD_CLR(cli, &fdMaestro);
-			
-			/*Se trata de poner algun cliente en espera en atencion*/
-			if (cantidadThreadsLista(listaThread) <= config.cantidadClientes)
+			else
 			{
-				ptrListaThread ptr = BuscarProximoThread(listaThread);
-				if (ptr != NULL)
+				WaitForSingleObject(ptrAux->info.threadHandle, INFINITE);
+				EliminarThread(cli);
+				FD_CLR(cli, &fdMaestro);
+				
+				/*Se trata de poner algun cliente en espera en atencion*/
+				if (cantidadThreadsLista(listaThread) <= config.cantidadClientes)
 				{
-					ptr->info.estado = ATENDIDO;
-					if (rutinaCrearThread(rutinaAtencionCliente, ptr->info.socket) != 0)
+					ptrListaThread ptr = BuscarProximoThread(listaThread);
+					if (ptr != NULL)
 					{
-						printf("No se pudo crear thread de Atencion de Cliente\r\n\r\n");
-						return -1;
+						ptr->info.estado = ATENDIDO;
+						if (rutinaCrearThread(rutinaAtencionCliente, ptr->info.socket) != 0)
+						{
+							printf("No se pudo crear thread de Atencion de Cliente\r\n\r\n");
+							return -1;
+						}
 					}
 				}
 			}
@@ -520,7 +570,7 @@ int rutinaCrearThread(void (*funcion)(LPVOID), SOCKET sockfd)
 	printf ("Se comienza a atender Request de %s:%d.\r\n\r\n", inet_ntoa(dataThread.direccion.sin_addr), ntohs(dataThread.direccion.sin_port));
 
 	/*Se crea el thread encargado de atender cliente*/
-	threadHandle = (HANDLE) _beginthreadex (NULL, 1, (void *) rutinaAtencionCliente, (LPVOID) &dataThread, 0, &threadID);
+	threadHandle = (HANDLE) _beginthreadex (NULL, 1, (void *) funcion, (LPVOID) &dataThread, 0, &threadID);
 	
 	/*Se actualiza el nodo*/
 	ptr->info.threadHandle = threadHandle;
@@ -664,7 +714,7 @@ int generarReporteLog (HANDLE archLog, infoLogFile infoLog)
 
 	tiempoTotal = GetTickCount() - infoLog.arrival;
 	memset(buffer, '\0', BUF_SIZE);
-	sprintf_s(buffer, sizeof(buffer), "%sCantidad de Requests Aceptados: %d\r\n"
+	sprintf(buffer, "%sCantidad de Requests Aceptados: %d\r\n"
 						"Cantidad de Bytes Transferidos: %ld\r\n"
 						"Tiempo Total de Ejecucion (en segundos): %d\r\n", ENCABEZADO_LOG, 
 															infoLog.numRequests, 
@@ -682,9 +732,98 @@ int generarReporteLog (HANDLE archLog, infoLogFile infoLog)
 	*/
 
 
-	if (WriteFile(archLog, buffer,(DWORD) strlen(buffer)+1, &bytesEscritos, NULL) == FALSE)
+	if (WriteFile(archLog, buffer, strlen(buffer)+1, &bytesEscritos, NULL) == FALSE)
 		error = 1;
 	CloseHandle(archLog);
 
 	return error? -1: 0;
+}
+
+/*Devuelve ok? socket, -1 si error, -2 si outofservice, -3 si no se cumplen condiciones de migracion*/
+SOCKET rutinaConexionCrawler(SOCKET sockWebServer)
+{
+	SOCKET sockCrawler;					/*Socket del cliente remoto*/
+	SOCKADDR_IN dirCrawler;				/*Direccion de la conexion entrante*/
+
+	int nAddrSize = sizeof(dirCrawler);
+
+	/*Acepta la conexion entrante*/
+	sockCrawler = accept(sockWebServer, (SOCKADDR *) &dirCrawler, &nAddrSize);
+	
+	/*Si el servidor No esta fuera de servicio puede atender clientes*/
+	if (codop != OUTOFSERVICE)
+	{
+		if (sockCrawler != INVALID_SOCKET) 
+		{
+			/*Recibir el msg IRC del WebStore*/
+			if (ircRequest_recv (sockCrawler, NULL, NULL, IRC_CRAWLER_CREATE) < 0)
+			{
+				printf("Error al recibir IRC Crawler Create. Se cierra conexion.\r\n\r\n");
+				closesocket(sockCrawler);
+				return -1;
+			}
+			
+
+			/*Se comprueban las condiciones para que haya una migracion*/
+			if (comprobarCondicionesMigracion(config.esperaCrawler) == 1)
+			/*Si se puede migrar*/
+			{			
+				return sockCrawler;
+			}
+			else
+				return -3;
+		}
+		printf("Error en Accept: %d", GetLastError());
+		return -1;
+	}
+	else
+	{
+		closesocket(sockCrawler);
+		return -2;
+	}
+}
+
+int comprobarCondicionesMigracion(unsigned esperaCrawler)
+{
+	return ((GetTickCount() - crawTimestamp) >= esperaCrawler) &&
+			crawPresence == 0;
+}
+
+void rutinaCrawler (LPVOID args)
+{
+	int pvez = (crawPresence == -1);
+
+	/*Mutua exclusion para la variable global de presencia de Crawler*/
+	WaitForSingleObject(crawMutex, INFINITE);
+	crawPresence = 1;
+	ReleaseMutex(crawMutex);
+	
+	/*ENVIO DE HANDSHAKE Y RECEPCION DE RTA*/
+	/*AUMENTAR SU THREAD PRIORITY LEVEL A THREAD_PRIORITY_HIGHEST. MANTENER PROCESS PRIORITY CLASS*/
+
+	/*
+	SI PVEZ
+		GENERAR TABLA_HASH
+	SINO
+		BUSCAR ARCHIVOS NUEVOS, MODIFICADOS, BORRADOS O 
+					HAYAN CAMBIADO PERMISO "FILE_ATTRIBUTE_READONLY" Y ACTUALIZAR TABLA HASH
+	*/
+
+	/*
+	POR CADA ARCHIVO
+		SI (NUEVO/MODIFICADO EN TABLA_HASH)
+			VERIFICAR QUE NO TENGAN EL ATRIBUTO FILE_ATTRIBUTE_READONLY
+			SI ES HTML -> PARSEAR
+			GENERAR PAQUETE
+			ENVIAR
+	FIN DE POR CADA ARCHIVO
+	*/
+
+
+	/*
+	WaitForSingleObject(crawMutex, INFINITE);
+	crawTimeStamp = GetTickCount();
+	crawPresence = 0;
+	ReleaseMutex(crawMutex);
+	*/
 }
