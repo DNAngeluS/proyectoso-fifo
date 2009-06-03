@@ -16,7 +16,7 @@ LIBDIR=#/usr/lib
 LDAPLIB=-lldap -llber
 
 #Flags
-CC = exec gcc
+CC = exec gcc-4.1
 CFLAGS = -g -ansi -D_XOPEN_SOURCE=600 #-W -Wall -Werror -pedantic-errors -O2 -Wformat=2 -Wno-unused -DPOSIX -DPOSIX_SOURCE
 
 #Dependencias

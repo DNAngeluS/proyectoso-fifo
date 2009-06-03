@@ -12,18 +12,20 @@ volatile sig_atomic_t sigRecibida = 0;
 
 int main(int argc, char **argv)
 {
+    struct sigaction old_action;
     configuracion config;
     time_t actualTime;
-    struct sigaction new_action, old_action;
     ldapObj ldap;
 
-    if (argc != 7)
+    /*sleep(10);*/
+
+    if (argc != 6)
         rutinaDeError("Argumentos invalidos");
 
     memset(&config, '\0', sizeof(configuracion));
 
     /*Inicializar estructura config con valores pasado por argv*/
-    config.ipWebServer = inet_addr(argv[1]);
+    config.ipWebServer = atoi(argv[1]);
     config.puertoWebServer = atoi(argv[2]);
     config.tiempoMigracionCrawler = atoi(argv[3]);
     strcpy(config.ipPortLDAP, argv[4]);
@@ -34,15 +36,9 @@ int main(int argc, char **argv)
       rutinaDeError("No se pudo establecer la conexion LDAP.");
     printf("Conexion establecida con LDAP\n");
 
-    /*Se establecen los valores de la nueva accion para manejar señales*/
-    new_action.sa_handler = signalHandler;
-    sigemptyset (&new_action.sa_mask);
-    new_action.sa_flags = SA_RESTART;
-
     /*Se asigna un handler a la señal, si no se bloqueo su captura antes*/
-    sigaction (SIGUSR1, NULL, &old_action);
-    if (old_action.sa_handler != SIG_IGN)
-        sigaction (SIGUSR1, &new_action, NULL);
+    if (signal(SIGUSR1, signalHandler) == SIG_ERR)
+        rutinaDeError("signal");
 
     /*Se envia pedido de creacion de Crawler al primer WebServer conocido*/
     if (EnviarCrawlerCreate(config.ipWebServer, config.puertoWebServer) < 0)
@@ -106,10 +102,14 @@ int main(int argc, char **argv)
                                         inet_ntoa(*(struct in_addr *) (hosts[i].hostIP)));
             i++;
         }        
-        if (hosts != NULL)  free(hosts);
-        else printf("No se encontraron hosts en el Directorio de Expiracion de Hosts\n\n");
+        
+        if (hosts != NULL)
+            free(hosts);
+        else
+            printf("No se encontraron hosts en el Directorio de Expiracion de Hosts\n\n");
     }
-    
+
+    kill(SIGCHLD, getppid());
     exit(EXIT_SUCCESS);
 }
 
@@ -150,9 +150,14 @@ SOCKET establecerConexionServidorWeb(in_addr_t nDireccionIP, in_port_t nPort, SO
     their_addr->sin_addr.s_addr = nDireccionIP;
     memset(&(their_addr->sin_zero),'\0',8);
 
-    if (connect(sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1)
-        rutinaDeError("connect");
+    /*if (connect(sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1)
+        rutinaDeError("connect");*/
 
+    while ( connect (sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1 && errno != EISCONN )
+        if ( errno != EINTR )
+            rutinaDeError("connect");
+    
+    
     return sockfd;
 }
 
@@ -167,14 +172,14 @@ void signalHandler(int sig)
             printf("Señal recibida, sigRecibida = %d\n\n", sigRecibida);
             break;
     }
-    /*if (signal(sig, signalHandler) == SIG_ERR)
-        rutinaDeError("signal");*/
+    if (signal(sig, signalHandler) == SIG_ERR)
+        rutinaDeError("signal");
 }
 
 void rutinaDeError(char *error)
 {
     fprintf(stderr, "Error al disparar Crawlers. ");
     perror(error);
-    kill(getppid(), SIGCHLD);
+    kill(SIGCHLD, getppid());
     exit(EXIT_FAILURE);
 }

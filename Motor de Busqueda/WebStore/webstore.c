@@ -19,6 +19,8 @@ int atenderModificarURL(ldapObj *ldap, crawler_URL *entrada, unsigned int sizePa
 
 configuracion config;
 volatile sig_atomic_t sigRecibida=0;
+jmp_buf entorno;
+pid_t childID = 0;
 
 /*
  * 
@@ -26,28 +28,14 @@ volatile sig_atomic_t sigRecibida=0;
 int main()
 {
     SOCKET sockWebStore;
-    struct sigaction new_action, old_action;
     ldapObj ldap;
-
+    struct sigaction new_action, old_action;
     fd_set fdMaestro;
     fd_set fdLectura;
     struct timeval timeout;
     int fdMax, cli;
 
-    pid_t childID;
-
-    /*Se establecen los valores de la nueva accion para manejar señales*/
-    new_action.sa_handler = signalHandler;
-    sigemptyset (&new_action.sa_mask);
-    new_action.sa_flags = SA_RESTART;
-
-    /*Se asigna un handler a las señales, si no se bloqueo su captura antes*/    
-    sigaction (SIGCHLD, NULL, &old_action);
-    if (old_action.sa_handler != SIG_IGN)
-        sigaction (SIGCHLD, &new_action, NULL);
-    /*sigaction (SIGINT, NULL, &old_action);
-    if (old_action.sa_handler != SIG_IGN)
-        sigaction (SIGINT, &new_action, NULL);*/
+    int saltoDeInterrupcion=0;
     
     /*Lectura de Archivo de Configuracion*/
     if (leerArchivoConfiguracion(&config) != 0)
@@ -61,20 +49,27 @@ int main()
     /*Se establece conexion a puerto de escucha*/
     if ((sockWebStore = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
         rutinaDeError("Socket invalido");
+
+    saltoDeInterrupcion += setjmp(entorno);
+    if (saltoDeInterrupcion > 0)
+    {
+        printf("Se trato de interrumpir el proceso por %d vez. Se retorna a un punto seguro.\n\n", saltoDeInterrupcion);
+        sigRecibida = 0;
+    }
+
     printf("WEB STORE. Conexion establecida.\n");
 
-    /*Se atiendera UNA UNICA VEZ la señal SIGUSR1, por eso se usa signal()
-     *que una vez atendida reinicia el handler original de la señal
-     *que para SIGURS1 no existe, justo lo que queremos
-     */
-    sigaction (SIGUSR1, NULL, &old_action);
-    if (old_action.sa_handler != SIG_IGN)
-        sigaction (SIGUSR1, &new_action, NULL);
 
+    /*Se asigna un handler a las señales, si no se bloqueo su captura antes*/
+    if (signal(SIGCHLD, signalHandler) == SIG_ERR)
+        rutinaDeError("signal");
+    if (signal(SIGUSR1, signalHandler) == SIG_ERR)
+        rutinaDeError("signal");
 
     /*Se inicialian controladores para bloquear hasta recibir SIGUSR1*/
     sigemptyset (&new_action.sa_mask);
     sigaddset (&new_action.sa_mask, SIGUSR1);
+
     printf("Esperando SIGUSR1... pid(%d)\n", getpid());
 
     sigprocmask (SIG_BLOCK, &new_action.sa_mask, &old_action.sa_mask);
@@ -85,15 +80,14 @@ int main()
 
     if (sigRecibida)
     {
-        char puerto[20], tiempoNuevaConsulta[20];
-        char path[MAX_PATH];
+        char puerto[20], ip[25], tiempoNuevaConsulta[20];
 
         memset(puerto, '\0', 20);
+        memset(ip, '\0', 25);
         memset(tiempoNuevaConsulta, '\0', 20);
-        memset(path, '\0', MAX_PATH);
 
         /*Se cargan los datos para enviar al proceso Hijo como parametro*/
-        sprintf(path, "%s/crawler-create", getcwd(NULL, 0));
+        sprintf(ip, "%d", config.ipWebServer);
         sprintf(puerto, "%d", config.puertoWebServer);
         sprintf(tiempoNuevaConsulta, "%d", config.tiempoNuevaConsulta);
 
@@ -103,20 +97,18 @@ int main()
         }
         else if (childID == 0)
         /*Este es el hijo*/
-        {
-            char *argv[] = {"crawler-create", inet_ntoa(*(struct in_addr *) config.ipWebServer)
-                            , puerto, tiempoNuevaConsulta, config.ipPortLDAP, config.claveLDAP, "NULL"};
-            execv(path, argv);
+        {            
+            char *argv[] = {"crawler-create", ip, puerto,
+                            tiempoNuevaConsulta, config.ipPortLDAP, config.claveLDAP, NULL};
+            execv("./crawler-create", argv);
 
             /*Si ejectua esto fue porque fallo execv*/
-            perror("execv");
-            kill(getppid(), SIGCHLD);
-            exit(EXIT_FAILURE);
+            rutinaDeError("execv");
         }
         else if (childID > 0)
         /*Este es el padre*/
         {
-            printf("Se a creado proceso crawler-create.\n\n");
+            printf("Se a creado proceso crawler-create ID: %d.\n\n", childID);
         }
     }
 
@@ -124,7 +116,9 @@ int main()
     FD_ZERO (&fdMaestro);
     FD_SET(sockWebStore, &fdMaestro);
     fdMax = sockWebStore;
+    signal(SIGINT, signalHandler);
 
+    
     while (1)
     {
         int rc, desc_ready;
@@ -142,12 +136,15 @@ int main()
         if (rc < 0)
         /*Error en select()*/
             rutinaDeError("select");
+
         if (rc == 0)
         /*Select timeout*/
         {
-            kill(childID, SIGUSR1);
+            if (childID != 0)
+                kill(childID, SIGUSR1);
             printf("Se a enviado señal SIGURS1 a proceso hijo: %d\n", childID);
         }
+
         if (rc > 0)
         /*Se detectaron sockets con actividad*/
         {
@@ -285,17 +282,21 @@ void signalHandler(int sig)
     {
         case SIGUSR1:
             sigRecibida = 1;
-            break;
-            
+            if ((sig, SIG_IGN) == SIG_ERR)
+                rutinaDeError("signal");
+            break;            
         case SIGCHLD:
             while(waitpid(-1, NULL, WNOHANG) > 0);
-            break;
-            
-        /*case SIGINT:
-         *   //if (childID != 0 VOLVER A SELECT() else sigint
-         *   break;
-         */
+            longjmp(entorno, 1);
+            break;            
+        case SIGINT:
+            /*Hubo una interrupcion. Se retorno al while(1) principal*/
+            longjmp(entorno, 1);
+            break;            
     }
+    if (sig != SIGUSR1)
+        if (signal(sig, signalHandler) == SIG_ERR)
+        rutinaDeError("signal");
 }
 
 /*

@@ -257,7 +257,8 @@ Ultima modificacion: Scheinkman, Mariano
 Recibe: cadena vacia.
 Devuelve: cadena con el nuevo descriptorID
 */
-void GenerarID(char *cadenaOUT){
+void GenerarID(char *cadenaOUT)
+{
 
 	int i;
 
@@ -268,5 +269,4 @@ void GenerarID(char *cadenaOUT){
 	}
 
 	cadenaOUT[i] = '\0';
-
 }
