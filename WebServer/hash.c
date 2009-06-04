@@ -11,7 +11,7 @@ unsigned hash(char *s)
 	return hashval % HASHSIZE;
 }
 
-struct nlist *lookup(/*struct nlist **hashtab, */char *s)
+struct nlist *hashLookup(/*struct nlist **hashtab, */char *s)
 {
 	struct nlist *np;
 
@@ -21,12 +21,12 @@ struct nlist *lookup(/*struct nlist **hashtab, */char *s)
 	return NULL;	/*No se encontro*/
 }
 
-struct nlist *install(/*struct nlist **hashtab, */char *file, char *md5)
+struct nlist *hashInstall(/*struct nlist **hashtab, */char *file, char *md5)
 {
 	struct nlist *np;
 	unsigned hashval;
 
-	if ((np = lookup(file)) == NULL)
+	if ((np = hashLookup(file)) == NULL)
 	/*No fue encontrado*/
 	{
 		np = (struct nlist *) malloc(sizeof(*np));
@@ -43,11 +43,11 @@ struct nlist *install(/*struct nlist **hashtab, */char *file, char *md5)
 	return np;
 }
 
-int clean(/*struct nlist **hashtab, */char *file)
+int hashClean(/*struct nlist **hashtab, */char *file)
 {
     struct nlist *np1, *np2;
 
-    if ((np1 = lookup(/*hashtab, */file)) == NULL)	/*No encontro*/
+    if ((np1 = hashLookup(/*hashtab, */file)) == NULL)	/*No encontro*/
         return 1;
 
     for ( np1 = np2 = hashtab[hash(file)]; np1 != NULL; np2 = np1, np1 = np1->next ) 
@@ -183,24 +183,17 @@ int hashMD5(char *filename, char *md5sum)
 
 int hashSave(char *tmpFile)
 {
+	
+
 	return 0;
 }
 
-int hastLoad()
+int hashLoad()
 {
 	return 0;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+BOOL hashVacia()
+{
+	return (hashtab[0] == NULL);
+}

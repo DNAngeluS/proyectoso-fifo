@@ -25,7 +25,7 @@ typedef unsigned short in_port_t;
 /*Definiciones para el manejo de los mensajes de consola*/
 #define STR_MSG_HELP "USO:\r\n\t-help: Desplega modo de uso\r\n\t-queuestatus: Desplega estado de la Cola de Espera\r\n\t-run: Pone el Web Server en funcionamiento\r\n\t-finish: Finaliza el Web Server\r\n\t-outofservice: Establece al Web Server fuera de servicio\r\n\t-private file: Establece a file como archivo privado\r\n\t-public file: Establece a file como archivo publico\r\n\t-files: Imprime la lista de archivos y su hash\r\n\r\n"
 #define STR_MSG_QUEUESTATUS "Estado actual de la Cola de Espera:\r\n\r\n"
-#define STR_MSG_HASH "Estado actual de la Tabla Hash:\r\n\r\n"
+#define STR_MSG_HASH "Estado actual de la Tabla Hash para archivos publicos es:\r\n\r\n"
 #define STR_MSG_RUN "Web Server en servicio\r\n\r\n"
 #define STR_MSG_INVALID_RUN "Error: Web Server ya se encuentra en servicio. Ingrese -outofservice para desactivar servicio o -finish para finalizar\r\n\r\n"
 #define STR_MSG_FINISH "Web Server a finalizado\r\n\r\n"

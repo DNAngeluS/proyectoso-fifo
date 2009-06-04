@@ -12,6 +12,7 @@ void rutinaAtencionCliente			(LPVOID args);
 
 SOCKET rutinaConexionCliente		(SOCKET sockWebServer, unsigned maxClientes);
 SOCKET establecerConexionEscucha	(in_addr_t direccionIP, in_port_t nPort);
+SOCKET establecerConexionServidorWeb(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr);
 
 void imprimeLista					(ptrListaThread ptr);
 int listaVacia						(ptrListaThread listaThread);
@@ -350,7 +351,6 @@ void rutinaAtencionConsola (LPVOID args)
 	while (codop != FINISH)
 	{
 		char consolaStdin[MAX_INPUT_CONSOLA];
-		char arg[MAX_INPUT_CONSOLA];
 		int centinela=0;	    
 
 /**------	Validaciones a la hora de ingresar comandos	------**/
@@ -446,7 +446,14 @@ void rutinaAtencionConsola (LPVOID args)
 			}
 			else if (!lstrcmp(&consolaStdin[1], "files"))
 			{
+				int i;
 				printf("%s", STR_MSG_HASH);
+				if (!hashVacia())
+					for (i=0; i<HASHSIZE; i++)
+						printf("\t%d- %s: %s\r\n", i, hashtab[i]->file, hashtab[i]->md5);
+				else
+					printf("(Vacia)\r\n");
+				printf("\r\n");
 			}
             else if (!lstrcmp(&consolaStdin[1], "help"))
 			   printf("%s", STR_MSG_HELP);
@@ -826,8 +833,10 @@ SOCKET rutinaConexionCrawler(SOCKET sockWebServer)
 	{
 		if (sockCrawler != INVALID_SOCKET) 
 		{
+			int mode = IRC_CRAWLER_CREATE;
+
 			/*Recibir el msg IRC del WebStore*/
-			if (ircRequest_recv (sockCrawler, NULL, NULL, IRC_CRAWLER_CREATE) < 0)
+			if (ircRequest_recv (sockCrawler, NULL, NULL, &mode) < 0)
 			{
 				printf("Error al recibir IRC Crawler Create. Se cierra conexion.\r\n\r\n");
 				closesocket(sockCrawler);
@@ -869,8 +878,8 @@ void rutinaAtencionCrawler (LPVOID args)
 	crawPresence = 1;
 	ReleaseMutex(crawMutex);
 	
-
 	/*ENVIO DE HANDSHAKE Y RECEPCION DE RTA*/
+	/*SOCKET establecerConexionServidorWeb(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr)*/
 
 	/*
 	POR CADA ARCHIVO
@@ -894,4 +903,27 @@ void rutinaAtencionCrawler (LPVOID args)
 	crawPresence = 0;
 	ReleaseMutex(crawMutex);
 	*/
+}
+
+SOCKET establecerConexionServidorWeb(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr)
+{
+    SOCKET sockfd;
+
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+        rutinaDeError("socket");
+
+    their_addr->sin_family = AF_INET;
+    their_addr->sin_port = nPort;
+    their_addr->sin_addr.s_addr = nDireccionIP;
+    memset(&(their_addr->sin_zero),'\0',8);
+
+    /*if (connect(sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1)
+        rutinaDeError("connect");*/
+
+    while ( connect (sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1 && errno != WSAEISCONN )
+        if ( errno != WSAEINTR )
+            rutinaDeError("connect");
+    
+    
+    return sockfd;
 }

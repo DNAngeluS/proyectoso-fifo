@@ -14,10 +14,11 @@ struct nlist {
 	char *md5;
 };
 
-unsigned hash(char *s);
-struct nlist *lookup(/*struct nlist **hashtab, */char *s);
-struct nlist *install(/*struct nlist **hashtab, */char *file, char *md5);
-int clean(/*struct nlist **hashtab, */char *file);
-int hashMD5(char *filename, char *md5sum);
-int hashSave(char *tmpFile);
-int hastLoad();
+unsigned hash					(char *s);
+struct nlist *hashLookup		(/*struct nlist **hashtab, */char *s);
+struct nlist *hashInstall		(/*struct nlist **hashtab, */char *file, char *md5);
+int hashClean					(/*struct nlist **hashtab, */char *file);
+int hashMD5						(char *filename, char *md5sum);
+int hashSave					(char *tmpFile);
+int hashLoad					();
+BOOL hashVacia					();
