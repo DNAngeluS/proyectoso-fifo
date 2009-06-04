@@ -124,7 +124,8 @@ char *ObtenerMD5(char *s)
         }
         printf("\n");*/
     }
-
+	else
+		printf("CryptGetHashParam failed: %d\r\n", dwStatus);
 	/*Elimina hash Handle*/
 	if (CryptDestroyHash(hHash))
 	{
