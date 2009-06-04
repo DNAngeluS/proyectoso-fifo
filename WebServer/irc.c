@@ -69,8 +69,11 @@ int ircRequest_recv (SOCKET sock, void *bloque, char *descriptorID, int *mode)
     }
 
     memcpy(descriptorID, header.descriptorID, DESCRIPTORID_LEN);
-    *mode = header.payloadDesc;
-
+    if (*mode == 0x00) 
+		*mode = header.payloadDesc;
+	else
+		if (header.payloadDesc != *mode)
+        return -1;
     len = header.payloadLen;
     if (RecibirNBloque(sock, bloque, len) != len)
     {
@@ -101,7 +104,7 @@ int ircResponse_send (SOCKET sock, char *descriptorID, void *bloque,
     header.payload = bloque;
 
     len = sizeof(headerIRC);
-    if (EnviarBloque(sock, len, &header) != len)
+    if (EnviarBloque(sock, len, (void *) &header) != len)
     {
         printf("Error en irc request send header\n");
         return -1;
@@ -134,8 +137,11 @@ int ircResponse_recv (SOCKET sock, void **bloque, unsigned long *respuestaLen, i
         printf("Error en irc request recv header\n");
         return -1;
     }
-    /*if (header.payloadDesc != mode)
-        return -1;*/
+    if (*mode == 0x00) 
+		*mode = header.payloadDesc;
+	else
+		if (header.payloadDesc != *mode)
+			return -1;
     *mode = header.payloadDesc;
     /*if (!memcmp(header.descriptorID, descriptorID, DESCRIPTORID_LEN))*/
     {
@@ -165,7 +171,7 @@ void GenerarID(char *cadenaOUT){
 
 	int i;
 
-	srand (time (NULL));
+	srand ((unsigned) time (NULL));
 	for(i=0; i<DESCRIPTORID_LEN-1; i++)
 	{
 		cadenaOUT[i] = 'A'+ ( rand() % ('Z' - 'A') );

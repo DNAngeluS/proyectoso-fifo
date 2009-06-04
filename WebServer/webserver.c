@@ -25,7 +25,7 @@ ptrListaThread BuscarProximoThread	(ptrListaThread listaThread);
 
 int comprobarCondicionesMigracion	(unsigned esperaCrawler);
 SOCKET rutinaConexionCrawler		(SOCKET sockWebServer);
-void rutinaCrawler					(LPVOID args);
+void rutinaAtencionCrawler			(LPVOID args);
 
 int generarReporteLog				(HANDLE archLog, infoLogFile infoLog); 
 									/*HACER Genera archivo log con datos estadisticos obtenidos*/
@@ -52,6 +52,7 @@ int codop = RUNNING;	/*
 HANDLE crawMutex;
 int crawPresence = -1;
 DWORD crawTimestamp = 0;
+
 struct nlist *hashtab[HASHSIZE];
 
 /*      
@@ -214,12 +215,21 @@ int main()
 				printf ("A migrado un Web Crawler.\r\n\r\n");
 				
 				/*Se crea el thread Crawler*/
-				threadHandle = (HANDLE) _beginthreadex (NULL, 1, (void *) rutinaCrawler, (LPVOID) NULL, 0, &threadID);
+				threadHandle = (HANDLE) _beginthreadex (NULL, 1, (void *) rutinaAtencionCrawler, (LPVOID) NULL, 0, &threadID);
 				if (threadHandle == 0)
 				{
 					printf("No se pudo crear el thread Crawler\r\n\r\n");
 					closesocket(sockCrawler);
 				}
+				
+				/*para comprobar si se mantiene el process priority class*/
+				printf("process priority: %d\n", GetPriorityClass(GetCurrentProcess()));
+				
+				/*Se modifica el Thread Priority Level*/
+				SetThreadPriority(threadHandle, THREAD_PRIORITY_HIGHEST);
+
+				/*para comprobar si se mantiene el process priority class*/
+				printf("process priority: %d\n", GetPriorityClass(GetCurrentProcess()));
 			}
 		}
 
@@ -850,7 +860,7 @@ int comprobarCondicionesMigracion(unsigned esperaCrawler)
 			crawPresence == 0;
 }
 
-void rutinaCrawler (LPVOID args)
+void rutinaAtencionCrawler (LPVOID args)
 {
 	int pvez = (crawPresence == -1);
 
@@ -859,27 +869,24 @@ void rutinaCrawler (LPVOID args)
 	crawPresence = 1;
 	ReleaseMutex(crawMutex);
 	
-	/*ENVIO DE HANDSHAKE Y RECEPCION DE RTA*/
-	/*AUMENTAR SU THREAD PRIORITY LEVEL A THREAD_PRIORITY_HIGHEST. MANTENER PROCESS PRIORITY CLASS*/
 
-	/*
-	SI PVEZ
-		GENERAR TABLA_HASH
-	SINO
-		BUSCAR ARCHIVOS NUEVOS, MODIFICADOS, BORRADOS O 
-					HAYAN CAMBIADO PERMISO "FILE_ATTRIBUTE_READONLY" Y ACTUALIZAR TABLA HASH
-	*/
+	/*ENVIO DE HANDSHAKE Y RECEPCION DE RTA*/
 
 	/*
 	POR CADA ARCHIVO
-		SI (NUEVO/MODIFICADO EN TABLA_HASH)
-			VERIFICAR QUE NO TENGAN EL ATRIBUTO FILE_ATTRIBUTE_READONLY
-			SI ES HTML -> PARSEAR
-			GENERAR PAQUETE
-			ENVIAR
-	FIN DE POR CADA ARCHIVO
+		OBTENER ATTRIBUTO
+		SI (EXISTE EN HASHTAB Y ES PRIVADO)
+			ELIMINAR DE HASHTAB
+			CONTINUE
+		SI (ES NUEVO EN HASHTAB Y ES PUBLICO) O (EXISTE, ES PUBLICO Y MD5 CAMBIO)
+			AGREGAR A HASHTAB
+			SI ES HTML
+				PARSEAR
+				GENERAR PAQUETE HTML
+			ELSE
+				GENERAR PAQUETE ARCHIVOS
+		
 	*/
-
 
 	/*
 	WaitForSingleObject(crawMutex, INFINITE);

@@ -1,59 +1,68 @@
 #include "http.h"
 #include <string.h>
 
-int EnviarBloque(SOCKET sockfd, DWORD bAEnviar, char *bloque) 
+/*
+Descripcion: Envia un bloque de datos
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket, longitud del bloque, bloque
+Devuelve: ok? bytes enviados: -1
+*/
+int EnviarBloque(SOCKET sockfd, unsigned long len, void *buffer)
 {
+    int bHastaAhora = 0;
+    int bytesEnviados = 0;
 
-	DWORD bHastaAhora, bEnviados;	
-	int error = 0;
+    do {
+        if ((bHastaAhora = send(sockfd, buffer, len, 0)) == -1){
+                break;
+        }
+        bytesEnviados += bHastaAhora;
+    } while (bytesEnviados != len);
 
-	bHastaAhora = bEnviados = 0;
- 	while (!error && bEnviados < bAEnviar) 
-	{
-		if ((bHastaAhora = send(sockfd, bloque+bEnviados, bAEnviar, 0)) == -1) 
-		{
-			printf("Error en la funcion send.\n\n");
-			error = 1;
-			break;
-		}
-		else 
-		{
-			bEnviados += bHastaAhora;			
-			bAEnviar -= bHastaAhora;
-		}
-	}
-	
-	return error == 0? bEnviados: -1;
-}
-
-int RecibirNBloque(SOCKET sockfd, char *bloque, DWORD nBytes)
-{
-	int bRecibidos = 0;
-	int aRecibir = nBytes;
-	int bHastaAhora = 0;
-
-	do
-	{
-		if ((bHastaAhora = recv(sockfd, bloque+bRecibidos, aRecibir, 0)) == -1) 
-		{
-			printf("Error en la funcion recv.\n\n");
-			return -1;
-		}
-		aRecibir -= bHastaAhora;
-		bRecibidos += bHastaAhora;
-	} while (aRecibir > 0);
-	
-	return bRecibidos;
+    return bHastaAhora == -1? -1: bytesEnviados;
 }
 
 
+/*
+Descripcion: Recibe n bytes de un bloque de datos
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket, bloque, longitud del bloque
+Devuelve: ok? bytes recibidos: -1
+*/
+int RecibirNBloque(SOCKET socket, void *buffer, unsigned long length)
+{
+    int bRecibidos = 0;
+    int bHastaAhora = 0;
+
+    do {
+        if ((bHastaAhora = recv(socket, buffer, length, 0)) == -1) {
+                break;
+        }
+        if (bHastaAhora == 0)
+                return 0;
+        bRecibidos += bHastaAhora;
+    } while (bRecibidos != length);
+
+    return bHastaAhora == -1? -1: bRecibidos;
+}
+
+
+
+/*
+Descripcion: Recibe un bloque de datos que no se sabe la longitud
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket, bloque
+Devuelve: ok? bytes recibidos: -1
+*/
 int RecibirBloque(SOCKET sockfd, char *bloque) {
-	
-	int bRecibidos = 0;
-	int bHastaAhora = 0;
-	int NonBlock = 1;
 
-	do
+    int bRecibidos = 0;
+    int bHastaAhora = 0;
+    int NonBlock = 1;
+
+    errno = 0;
+
+    do
 	{
 		if (bRecibidos != 0)
 		{
@@ -81,8 +90,8 @@ int RecibirBloque(SOCKET sockfd, char *bloque) {
 		printf("ioctlsocket");
 		return -1;
 	}
-	
-	return bRecibidos;
+
+    return bRecibidos;
 }
 
 int httpGet_recv(SOCKET sockfd, msgGet *getInfo)
