@@ -2,6 +2,7 @@
 #include "webserver.h"
 #include "http.h"
 #include "irc.h"
+#include "hash.h"
 
 /************************=== Funciones ===***********************************/
 
@@ -51,6 +52,7 @@ int codop = RUNNING;	/*
 HANDLE crawMutex;
 int crawPresence = -1;
 DWORD crawTimestamp = 0;
+struct nlist *hashtab[HASHSIZE];
 
 /*      
 Descripcion: Provee de archivos a clientes solicitantes en la red.
