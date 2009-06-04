@@ -383,8 +383,8 @@ void GenerarUUID(char *cadenaOUT)
         else
             do {
                 cadenaOUT[i] = tolower ('0' + (rand() % ('Z' -'0')) );
-            } while (i % 4 ? !isalnum(cadenaOUT[i]): !isdigit(cadenaOUT[i]));
-	}
+            } while (!isxdigit(cadenaOUT[i]));
+    }
 
     cadenaOUT[i] = '\0';
 }
