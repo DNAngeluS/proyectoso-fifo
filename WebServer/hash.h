@@ -5,7 +5,7 @@
 #include <Wincrypt.h>
 
 #define HASHSIZE 101
-#define BUFSIZE 1024
+#define BUF_SIZE 1024
 #define MD5LEN 16
 
 struct nlist {
@@ -15,10 +15,11 @@ struct nlist {
 };
 
 unsigned hash					(char *s);
-struct nlist *hashLookup		(/*struct nlist **hashtab, */char *s);
-struct nlist *hashInstall		(/*struct nlist **hashtab, */char *file, char *md5);
-int hashClean					(/*struct nlist **hashtab, */char *file);
+struct nlist *hashLookup		(char *s);
+struct nlist *hashInstall		(char *file, char *md5);
+int hashCleanAll				();
+int hashClean					(char *file);
 int hashMD5						(char *filename, char *md5sum);
-int hashSave					(char *tmpFile);
+int hashSave					();
 int hashLoad					();
 BOOL hashVacia					();

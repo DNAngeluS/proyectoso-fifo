@@ -73,6 +73,7 @@ int leerArchivoConfiguracion(configuracion *config)
 				 break;
 		 }
 	}
+
 	return 0;
 }
 

@@ -81,6 +81,11 @@ int main()
 	/*Lectura de Archivo de Configuracion*/
 	if (leerArchivoConfiguracion(&config) != 0)
 		rutinaDeError("Lectura Archivo de configuracion");
+	printf("Se a cargado el Archivo de Configuracion.\r\n");
+	
+	/*Inicializar Hash Table con datos anteriores, si existen*/
+	if (hashLoad() < 0)
+		printf("Error tratando de cargar Tabla Hash. Continua ejecucion.\r\n\r\n");
 
 	/*Inicializo variable para archivo Log*/
 	GetLocalTime(&(infoLog.arrivalUser));
@@ -114,7 +119,7 @@ int main()
 	if ((sockWebServer = establecerConexionEscucha(config.ip, config.puerto)) == INVALID_SOCKET)
 		rutinaDeError("Socket invalido");
 
-	printf("%s", STR_MSG_WELCOME);
+	printf("\r\n%s", STR_MSG_WELCOME);
 
 	/*Se inicializan los FD_SET para select*/
 	FD_ZERO(&fdMaestro);
@@ -273,6 +278,9 @@ int main()
 
 	WSACleanup();
 
+	/*Se guarda el estado de la Tabla Hash*/
+	if (hashSave() < 0)
+		printf("Error al guardar Tabla Hash.\r\n");
 
 	/*Generar archivo Log*/
 	printf("Se genera Archivo Log.\r\n");
@@ -363,6 +371,7 @@ void rutinaAtencionConsola (LPVOID args)
 				printf("%s", STR_MSG_QUEUESTATUS);
 				imprimeLista (listaThread);
             }
+
             else if (!lstrcmp(&consolaStdin[1], "run"))
             {
                  if (codop != RUNNING)
@@ -373,11 +382,13 @@ void rutinaAtencionConsola (LPVOID args)
                  else
                      printf("%s", STR_MSG_INVALID_RUN);
             }
+
             else if (!lstrcmp(&consolaStdin[1], "finish"))
             {
                  printf("%s", STR_MSG_FINISH);
                  codop = FINISH;
             }
+
             else if (!lstrcmp(&consolaStdin[1], "outofservice"))
             {
                  if (codop != OUTOFSERVICE)
@@ -388,6 +399,7 @@ void rutinaAtencionConsola (LPVOID args)
                  else
                      printf("%s", STR_MSG_INVALID_OUTOFSERVICE);
             }
+
 			else if (!strncmp(&consolaStdin[1], "private", strlen("private")))
 			{
 				char *file = NULL, *next = NULL;
@@ -416,6 +428,7 @@ void rutinaAtencionConsola (LPVOID args)
 							rutinaDeError("SetFileAttributes");
 				}
 			}
+
 			else if (!strncmp(&consolaStdin[1], "public", strlen("public")))
 			{
 				char *file = NULL, *next = NULL;
@@ -444,19 +457,32 @@ void rutinaAtencionConsola (LPVOID args)
 							rutinaDeError("SetFileAttributes");
 				}
 			}
+
 			else if (!lstrcmp(&consolaStdin[1], "files"))
 			{
 				int i;
 				printf("%s", STR_MSG_HASH);
 				if (!hashVacia())
+				{
 					for (i=0; i<HASHSIZE; i++)
-						printf("\t%d- %s: %s\r\n", i, hashtab[i]->file, hashtab[i]->md5);
+						if (hashtab[i] != NULL)
+							printf("\t%s : %s\r\n", hashtab[i]->md5, hashtab[i]->file);
+				}
 				else
 					printf("(Vacia)\r\n");
 				printf("\r\n");
 			}
+			else if (!lstrcmp(&consolaStdin[1], "reset"))
+			{
+				if (hashCleanAll() < 0)
+					printf("%s", STR_MSG_INVALID_RESET);
+				else
+					printf("%s", STR_MSG_RESET);
+			}
+
             else if (!lstrcmp(&consolaStdin[1], "help"))
 			   printf("%s", STR_MSG_HELP);
+
             else
                 printf("%s", STR_MSG_INVALID_INPUT);
 		}
@@ -478,6 +504,10 @@ void rutinaDeError (char* error)
 {
 	printf("\r\nError: %s\r\n", error);
 	printf("Codigo de Error: %d\r\n\r\n", GetLastError());
+
+	/*Se guarda el estado de la Tabla Hash*/
+	if (hashSave() < 0)
+		printf("Error al guardar Tabla Hash.\r\n");
 	exit(1);
 }
 
@@ -619,7 +649,7 @@ void rutinaAtencionCliente (LPVOID args)
 void imprimeLista(ptrListaThread ptr)
 {
 	if (ptr == NULL)
-		printf("La cola esta vacia\r\n\r\n");
+		printf("(Vacia)\r\n\r\n");
 	else
 	{
 		printf("La lista es:\r\n");

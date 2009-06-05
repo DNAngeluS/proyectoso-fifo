@@ -11,7 +11,7 @@ unsigned hash(char *s)
 	return hashval % HASHSIZE;
 }
 
-struct nlist *hashLookup(/*struct nlist **hashtab, */char *s)
+struct nlist *hashLookup(char *s)
 {
 	struct nlist *np;
 
@@ -21,7 +21,7 @@ struct nlist *hashLookup(/*struct nlist **hashtab, */char *s)
 	return NULL;	/*No se encontro*/
 }
 
-struct nlist *hashInstall(/*struct nlist **hashtab, */char *file, char *md5)
+struct nlist *hashInstall(char *file, char *md5)
 {
 	struct nlist *np;
 	unsigned hashval;
@@ -43,11 +43,22 @@ struct nlist *hashInstall(/*struct nlist **hashtab, */char *file, char *md5)
 	return np;
 }
 
-int hashClean(/*struct nlist **hashtab, */char *file)
+int hashCleanAll()
+{
+	int i;
+
+	for (i = 0; i < HASHSIZE; i++)
+		if (hashtab[i] != NULL)
+			if (hashClean(hashtab[i]->file) < 0)
+				return -1;
+	return 0;
+}
+
+int hashClean(char *file)
 {
     struct nlist *np1, *np2;
 
-    if ((np1 = hashLookup(/*hashtab, */file)) == NULL)	/*No encontro*/
+    if ((np1 = hashLookup(file)) == NULL)	/*No encontro*/
         return 1;
 
     for ( np1 = np2 = hashtab[hash(file)]; np1 != NULL; np2 = np1, np1 = np1->next ) 
@@ -55,7 +66,6 @@ int hashClean(/*struct nlist **hashtab, */char *file)
         if ( strcmp(file, np1->file) == 0 ) 
 		/*Encontro*/
 		{
-
             /*Remover nodo de la lista*/
             if ( np1 == np2 )
                 hashtab[hash(file)] = np1->next;
@@ -81,7 +91,7 @@ int hashMD5(char *filename, char *md5sum)
     HCRYPTPROV hProv = 0;
     HCRYPTHASH hHash = 0;
     HANDLE hFile = NULL;
-    BYTE rgbFile[BUFSIZE];
+    BYTE rgbFile[BUF_SIZE];
     DWORD cbRead = 0;
     BYTE rgbHash[MD5LEN];
     DWORD cbHash = 0;
@@ -126,7 +136,7 @@ int hashMD5(char *filename, char *md5sum)
         return dwStatus;
     }
 
-    while (bResult = ReadFile(hFile, rgbFile, BUFSIZE, 
+    while (bResult = ReadFile(hFile, rgbFile, BUF_SIZE, 
 		&cbRead, NULL))
     {
         if (0 == cbRead)
@@ -181,19 +191,124 @@ int hashMD5(char *filename, char *md5sum)
     return dwStatus; 
 }
 
-int hashSave(char *tmpFile)
+int hashSave()
 {
+	DWORD buf_size, temp;
+    HANDLE archivoHash;
+	char buf[BUF_SIZE];
+	char line[MAX_PATH];
+	DWORD lim;
+	int i;
 	
+    archivoHash = CreateFileA("hash.txt", GENERIC_WRITE, 0, NULL,
+                             CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+    if (archivoHash == INVALID_HANDLE_VALUE) 
+    {
+            printf("No se pudo crear el archivo hash: "
+                                    "(error %d)\r\n", GetLastError());       
+			return -1;
+    }
+
+	if (hashVacia())
+		return 0;
+
+	memset(buf, '\0', BUF_SIZE);
+	memset(line, '\0', MAX_PATH);
+	for (i = lim = 0; i < HASHSIZE; i++)
+	{	
+        if (hashtab[i] != NULL)
+		{
+			sprintf(line, "%s-%s#", hashtab[i]->file, hashtab[i]->md5);
+			strcat(buf, line);
+			lim = (DWORD) strlen(buf);
+			memset(line, '\0', MAX_PATH);
+		}
+	}
+
+	temp = WriteFile(archivoHash, buf, lim, &buf_size, NULL);
+    CloseHandle(archivoHash);
+
+	printf("Se a guardado Tabla Hash.\r\n");
 
 	return 0;
 }
 
 int hashLoad()
 {
+	DWORD buf_size, temp;
+    HANDLE archivoHash;
+	char *lim, *primero, *act, *file, *md5, *pos;
+	char buf[BUF_SIZE];
+
+    memset(hashtab, '\0', sizeof(hashtab));
+    archivoHash = CreateFileA("hash.txt", GENERIC_READ, 0, NULL,
+                             OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+
+    if (archivoHash == INVALID_HANDLE_VALUE) 
+    {
+            if (GetLastError() == 2)
+            {
+               printf("No se encontro ninguna Tabla Hash. Se carga la tabla vacia.\r\n\r\n");
+               return 0;
+            }
+            else
+                printf("No se pudo abrir el archivo hash: "
+                                    "(error %d)\r\n", GetLastError());       
+			return -1;
+    }
+    
+	temp = ReadFile(archivoHash, buf, BUF_SIZE, &buf_size, NULL);
+    CloseHandle(archivoHash);
+    if (temp == FALSE) 
+    {
+            printf("No se pudo leer el archivo de configuracion: "
+                                    "(error %d)\r\n", GetLastError());
+            return -1;
+    }
+	
+	lim = buf + buf_size;
+	file = md5 = pos = NULL;
+	for (primero = act = buf; act < lim; act++) 
+	{
+        switch (*act) 
+		{
+			case '-':
+				*act = '\0';
+				file = primero;
+				md5 = act + 1;
+				break;
+			case '#':
+				primero = act + 1; 
+				*act = '\0';
+				if (file != NULL && md5 != NULL) 
+                    hashInstall(file, md5);
+				file = md5 = pos = NULL;
+				break;
+		}
+	}
+	printf("Se a cargado la Tabla Hash.\r\n\r\n");
+	
+	return 0;
+}
+
+static int ingresarValor(char *file, char *md5, int pos)
+{
+	hashtab[pos]->file = strdup(file);
+	hashtab[pos]->md5 = strdup(md5);
+
 	return 0;
 }
 
 BOOL hashVacia()
 {
-	return (hashtab[0] == NULL);
+	int i=0;
+
+	while (i < HASHSIZE)
+	{
+		if (hashtab[i++] != NULL)
+			break;
+	}
+
+	return (i == HASHSIZE);
 }
