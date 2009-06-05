@@ -901,6 +901,14 @@ int comprobarCondicionesMigracion(unsigned esperaCrawler)
 
 void rutinaAtencionCrawler (LPVOID args)
 {
+	SOCKET sockWServ;
+	SOCKADDR_IN dirWServ;
+	
+	char descriptorID[DESCRIPTORID_LEN];
+	char *buf;
+	int mode = IRC_CRAWLER_CONNECT;
+	int sizeRta;
+
 	int pvez = (crawPresence == -1);
 
 	/*Mutua exclusion para la variable global de presencia de Crawler*/
@@ -908,31 +916,46 @@ void rutinaAtencionCrawler (LPVOID args)
 	crawPresence = 1;
 	ReleaseMutex(crawMutex);
 	
-	/*ENVIO DE HANDSHAKE Y RECEPCION DE RTA*/
-	/*SOCKET establecerConexionServidorWeb(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr)*/
+	/*Conexion con Web Server*/
+	if ((sockWServ = establecerConexionServidorWeb(config.ip, config.puerto, &dirWServ)) < 0)
+	{
+		printf("Error de conexion entre Crawler y Web Server. Se descarta Crawler.\r\n");
+	}
 
-	/*
-	POR CADA ARCHIVO
-		OBTENER ATTRIBUTO
-		SI (EXISTE EN HASHTAB Y ES PRIVADO)
-			ELIMINAR DE HASHTAB
-			CONTINUE
-		SI (ES NUEVO EN HASHTAB Y ES PUBLICO) O (EXISTE, ES PUBLICO Y MD5 CAMBIO)
-			AGREGAR A HASHTAB
-			SI ES HTML
-				PARSEAR
-				GENERAR PAQUETE HTML
-			ELSE
-				GENERAR PAQUETE ARCHIVOS
-		
-	*/
+	/*Envio de Handshake*/
+	else if (ircRequest_send(sockWServ, (char *) IRC_CRAWLER_HANDSHAKE_CONNECT, 
+						sizeof(IRC_CRAWLER_HANDSHAKE_CONNECT) ,descriptorID, mode) < 0)
+	{
+		printf("Error en mensaje ircRequest_send entre Crawler y Web Server. Se descarta Crawler.\r\n");
+	}
 
-	/*
+	/*Recibe respuesta al Handshake*/
+	else if (ircResponse_recv(sockWServ, &buf, &sizeRta, descriptorID, &mode) < 0)
+	{
+		printf("Error en mensaje ircRequest_send entre Crawler y Web Server. Se descarta Crawler.\r\n");
+	}
+
+	/*Se analiza respuesta*/
+	else if (strcmp(buf, IRC_CRAWLER_HANDSHAKE_FAIL) == 0)
+	{
+		/*Se descarta Crawler. Tiene prohibida la migracion.*/
+		printf("Crawler rechazado por el WebServer. Se descarta Crawler.\r\n");
+	}
+	else if (strcmp(buf, IRC_CRAWLER_HANDSHAKE_OK) == 0)
+	{
+		/*Procesar los archivos del directorio*/
+		if (forAllFiles(config.directorioFiles, rutinaTrabajoCrawler) < 0)
+			printf("Crawler: Error al procesar archivos. Se descarta Crawler.\r\n\r\n");	
+	}
+	else
+		printf("Error en el mensajeo entre Crawler y Web Server. Mensajes invalidos");
+
+	
 	WaitForSingleObject(crawMutex, INFINITE);
 	crawTimeStamp = GetTickCount();
 	crawPresence = 0;
 	ReleaseMutex(crawMutex);
-	*/
+	_endthreadex(0);
 }
 
 SOCKET establecerConexionServidorWeb(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr)
@@ -956,4 +979,107 @@ SOCKET establecerConexionServidorWeb(in_addr_t nDireccionIP, in_port_t nPort, SO
     
     
     return sockfd;
+}
+
+int forAllFiles(char *directorio, int (*funcion) (WIN32_FIND_DATA))
+{
+	WIN32_FIND_DATA ffd;
+	LARGE_INTEGER filesize;
+	char *szDir[MAX_PATH];
+	size_t length_of_arg;
+	HANDLE hFind = INVALID_HANDLE_VALUE;
+
+	/*Chequea la longuitud del directorio*/
+	StringCchLength(directorio, MAX_PATH, &length_of_arg);
+
+	if (length_of_arg > (MAX_PATH - 2))
+	{
+		printf("\nDirectory path is too long.\n");
+		return -1;
+	}
+
+	/*Agrega \* al nombre del directorio*/
+	lstrcpy(szDir, directorio);
+	strcat(szDir, "\\*");
+
+	/*Obtiene el primer archivo del directorio*/
+	hFind = FindFirstFile(szDir, &ffd);
+
+	if (INVALID_HANDLE_VALUE == hFind) 
+	{
+		printf("Error.\r\n");
+		printf("FindFirstFile: %d\r\n\\r\n", GetLastError());
+		return -1;
+	} 
+
+	/*Recorre todos los archivos del directorio y sus subdirectorios y les aplica la funcion a cada uno*/
+	do
+	{
+		if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		{
+			char newDir[MAX_PATH];
+
+			lstrcpy(newDir, directorio);
+			strcat(newDir, ffd.cFileName);
+			if (forAllFiles(newDir, funcion) < 0)
+				return -1;
+		}
+		else
+		{
+			if (funcion(ffd) < 0)
+				return -1;
+		}
+	}
+	while (FindNextFile(hFind, &ffd) != 0);
+
+	if (GetLastError() != ERROR_NO_MORE_FILES)
+	{
+		printf("Error.\r\n");
+		printf("FindFirstFile: %d\r\n\\r\n", GetLastError());
+		return -1;
+	}
+
+	FindClose(hFind);
+	return 0;
+}
+
+int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
+{
+	DWORD attr = filedata.dwFileAttributes;
+	struct nlist *np = hashLookup(filedata.cFileName);
+	char *filename = filedata.cFileName;
+	char md5[MAX_PATH];
+
+	hashMD5(filename, md5);
+
+	if (np != NULL && attr == FILE_READONLY)
+	{
+		if (hashClean(filename) < 0)
+			return -1;
+	}
+
+	else if ((np == NULL && attr != FILE_READONLY) || 
+			(np != NULL && attr != FILE_READONLY && !strcmp(np->md5, md5)))
+	{
+		if (hashInstall(filename, md5) < 0)
+			return -1;
+		if (getFileType(filename) == HTML)
+		{
+			/*
+			PARSEAR
+			GENERAR PAQUETE HTML
+			*/
+		}
+		else
+		{
+			/*
+			GENERAR PAQUETE ARCHIVOS
+			*/
+		}
+		/*
+		ENVIAR PAQUETE
+		*/
+	}
+
+	return 0;
 }
