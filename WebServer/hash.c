@@ -16,7 +16,7 @@ struct nlist *hashLookup(char *s)
 	struct nlist *np;
 
 	for (np = hashtab[hash(s)]; np != NULL; np = np->next)
-		if (strcmp(s, np->file) == 0)
+		if (lstrcmp(s, np->file) == 0)
 			return np;	/*Se encontro*/
 	return NULL;	/*No se encontro*/
 }
@@ -63,7 +63,7 @@ int hashClean(char *file)
 
     for ( np1 = np2 = hashtab[hash(file)]; np1 != NULL; np2 = np1, np1 = np1->next ) 
 	{
-        if ( strcmp(file, np1->file) == 0 ) 
+        if ( lstrcmp(file, np1->file) == 0 ) 
 		/*Encontro*/
 		{
             /*Remover nodo de la lista*/
@@ -97,7 +97,7 @@ int hashMD5(char *filename, char *md5sum)
     DWORD cbHash = 0;
     CHAR rgbDigits[] = "0123456789abcdef";
 
-	lstrcpy(md5sum,"");
+	memset(md5sum,'\0', sizeof(*md5sum));
 
     hFile = CreateFile(filename,
         GENERIC_READ,
@@ -175,7 +175,7 @@ int hashMD5(char *filename, char *md5sum)
             char buf[5];
             sprintf_s(buf, sizeof(buf), "%c%c", rgbDigits[rgbHash[i] >> 4],
                 rgbDigits[rgbHash[i] & 0xf]);
-            strcat(md5sum, buf);
+            lstrcat(md5sum, buf);
         }
     }
     else
@@ -219,9 +219,9 @@ int hashSave()
 	{	
         if (hashtab[i] != NULL)
 		{
-			sprintf(line, "%s-%s#", hashtab[i]->file, hashtab[i]->md5);
-			strcat(buf, line);
-			lim = (DWORD) strlen(buf);
+			sprintf_s(line, MAX_PATH, "%s-%s#", hashtab[i]->file, hashtab[i]->md5);
+			lstrcat(buf, line);
+			lim = (DWORD) lstrlen(buf);
 			memset(line, '\0', MAX_PATH);
 		}
 	}

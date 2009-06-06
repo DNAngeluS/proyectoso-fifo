@@ -27,6 +27,9 @@ ptrListaThread BuscarProximoThread	(ptrListaThread listaThread);
 int comprobarCondicionesMigracion	(unsigned esperaCrawler);
 SOCKET rutinaConexionCrawler		(SOCKET sockWebServer);
 void rutinaAtencionCrawler			(LPVOID args);
+int rutinaTrabajoCrawler			(WIN32_FIND_DATA filedata);
+int forAllFiles						(char *directorio, int (*funcion) (WIN32_FIND_DATA));
+int EnviarCrawlerCreate				(in_addr_t nDireccion, in_port_t nPort);
 
 int generarReporteLog				(HANDLE archLog, infoLogFile infoLog); 
 									/*HACER Genera archivo log con datos estadisticos obtenidos*/
@@ -52,7 +55,7 @@ int codop = RUNNING;	/*
 
 HANDLE crawMutex;
 int crawPresence = -1;
-DWORD crawTimestamp = 0;
+DWORD crawTimeStamp = 0;
 
 struct nlist *hashtab[HASHSIZE];
 
@@ -840,7 +843,7 @@ int generarReporteLog (HANDLE archLog, infoLogFile infoLog)
 	*/
 
 
-	if (WriteFile(archLog, buffer, strlen(buffer)+1, &bytesEscritos, NULL) == FALSE)
+	if (WriteFile(archLog, buffer, strlen(buffer)+1, &((size_t)bytesEscritos), NULL) == FALSE)
 		error = 1;
 	CloseHandle(archLog);
 
@@ -858,7 +861,7 @@ SOCKET rutinaConexionCrawler(SOCKET sockWebServer)
 	/*Acepta la conexion entrante*/
 	sockCrawler = accept(sockWebServer, (SOCKADDR *) &dirCrawler, &nAddrSize);
 	
-	/*Si el servidor No esta fuera de servicio puede atender clientes*/
+	/*Si el servidor No esta fuera de servicio puede atender Crawlers*/
 	if (codop != OUTOFSERVICE)
 	{
 		if (sockCrawler != INVALID_SOCKET) 
@@ -873,7 +876,6 @@ SOCKET rutinaConexionCrawler(SOCKET sockWebServer)
 				return -1;
 			}
 			
-
 			/*Se comprueban las condiciones para que haya una migracion*/
 			if (comprobarCondicionesMigracion(config.esperaCrawler) == 1)
 			/*Si se puede migrar*/
@@ -895,7 +897,7 @@ SOCKET rutinaConexionCrawler(SOCKET sockWebServer)
 
 int comprobarCondicionesMigracion(unsigned esperaCrawler)
 {
-	return ((GetTickCount() - crawTimestamp) >= esperaCrawler) &&
+	return ((GetTickCount() - crawTimeStamp) >= esperaCrawler) &&
 			crawPresence == 0;
 }
 
@@ -984,13 +986,12 @@ SOCKET establecerConexionServidorWeb(in_addr_t nDireccionIP, in_port_t nPort, SO
 int forAllFiles(char *directorio, int (*funcion) (WIN32_FIND_DATA))
 {
 	WIN32_FIND_DATA ffd;
-	LARGE_INTEGER filesize;
-	char *szDir[MAX_PATH];
+	char szDir[MAX_PATH];
 	size_t length_of_arg;
 	HANDLE hFind = INVALID_HANDLE_VALUE;
 
 	/*Chequea la longuitud del directorio*/
-	StringCchLength(directorio, MAX_PATH, &length_of_arg);
+	length_of_arg = lstrlen(directorio);
 
 	if (length_of_arg > (MAX_PATH - 2))
 	{
@@ -1000,7 +1001,7 @@ int forAllFiles(char *directorio, int (*funcion) (WIN32_FIND_DATA))
 
 	/*Agrega \* al nombre del directorio*/
 	lstrcpy(szDir, directorio);
-	strcat(szDir, "\\*");
+	lstrcat(szDir, "\\*");
 
 	/*Obtiene el primer archivo del directorio*/
 	hFind = FindFirstFile(szDir, &ffd);
@@ -1020,7 +1021,7 @@ int forAllFiles(char *directorio, int (*funcion) (WIN32_FIND_DATA))
 			char newDir[MAX_PATH];
 
 			lstrcpy(newDir, directorio);
-			strcat(newDir, ffd.cFileName);
+			lstrcat(newDir, ffd.cFileName);
 			if (forAllFiles(newDir, funcion) < 0)
 				return -1;
 		}
@@ -1052,14 +1053,14 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 
 	hashMD5(filename, md5);
 
-	if (np != NULL && attr == FILE_READONLY)
+	if (np != NULL && attr == FILE_ATTRIBUTE_READONLY)
 	{
 		if (hashClean(filename) < 0)
 			return -1;
 	}
 
-	else if ((np == NULL && attr != FILE_READONLY) || 
-			(np != NULL && attr != FILE_READONLY && !strcmp(np->md5, md5)))
+	else if ((np == NULL && attr != FILE_ATTRIBUTE_READONLY) || 
+			(np != NULL && attr != FILE_ATTRIBUTE_READONLY && !strcmp(np->md5, md5)))
 	{
 		if (hashInstall(filename, md5) < 0)
 			return -1;
@@ -1083,3 +1084,29 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 
 	return 0;
 }
+
+int EnviarCrawlerCreate(in_addr_t nDireccion, in_port_t nPort)
+{
+    SOCKET sockWebServer;
+    SOCKADDR_IN dirServidorWeb;
+    char descriptorID[DESCRIPTORID_LEN];
+
+    /*Se levanta conexion con el Web Server*/
+    if ((sockWebServer = establecerConexionServidorWeb(nDireccion, nPort, &dirServidorWeb)) < 0)
+        return -1;
+    printf("Se establecio conexion con WebServer en %s.\n", inet_ntoa(dirServidorWeb.sin_addr));
+
+    /*Se envia mensaje de instanciacion de un Crawler*/
+    if (ircRequest_send(sockWebServer, NULL, 0, descriptorID, IRC_CRAWLER_CREATE) < 0)
+    {
+        closesocket(sockWebServer);
+        return -1;
+    }
+    printf("Crawler disparado a %s.\n\n", inet_ntoa(dirServidorWeb.sin_addr));
+
+    closesocket(sockWebServer);
+    
+    return 0;
+}
+
+

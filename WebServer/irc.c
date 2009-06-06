@@ -26,7 +26,7 @@ int ircRequest_send(SOCKET sock, void *bloque, unsigned long bloqueLen,
     unsigned long len;
 
     GenerarID(header.descriptorID);
-    strcpy(descriptorID, header.descriptorID);
+    lstrcpy(descriptorID, header.descriptorID);
     header.payloadDesc = mode;
     header.payloadLen = bloqueLen;
     header.payload = bloque;
@@ -98,7 +98,7 @@ int ircResponse_send (SOCKET sock, char *descriptorID, void *bloque,
     headerIRC header;
     unsigned long len = sizeof(headerIRC);
 
-    strcpy(header.descriptorID, descriptorID);
+    lstrcpy(header.descriptorID, descriptorID);
     header.payloadDesc = mode;
     header.payloadLen = bloqueLen;
     header.payload = bloque;
