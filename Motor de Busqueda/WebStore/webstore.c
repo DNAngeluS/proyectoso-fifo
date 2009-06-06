@@ -42,7 +42,7 @@ int main()
         rutinaDeError("Lectura Archivo de configuracion");
 
     /*Establecer conexion LDAP*/
-    if(establecerConexionLDAP(&ldap, config) < 0)
+    if (establecerConexionLDAP(&ldap, config) < 0)
       rutinaDeError("No se pudo establecer la conexion LDAP.");
     printf("Conexion establecida con LDAP\n");
 
@@ -64,6 +64,8 @@ int main()
     if (signal(SIGCHLD, signalHandler) == SIG_ERR)
         rutinaDeError("signal");
     if (signal(SIGUSR1, signalHandler) == SIG_ERR)
+        rutinaDeError("signal");
+    if (signal(SIGSEGV, signalHandler) == SIG_ERR)
         rutinaDeError("signal");
 
     /*Se inicialian controladores para bloquear hasta recibir SIGUSR1*/
@@ -202,6 +204,9 @@ int main()
         }
     }
 
+    /*Mata al hijo*/
+    kill(childID, SIGINT);
+
     /*Cierra conexiones de Sockets*/
     close(sockWebStore);
     for (cli = 0; cli < fdMax+1; ++cli)
@@ -221,21 +226,28 @@ int main()
 
 int atenderCrawler(SOCKET sockCrawler, ldapObj ldap)
 {
-    void *bloque;
-    unsigned long bloqueLen;
+    crawler_URL paquete;
+    char descID[DESCRIPTORID_LEN];
+    unsigned long paqueteLen;
     int mode;
     unsigned int sizePalabras;
 
-    if (ircResponse_recv(sockCrawler, &bloque, &bloqueLen, &mode) < 0)
-        rutinaDeError("ircResponse_recv");
+    if (ircRequest_recv(sockCrawler, &paquete, descID, &mode) < 0)
+    {
+        perror("ircRequest_recv");
+        return -1;
+    }
 
-    sizePalabras = bloqueLen / sizeof(crawler_URL);
+    if (paquete.palabras == NULL)
+        sizePalabras = 0;
+    else
+        sizePalabras = sizeof(*(paquete.palabras));
 
     if (mode == IRC_CRAWLER_ALTA_HTML || mode == IRC_CRAWLER_ALTA_ARCHIVOS)
-       atenderAltaURL(&ldap, (crawler_URL *) bloque, sizePalabras, mode);
+       atenderAltaURL(&ldap, &paquete, sizePalabras, mode);
 
     else if (mode == IRC_CRAWLER_MODIFICACION_HTML || mode == IRC_CRAWLER_MODIFICACION_ARCHIVOS)
-       atenderModificarURL(&ldap, (crawler_URL *) bloque, sizePalabras, mode);
+       atenderModificarURL(&ldap, &paquete, sizePalabras, mode);
 
     else
     {
@@ -278,23 +290,33 @@ int atenderModificarURL(ldapObj *ldap, crawler_URL *entrada, unsigned int sizePa
 
 void signalHandler(int sig)
 {
+    int noSig=0;
     switch(sig)
     {
         case SIGUSR1:
+            noSig = 1;
             sigRecibida = 1;
-            if ((sig, SIG_IGN) == SIG_ERR)
+            if (signal(sig, SIG_IGN) == SIG_ERR)
                 rutinaDeError("signal");
-            break;            
+            break;
         case SIGCHLD:
-            while(waitpid(-1, NULL, WNOHANG) > 0);
+            while (waitpid(-1, NULL, WNOHANG) > 0);
             longjmp(entorno, 1);
-            break;            
+            break;
         case SIGINT:
             /*Hubo una interrupcion. Se retorno al while(1) principal*/
             longjmp(entorno, 1);
-            break;            
+            break;
+        case SIGSEGV:
+            noSig = 1;
+            kill(childID, SIGKILL);
+            if (signal(sig, SIG_DFL) == SIG_ERR)
+                rutinaDeError("signal");
+            raise(sig);
+            break;
+
     }
-    if (sig != SIGUSR1)
+    if (!noSig)
         if (signal(sig, signalHandler) == SIG_ERR)
         rutinaDeError("signal");
 }
@@ -351,6 +373,7 @@ void rutinaDeError(char* error)
 {
     printf("\r\nError: %s\r\n", error);
     printf("Codigo de Error: %d\r\n\r\n", errno);
+    kill(childID, SIGINT);
     perror(error);
     exit(EXIT_FAILURE);
 }

@@ -109,7 +109,7 @@ int main(int argc, char **argv)
             printf("No se encontraron hosts en el Directorio de Expiracion de Hosts\n\n");
     }
 
-    kill(SIGCHLD, getppid());
+    kill(getppid(), SIGCHLD);
     exit(EXIT_SUCCESS);
 }
 
@@ -180,6 +180,6 @@ void rutinaDeError(char *error)
 {
     fprintf(stderr, "Error al disparar Crawlers. ");
     perror(error);
-    kill(SIGCHLD, getppid());
+    kill(getppid(), SIGCHLD);
     exit(EXIT_FAILURE);
 }

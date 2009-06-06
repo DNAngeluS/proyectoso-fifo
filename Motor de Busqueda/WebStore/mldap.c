@@ -36,7 +36,7 @@ int establecerConexionLDAP(ldapObj *ldap, configuracion config)
 	}
 		
 	ldap->sessionOp->startSession(ldap->session);	
-	if(ldap->session->started!=1)    	
+	if (ldap->session->started != 1)
 	{
 		perror("ldap startSession");
 		return -1;
@@ -367,7 +367,8 @@ int ldapComprobarExistencia(ldapObj *ldap, const char *clave, int mode)
         printf("ldapComprobarEsixtencia: opcion inexistente");
         return -1;
     }
-
+    if (resultSet == NULL)
+        return -1;
     return resultSet->count > 1 ?  1: 0;
 }
 
