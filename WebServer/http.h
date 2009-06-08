@@ -26,8 +26,9 @@ int httpTimeout_send	(SOCKET sockfd, msgGet getInfo);
 int httpNotFound_send	(SOCKET sockfd, msgGet getInfo);
 
 char *pathUnixToWin		(const char *dir, char *path);
-int getFileType			(const char *nombre);
+int getFileType			(const char *nombre, char *type);
 char *getFilename		(const char *path);
 DWORD getFileSize		(const char *nombre);
+void getKeywords        (const char *filename, char ***palabras, int *cantPalabras);
 
 #endif

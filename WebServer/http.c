@@ -147,13 +147,14 @@ DWORD getFileSize(const char *nombre)
 	return size;
 }
 
-int getFileType(const char *nombre)
+int getFileType(const char *nombre, char *type)
 {
 	char *ptr;
 
 	ptr = strrchr(nombre, '.');
 	
 	ptr++;
+	lstrcpy(type, ptr);
 
 	if (!lstrcmp(ptr, "jpg"))
 		return JPG;
@@ -391,4 +392,31 @@ char *getFilename(const char *path)
 	char *filename = strrchr(path, '\\');
 	
 	return ++filename;
+}
+
+void getKeywords(const char *filename, char ***palabras, int *cantPalabras)
+{
+    char nombre[MAX_PATH], *word, *ptr, *lim;
+    int i=0;
+    
+    *palabras = (char **) malloc(sizeof(char*));
+    (*palabras)[0] = (char *) malloc(PALABRA_SIZE);
+
+    strcpy(nombre, strrchr(filename, '\\'));
+    lim = strchr(nombre, '\0');
+    
+    for(ptr = word = nombre+1; ptr != lim; ptr++)
+	{		
+       if (*ptr == '_' || *ptr == '.')
+       {
+           *ptr = '\0';
+           
+           *palabras = (char **) realloc(*palabras, sizeof(char*)*(i+1));
+           (*palabras)[i] = (char *) malloc(PALABRA_SIZE);
+           
+           lstrcpy((*palabras)[i++], word);
+           word = ptr+1;
+       }
+    }
+    *cantPalabras = i;
 }

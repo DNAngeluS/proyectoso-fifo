@@ -13,6 +13,7 @@
 #define MAX_UUID 35
 #define DESCRIPTORID_LEN 16
 #define MAX_HTMLCODE 4096
+#define PALABRA_SIZE 50
 
 #define IRC_CRAWLER_ALTA_HTML 0x30
 #define IRC_CRAWLER_ALTA_ARCHIVOS 0x31
@@ -34,7 +35,7 @@ typedef struct {
 
 typedef struct {
     char URL            [MAX_PATH];
-    void *palabras;
+    char **palabras;
     char titulo         [MAX_PATH];
     char descripcion    [MAX_PATH];
     char htmlCode       [MAX_HTMLCODE];
