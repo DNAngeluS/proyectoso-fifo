@@ -169,7 +169,6 @@ void signalHandler(int sig)
         case SIGUSR1:
             /*Señal recibida*/
             sigRecibida=1;
-            printf("Señal recibida, sigRecibida = %d\n\n", sigRecibida);
             break;
     }
     if (signal(sig, signalHandler) == SIG_ERR)

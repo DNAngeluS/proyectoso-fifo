@@ -71,8 +71,8 @@ int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int cant
     ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("objectclass", 2, "top", "utnUrl"));
     ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnUrlID", 1, uuid));
     ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("labeledURL", 1, entrada->URL));
-    for (i=0; i<cantidadPalabras; i++) /*REVISAR, NO ESTA BIEN EL TEMA DEL VOID * */
-        ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1, ((char *) entrada->palabras)[i]));
+    for (i=0; i<cantidadPalabras; i++)
+        ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1,  entrada->palabras[i]));
 
     /*Si es un Archivo guarda los campos espeficos del mismo*/
     if (mode == IRC_CRAWLER_ALTA_ARCHIVOS)
@@ -173,7 +173,7 @@ int ldapObtenerHosts(ldapObj *ldap, webServerHosts **hosts, int *maxHosts)
         return 0;
     }
 
-    if (*hosts = malloc(allocLen))
+    if ((*hosts = malloc(allocLen)) == NULL)
     {
         printf("No hay memoria suficiente para armar la estructura de Hosts\n");
         return -1;
@@ -183,7 +183,7 @@ int ldapObtenerHosts(ldapObj *ldap, webServerHosts **hosts, int *maxHosts)
     for (i = 0, iterator = resultSet->iterator; iterator->hasNext(resultSet); i++)
     {
         PLDAP_RECORD record = iterator->next(resultSet);
-        if (*hosts = realloc(*hosts, allocLen*(i+1)))
+        if ((*hosts = realloc(*hosts, allocLen*(i+1))) == NULL)
         {
             printf("No hay memoria suficiente para armar la estructura de Hosts\n");
             return -1;
@@ -196,15 +196,20 @@ int ldapObtenerHosts(ldapObj *ldap, webServerHosts **hosts, int *maxHosts)
             INT	index = 0;
             char *ip, *puerto;
 
-            if (!(strcmp(field->name, "utnHostID")))
+            if (!(strcmp(field->name, "utnHostID"))) /*el contenido de field->name es ObjectClass, preguntar a lucho*/
             {
                 ip = strtok(field->values[index], ":");
                 puerto = strtok(NULL, ":");
                 (*hosts)[i].hostIP = inet_addr(ip);
                 (*hosts)[i].hostPort = htons(atoi(puerto));
             }
-            if (!(strcmp(field->name, "utnHostModTimestamp")))
+            else if (!(strcmp(field->name, "utnHostModTimestamp")))
                 (*hosts)[i].uts = atoi(field->values[index]);
+            else
+            {
+                printf("Error en la base Ldap, no existe ninguna clave para Hosts");
+                return -1;
+            }
 
             /* se libera la memoria utilizada por el field si este ya no es necesario. */
             freeLDAPField(field);
