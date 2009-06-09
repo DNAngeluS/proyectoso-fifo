@@ -34,7 +34,7 @@ typedef struct {
 
 typedef struct {
     char URL            [MAX_PATH];
-    void *palabras;
+    char **palabras;
     char titulo         [MAX_PATH];
     char descripcion    [MAX_PATH];
     char htmlCode       [MAX_HTMLCODE];
