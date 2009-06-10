@@ -875,7 +875,7 @@ int rutinaConexionCrawler(SOCKET sockWebServer)
 				HANDLE threadHandle;
 				DWORD threadID;
 				
-				printf ("A migrado un Web Crawler. Se comprobaran Condiciones de Creacion\r\n\r\n");
+				printf ("A migrado un Web Crawler. Se comprobaran Condiciones de Creacion...\r\n");
 				closesocket(sockCrawler);
 
 				/*Se crea el thread Crawler*/
@@ -906,8 +906,8 @@ int rutinaConexionCrawler(SOCKET sockWebServer)
 
 int comprobarCondicionesMigracion(unsigned esperaCrawler)
 {
-	return ((GetTickCount() - crawTimeStamp) >= esperaCrawler) &&
-			crawPresence <= 0;
+	return  ((GetTickCount() - crawTimeStamp) >= esperaCrawler) 
+			&& (crawPresence <= 0);		
 }
 
 void rutinaAtencionCrawler (LPVOID args)
@@ -920,11 +920,6 @@ void rutinaAtencionCrawler (LPVOID args)
 	int mode = IRC_CRAWLER_CONNECT;
 	int rtaLen;
 	int pvez = (crawPresence == -1);
-
-	/*Mutua exclusion para la variable global de presencia de Crawler*/
-	WaitForSingleObject(crawMutex, INFINITE);
-	crawPresence = 1;
-	ReleaseMutex(crawMutex);
 	
 	/*Conexion con Web Server*/
 	if ((sockWServ = establecerConexionServidorWeb(config.ip, config.puertoCrawler, &dirWServ)) < 0)
@@ -955,6 +950,11 @@ void rutinaAtencionCrawler (LPVOID args)
 
 		else if (strcmp(buf, IRC_CRAWLER_HANDSHAKE_OK) == 0)
 		{
+			/*Mutua exclusion para la variable global de presencia de Crawler*/
+			WaitForSingleObject(crawMutex, INFINITE);
+			crawPresence = 1;
+			ReleaseMutex(crawMutex);
+			
 			/*Procesar los archivos del directorio*/
 			if (forAllFiles(config.directorioFiles, rutinaTrabajoCrawler) < 0)
 				printf("Crawler: Error al procesar archivos. Se descarta Crawler.\r\n\r\n");	
@@ -1006,7 +1006,7 @@ int forAllFiles(char *directorio, int (*funcion) (WIN32_FIND_DATA))
 
 	if (length_of_arg > (MAX_PATH - 2))
 	{
-		printf("\nDirectory path is too long.\n");
+		printf("Path del Directorio muy largo.\r\n");
 		return -1;
 	}
 
