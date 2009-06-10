@@ -1027,12 +1027,13 @@ int forAllFiles(char *directorio, int (*funcion) (WIN32_FIND_DATA))
 	/*Recorre todos los archivos del directorio y sus subdirectorios y les aplica la funcion a cada uno*/
 	do
 	{
-		if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		if (!strcmp(ffd.cFileName, ".") || !strcmp(ffd.cFileName, ".."))
+			continue;
+		if (ffd.dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY)
 		{
 			char newDir[MAX_PATH];
 
-			lstrcpy(newDir, directorio);
-			lstrcat(newDir, ffd.cFileName);
+			wsprintf(newDir, "%s\\%s", directorio, ffd.cFileName);
 			if (forAllFiles(newDir, funcion) < 0)
 				return -1;
 		}
