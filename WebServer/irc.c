@@ -73,13 +73,16 @@ int ircRequest_recv (SOCKET sock, void *bloque, char *descriptorID, int *mode)
 		*mode = header.payloadDesc;
 	else
 		if (header.payloadDesc != *mode)
-        return -1;
+			return -1;
     len = header.payloadLen;
-    if (RecibirNBloque(sock, bloque, len) != len)
-    {
-        printf("Error en irc request recv header\n");
-        return -1;
-    }
+	if (len != 0 && bloque != NULL)
+	{
+		if (RecibirNBloque(sock, bloque, len) != len)
+		{
+			printf("Error en irc request recv header\n");
+			return -1;
+		}
+	}
 
     return 0;
 }

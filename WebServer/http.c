@@ -190,6 +190,7 @@ int httpOk_send(SOCKET sockfd, msgGet getInfo)
 	
 	char buffer[BUF_SIZE];
 	char tipoArchivo[50];
+	char type[MAX_FORMATO];
 	int bytesSend = 0, error = 0;
 	int fileType;
 	DWORD fileSize;
@@ -197,7 +198,7 @@ int httpOk_send(SOCKET sockfd, msgGet getInfo)
 	ZeroMemory(buffer, BUF_SIZE);
 	
 	fileSize = getFileSize(getInfo.filename);
-	fileType = getFileType(getInfo.filename);
+	fileType = getFileType(getInfo.filename, type);
 	switch (fileType)
 	{
 	case HTML:
@@ -394,15 +395,17 @@ char *getFilename(const char *path)
 	return ++filename;
 }
 
-void getKeywords(const char *filename, char ***palabras, int *cantPalabras)
+int getKeywords(const char *filename, char ***palabras, int *cantPalabras)
 {
     char nombre[MAX_PATH], *word, *ptr, *lim;
     int i=0;
     
-    *palabras = (char **) malloc(sizeof(char*));
-    (*palabras)[0] = (char *) malloc(PALABRA_SIZE);
+    if ((*palabras = (char **) malloc(sizeof(char*))) == NULL) 
+		return -1;
+    if (((*palabras)[0] = (char *) malloc(PALABRA_SIZE)) == NULL)
+		return -1;
 
-    strcpy(nombre, strrchr(filename, '\\'));
+    lstrcpy(nombre, strrchr(filename, '\\'));
     lim = strchr(nombre, '\0');
     
     for(ptr = word = nombre+1; ptr != lim; ptr++)
@@ -411,12 +414,16 @@ void getKeywords(const char *filename, char ***palabras, int *cantPalabras)
        {
            *ptr = '\0';
            
-           *palabras = (char **) realloc(*palabras, sizeof(char*)*(i+1));
-           (*palabras)[i] = (char *) malloc(PALABRA_SIZE);
+           if ((*palabras = (char **) realloc(*palabras, sizeof(char*)*(i+1))) == NULL)
+			   return -1;
+           if (((*palabras)[i] = (char *) malloc(PALABRA_SIZE)) == NULL)
+			   return -1;
            
            lstrcpy((*palabras)[i++], word);
            word = ptr+1;
        }
     }
     *cantPalabras = i;
+
+	return 0;
 }

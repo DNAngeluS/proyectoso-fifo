@@ -14,6 +14,7 @@
 #define DESCRIPTORID_LEN 16
 #define MAX_HTMLCODE 4096
 #define PALABRA_SIZE 50
+#define MAX_FORMATO 5
 
 #define IRC_CRAWLER_ALTA_HTML 0x30
 #define IRC_CRAWLER_ALTA_ARCHIVOS 0x31
@@ -22,6 +23,8 @@
 #define IRC_CRAWLER_HOST 0x34
 #define IRC_CRAWLER_CREATE 0x35
 #define IRC_CRAWLER_CONNECT 0x36
+#define IRC_CRAWLER_OK 0x37
+#define IRC_CRAWLER_FAIL 0x38
 #define IRC_CRAWLER_HANDSHAKE_CONNECT "SOOGLE CRAWLER CONNECT/1.0\n\n"
 #define IRC_CRAWLER_HANDSHAKE_OK "CRAWLER OK\n\n"
 #define IRC_CRAWLER_HANDSHAKE_FAIL "CRAWLER FAIL\n\n"
@@ -41,7 +44,7 @@ typedef struct {
     char htmlCode       [MAX_HTMLCODE];
     char tipo           [2];
     char length         [20];
-    char formato        [MAX_PATH];
+    char formato        [MAX_FORMATO];
 } crawler_URL;
 
 typedef struct {

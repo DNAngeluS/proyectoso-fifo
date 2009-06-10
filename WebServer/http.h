@@ -6,6 +6,8 @@
 #include <windows.h>
 
 #define BUF_SIZE 1024
+#define PALABRA_SIZE 50
+#define MAX_FORMATO 5
 
 enum filetype_t {HTML, TXT, PHP, JPG, GIF, PNG, JPEG, PDF, ARCHIVO, EXE, ZIP, DOC, XLS, PPT };
 
@@ -29,6 +31,6 @@ char *pathUnixToWin		(const char *dir, char *path);
 int getFileType			(const char *nombre, char *type);
 char *getFilename		(const char *path);
 DWORD getFileSize		(const char *nombre);
-void getKeywords        (const char *filename, char ***palabras, int *cantPalabras);
+int getKeywords        (const char *filename, char ***palabras, int *cantPalabras);
 
 #endif
