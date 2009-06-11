@@ -19,7 +19,7 @@ void rutinaAtencionCliente			(LPVOID args);
 
 SOCKET rutinaConexionCliente		(SOCKET sockWebServer, unsigned maxClientes);
 SOCKET establecerConexionEscucha	(in_addr_t direccionIP, in_port_t nPort);
-SOCKET establecerConexionServidorWeb(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr);
+SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr);
 
 void imprimeLista					(ptrListaThread ptr);
 int listaVacia						(ptrListaThread listaThread);
@@ -39,6 +39,7 @@ int forAllFiles						(char *directorio, int (*funcion) (WIN32_FIND_DATA));
 int EnviarCrawlerCreate				(in_addr_t nDireccion, in_port_t nPort);
 
 int generarPaqueteArchivos			(const char *filename, crawler_URL *paquete, int *cantPalabras);
+int enviarPaquete					(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, int mode);
 
 int logFinal						(infoLogFile infoLog);
 void logInicio						();
@@ -425,8 +426,11 @@ void rutinaAtencionConsola (LPVOID args)
 					else if (attr == FILE_ATTRIBUTE_READONLY)
 						printf("%s", STR_MSG_INVALID_PRIVATE);
 					else
+					{
 						if (SetFileAttributes(path, FILE_ATTRIBUTE_READONLY) == 0)
 							rutinaDeError("SetFileAttributes");
+						printf("%s", STR_MSG_PRIVATE);
+					}
 				}
 			}
 
@@ -454,8 +458,11 @@ void rutinaAtencionConsola (LPVOID args)
 					else if (attr == FILE_ATTRIBUTE_NORMAL)
 						printf("%s", STR_MSG_INVALID_PUBLIC);
 					else
+					{
 						if (SetFileAttributes(path, FILE_ATTRIBUTE_NORMAL) == 0)
 							rutinaDeError("SetFileAttributes");
+						printf("%s", STR_MSG_PUBLIC);
+					}
 				}
 			}
 
@@ -1061,7 +1068,7 @@ void rutinaAtencionCrawler (LPVOID args)
 	_endthreadex(0);
 }
 
-SOCKET establecerConexionServidorWeb(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr)
+SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr)
 {
     SOCKET sockfd;
 
@@ -1154,6 +1161,7 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 	char type[MAX_FORMATO];
 	char md5[MAX_PATH];
 	crawler_URL paquete;
+	int mode;
 
 	hashMD5(filename, config.directorioFiles, md5);
 
@@ -1164,25 +1172,37 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 	}
 
 	else if ((np == NULL && attr != FILE_ATTRIBUTE_READONLY) || 
-			(np != NULL && attr != FILE_ATTRIBUTE_READONLY && !strcmp(np->md5, md5)))
+			(np != NULL && attr != FILE_ATTRIBUTE_READONLY && strcmp(np->md5, md5)))
 	{
 		int i, cantPalabras = 0;
+
 		if (hashInstall(filename, md5) < 0)
 			return -1;
 		if (getFileType(filename, type) == HTML)
 		{
+			if (np == NULL && attr != FILE_ATTRIBUTE_READONLY)
+				mode = IRC_CRAWLER_ALTA_HTML;
+			else
+				mode = IRC_CRAWLER_MODIFICACION_HTML;
 			/*
 			PARSEAR
 			GENERAR PAQUETE HTML
 			*/
 		}
 		else
+		{
+			if (np == NULL && attr != FILE_ATTRIBUTE_READONLY)
+				mode = IRC_CRAWLER_ALTA_ARCHIVOS;
+			else
+				mode = IRC_CRAWLER_MODIFICACION_ARCHIVOS;
+
 			if (generarPaqueteArchivos(filename, &paquete, &cantPalabras) < 0)
 				return -1;
-		
-		/*
-		ENVIAR PAQUETE
-		*/
+		}
+
+		/*Se envia el paquete al Web Store*/
+/*		if (enviarPaquete(config.ipWebStore, config.puertoWebStore, &paquete, mode) < 0)
+			printf("Error en el envio de Paquete al Web Store para %s", filename);
 
 		/*Libero las palabras del paquete que fueron cargadas dinamicamente*/
 		for (i=0;i<cantPalabras;i++)
@@ -1193,6 +1213,31 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 	_CrtDumpMemoryLeaks();
 
 	return 0;
+}
+
+int enviarPaquete(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, int mode)
+{
+    SOCKET sockWebStore;
+    SOCKADDR_IN dirServidor;
+    char descriptorID[DESCRIPTORID_LEN];
+
+    /*Se levanta conexion con el Web Store*/
+    if ((sockWebStore = establecerConexionServidor(nDireccion, nPort, &dirServidor)) < 0)
+        return -1;
+    printf("Se establecio conexion con Web Store en %s.\n", inet_ntoa(dirServidor.sin_addr));
+
+	/*Se envia el paquete al Web Store*/
+    if (ircResponse_send(sockWebStore, descriptorID, (void*) paquete, sizeof(*paquete), mode) < 0)
+    {
+        closesocket(sockWebStore);
+        return -1;
+    }
+    printf("Crawler disparado a %s.\n\n", inet_ntoa(dirServidor.sin_addr));
+
+    closesocket(sockWebStore);
+    
+    return 0;
+
 }
 
 int generarPaqueteArchivos(const char *filename, crawler_URL *paquete, int *cantPalabras)
@@ -1225,6 +1270,7 @@ int generarPaqueteArchivos(const char *filename, crawler_URL *paquete, int *cant
 	printf("URL: %s\r\n", paquete->URL);
 	printf("Formato: %s\r\n", paquete->formato);
 	printf("\r\n");
+
 	return 0;
 }
 
@@ -1235,7 +1281,7 @@ int EnviarCrawlerCreate(in_addr_t nDireccion, in_port_t nPort)
     char descriptorID[DESCRIPTORID_LEN];
 
     /*Se levanta conexion con el Web Server*/
-    if ((sockWebServer = establecerConexionServidorWeb(nDireccion, nPort, &dirServidorWeb)) < 0)
+    if ((sockWebServer = establecerConexionServidor(nDireccion, nPort, &dirServidorWeb)) < 0)
         return -1;
     printf("Se establecio conexion con WebServer en %s.\n", inet_ntoa(dirServidorWeb.sin_addr));
 
@@ -1271,7 +1317,7 @@ int EnviarCrawlerCreate(in_addr_t nDireccion, in_port_t nPort)
 	_CrtDumpMemoryLeaks();
 
 	/*Conexion con Web Server*/
-/*	if ((sockWServ = establecerConexionServidorWeb(config.ip, config.puertoCrawler, &dirWServ)) < 0)
+/*	if ((sockWServ = establecerConexionServidor(config.ip, config.puertoCrawler, &dirWServ)) < 0)
 	{
 		printf("Error de conexion entre Crawler y Web Server. Se descarta Crawler.\r\n");
 	}

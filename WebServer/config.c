@@ -91,6 +91,12 @@ int asignarDatos (configuracion *config, char *key, char *value)
 	else if (!lstrcmp(key, "PUERTO"))
 		config->puerto = htons(atoi(value));
 
+	else if (!lstrcmp(key, "IP_WEBSTORE")) 
+		config->ipWebStore = inet_addr(value);
+
+	else if (!lstrcmp(key, "PUERTO_WEBSTORE"))
+		config->puertoWebStore = htons(atoi(value));
+
 	else if (!lstrcmp(key, "PATH_DOWNLOADS"))
 		strcpy_s(config->directorioFiles, MAX_PATH, value);
 

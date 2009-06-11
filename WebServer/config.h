@@ -13,6 +13,8 @@ typedef struct {
     HANDLE archivoLog;					/*nombre del archivo log*/
     in_addr_t ip;						/*ip local*/
 	in_port_t puerto;					/*puerto local*/
+	in_addr_t ipWebStore;				/*ip del Web Store*/
+	in_port_t puertoWebStore;			/*puerto del Web Store*/
 	unsigned cantidadClientes;			/*cantidad de atenciones simultaneas*/
 	unsigned esperaMaxima;				/*tiempo de espera maxima*/
 	in_port_t puertoCrawler;			/*puerto local para escuchar Crawlers*/
