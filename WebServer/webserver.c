@@ -866,21 +866,40 @@ int rutinaConexionCrawler(SOCKET sockWebServer)
 				printf("Error al recibir IRC Crawler Create. Se cierra conexion.\r\n\r\n");
 				closesocket(sockCrawler);
 				return (-1);
-			}
-			
+			}			
+
 			if (mode == IRC_CRAWLER_CONNECT)
 			{
+				printf ("A migrado un Web Crawler. Se comprobaran Condiciones de Creacion...\r\n");
+				
 				/*Se comprueban las condiciones para que haya una migracion*/
 				if ((comprobacion = comprobarCondicionesMigracion(config.esperaCrawler)) == 1)
-				/*Si se puede migrar*/
+				/*Si se puede migrar, envia un Crawler Ok y crea thread*/
 				{	
+					HANDLE threadHandle;
+					DWORD threadID;
+					
 					ircResponse_send(sockCrawler, descID, IRC_CRAWLER_HANDSHAKE_OK, 
 									sizeof(IRC_CRAWLER_HANDSHAKE_OK), IRC_CRAWLER_OK);	
 					printf("Migracion de Web Crawler satisfactoria.\r\n\r\n");
 					closesocket(sockCrawler);
+
+					/*Se crea el thread Crawler*/
+					threadHandle = (HANDLE) _beginthreadex (NULL, 1, (void *) rutinaAtencionCrawler, (LPVOID) NULL, 0, &threadID);
+					if (threadHandle == 0)
+					{
+						printf("No se pudo crear el thread Crawler\r\n\r\n");
+					}
+					else
+					{					
+						/*Se modifica el Thread Priority Level*/
+						SetThreadPriority(threadHandle, THREAD_PRIORITY_HIGHEST);
+					}
+
 					return 0;
 				}
 				else
+				/*Si no, envia un Crawler Fail*/
 				{
 					ircResponse_send(sockCrawler, descID,IRC_CRAWLER_HANDSHAKE_FAIL, 
 									sizeof(IRC_CRAWLER_HANDSHAKE_FAIL), IRC_CRAWLER_FAIL);
@@ -889,7 +908,7 @@ int rutinaConexionCrawler(SOCKET sockWebServer)
 					return (-3);
 				}
 			}
-			else if (mode == IRC_CRAWLER_CREATE)
+/*			else if (mode == IRC_CRAWLER_CREATE)
 			{
 				HANDLE threadHandle;
 				DWORD threadID;
@@ -898,7 +917,7 @@ int rutinaConexionCrawler(SOCKET sockWebServer)
 				closesocket(sockCrawler);
 
 				/*Se crea el thread Crawler*/
-				threadHandle = (HANDLE) _beginthreadex (NULL, 1, (void *) rutinaAtencionCrawler, (LPVOID) NULL, 0, &threadID);
+/*				threadHandle = (HANDLE) _beginthreadex (NULL, 1, (void *) rutinaAtencionCrawler, (LPVOID) NULL, 0, &threadID);
 				if (threadHandle == 0)
 				{
 					printf("No se pudo crear el thread Crawler\r\n\r\n");
@@ -906,10 +925,10 @@ int rutinaConexionCrawler(SOCKET sockWebServer)
 				else
 				{					
 					/*Se modifica el Thread Priority Level*/
-					SetThreadPriority(threadHandle, THREAD_PRIORITY_HIGHEST);
+/*					SetThreadPriority(threadHandle, THREAD_PRIORITY_HIGHEST);
 				}
 				return 0;
-			}
+			}*/
 
 		}
 		closesocket(sockCrawler);
@@ -931,66 +950,27 @@ int comprobarCondicionesMigracion(unsigned esperaCrawler)
 
 void rutinaAtencionCrawler (LPVOID args)
 {
-	SOCKET sockWServ;
-	SOCKADDR_IN dirWServ;
-	
-	char descriptorID[DESCRIPTORID_LEN];
-	char *buf = malloc(sizeof(char));
-	int mode = IRC_CRAWLER_CONNECT;
-	int rtaLen;
 	int pvez = (crawPresence == -1);
+	int error = 0;
 	
 	_CrtDumpMemoryLeaks();
 
-	/*Conexion con Web Server*/
-	if ((sockWServ = establecerConexionServidorWeb(config.ip, config.puertoCrawler, &dirWServ)) < 0)
-	{
-		printf("Error de conexion entre Crawler y Web Server. Se descarta Crawler.\r\n");
-	}
-
-	/*Envio de Handshake*/
-	else if (ircRequest_send(sockWServ, (char *) IRC_CRAWLER_HANDSHAKE_CONNECT, 
-						sizeof(IRC_CRAWLER_HANDSHAKE_CONNECT), descriptorID, mode) < 0)
-	{
-		printf("Error en mensaje ircRequest_send entre Crawler y Web Server. Se descarta Crawler.\r\n");
-	}
-	
-	/*Recibe respuesta al Handshake*/
-	else 
-	{
-		mode = 0x00;
-
-		if (ircResponse_recv(sockWServ, &buf, &rtaLen, descriptorID, &mode) < 0)
-		printf("Error en mensaje ircRequest_send entre Crawler y Web Server. Se descarta Crawler.\r\n");
-
-		/*Se analiza respuesta*/
-		else if (strcmp(buf, IRC_CRAWLER_HANDSHAKE_FAIL) == 0)
-
-			/*Se descarta Crawler. Tiene prohibida la migracion.*/
-			printf("Crawler rechazado por el WebServer. Se descarta Crawler.\r\n");
-
-		else if (strcmp(buf, IRC_CRAWLER_HANDSHAKE_OK) == 0)
-		{
-			/*Mutua exclusion para la variable global de presencia de Crawler*/
-			WaitForSingleObject(crawMutex, INFINITE);
-			crawPresence = 1;
-			ReleaseMutex(crawMutex);
+	/*Mutua exclusion para la variable global de presencia de Crawler*/
+	WaitForSingleObject(crawMutex, INFINITE);
+	crawPresence = 1;
+	ReleaseMutex(crawMutex);
 			
-			/*Procesar los archivos del directorio*/
-			if (forAllFiles(config.directorioFiles, rutinaTrabajoCrawler) < 0)
-				printf("Crawler: Error al procesar archivos. Se descarta Crawler.\r\n\r\n");	
-		}
-		else
-			printf("Error en el mensajeo entre Crawler y Web Server. Mensajes invalidos");
-	}
+	/*Procesar los archivos del directorio*/
+	if ((error = forAllFiles(config.directorioFiles, rutinaTrabajoCrawler)) < 0)
+		printf("Crawler: Error al procesar archivos. Se descarta Crawler.\r\n\r\n");	
 	
-	printf("Analisis del Web Crawler a Finalizado.\r\n\r\n");
+	printf("Analisis del Web Crawler a finalizado %s.\r\n\r\n", error<0? "con error.":"satisfactoriamente");
 
-	free(buf);
 	WaitForSingleObject(crawMutex, INFINITE);
 	crawTimeStamp = GetTickCount();
 	crawPresence = 0;
 	ReleaseMutex(crawMutex);
+
 	_endthreadex(0);
 }
 
@@ -1120,7 +1100,7 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 		/*Libero las palabras del paquete que fueron cargadas dinamicamente*/
 		for (i=0;i<cantPalabras;i++)
 			free(paquete.palabras[i]);
-		/*free(paquete.palabras);*/
+		paquete.palabras = NULL;
 	}
 
 	_CrtDumpMemoryLeaks();
@@ -1186,3 +1166,73 @@ int EnviarCrawlerCreate(in_addr_t nDireccion, in_port_t nPort)
 }
 
 
+
+
+/*ANTIGUA rutinaAtencionCrawler*/
+
+/*void rutinaAtencionCrawler (LPVOID args)
+{
+	SOCKET sockWServ;
+	SOCKADDR_IN dirWServ;
+	
+/*	char descriptorID[DESCRIPTORID_LEN];
+	char *buf = malloc(sizeof(char));
+	int mode = IRC_CRAWLER_CONNECT;
+	int rtaLen;
+	int pvez = (crawPresence == -1);
+	
+	_CrtDumpMemoryLeaks();
+
+	/*Conexion con Web Server*/
+/*	if ((sockWServ = establecerConexionServidorWeb(config.ip, config.puertoCrawler, &dirWServ)) < 0)
+	{
+		printf("Error de conexion entre Crawler y Web Server. Se descarta Crawler.\r\n");
+	}
+
+	/*Envio de Handshake*/
+/*	else if (ircRequest_send(sockWServ, (char *) IRC_CRAWLER_HANDSHAKE_CONNECT, 
+						sizeof(IRC_CRAWLER_HANDSHAKE_CONNECT), descriptorID, mode) < 0)
+	{
+		printf("Error en mensaje ircRequest_send entre Crawler y Web Server. Se descarta Crawler.\r\n");
+	}
+	
+	/*Recibe respuesta al Handshake*/
+/*	else 
+	{
+		mode = 0x00;
+
+		if (ircResponse_recv(sockWServ, &buf, &rtaLen, descriptorID, &mode) < 0)
+		printf("Error en mensaje ircRequest_send entre Crawler y Web Server. Se descarta Crawler.\r\n");
+
+		/*Se analiza respuesta*/
+/*		else if (strcmp(buf, IRC_CRAWLER_HANDSHAKE_FAIL) == 0)
+
+			/*Se descarta Crawler. Tiene prohibida la migracion.*/
+/*			printf("Crawler rechazado por el WebServer. Se descarta Crawler.\r\n");
+
+		else if (strcmp(buf, IRC_CRAWLER_HANDSHAKE_OK) == 0)
+		{
+			/*Mutua exclusion para la variable global de presencia de Crawler*/
+/*			WaitForSingleObject(crawMutex, INFINITE);
+			crawPresence = 1;
+			ReleaseMutex(crawMutex);
+			
+			/*Procesar los archivos del directorio*/
+/*			if (forAllFiles(config.directorioFiles, rutinaTrabajoCrawler) < 0)
+				printf("Crawler: Error al procesar archivos. Se descarta Crawler.\r\n\r\n");	
+		}
+		else
+			printf("Error en el mensajeo entre Crawler y Web Server. Mensajes invalidos");
+	}
+	
+	printf("Analisis del Web Crawler a Finalizado.\r\n\r\n");
+
+	free(buf);
+	WaitForSingleObject(crawMutex, INFINITE);
+	crawTimeStamp = GetTickCount();
+	crawPresence = 0;
+	ReleaseMutex(crawMutex);
+	_endthreadex(0);
+}
+
+*/
