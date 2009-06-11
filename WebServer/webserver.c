@@ -984,6 +984,8 @@ void rutinaAtencionCrawler (LPVOID args)
 			printf("Error en el mensajeo entre Crawler y Web Server. Mensajes invalidos");
 	}
 	
+	printf("Analisis del Web Crawler a Finalizado.\r\n\r\n");
+
 	free(buf);
 	WaitForSingleObject(crawMutex, INFINITE);
 	crawTimeStamp = GetTickCount();
@@ -1155,7 +1157,7 @@ int generarPaqueteArchivos(const char *filename, crawler_URL *paquete, int *cant
 	printf("Type: %s\r\n", paquete->tipo);
 	printf("URL: %s\r\n", paquete->URL);
 	printf("Formato: %s\r\n", paquete->formato);
-	
+	printf("\r\n");
 	return 0;
 }
 
