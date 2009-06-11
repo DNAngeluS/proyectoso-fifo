@@ -84,7 +84,7 @@ int hashClean(char *file)
     return 1;  /*No encontro*/
 }
 
-int hashMD5(char *filename, char *md5sum)
+int hashMD5(char *filename, char *dir, char *md5sum)
 {
     DWORD dwStatus = 0;
     BOOL bResult = FALSE;
@@ -96,10 +96,14 @@ int hashMD5(char *filename, char *md5sum)
     BYTE rgbHash[MD5LEN];
     DWORD cbHash = 0;
     CHAR rgbDigits[] = "0123456789abcdef";
+	char fileAndDir[MAX_PATH];
 
 	memset(md5sum,'\0', sizeof(*md5sum));
+	memset(fileAndDir, '\0', sizeof(fileAndDir));
 
-    hFile = CreateFile(filename,
+	wsprintf(fileAndDir, "%s\\%s", dir, filename);
+
+    hFile = CreateFile(fileAndDir,
         GENERIC_READ,
         FILE_SHARE_READ,
         NULL,
@@ -219,7 +223,7 @@ int hashSave()
 	{	
         if (hashtab[i] != NULL)
 		{
-			sprintf_s(line, MAX_PATH, "%s-%s#", hashtab[i]->file, hashtab[i]->md5);
+			sprintf_s(line, MAX_PATH, "%s\\%s/", hashtab[i]->file, hashtab[i]->md5);
 			lstrcat(buf, line);
 			lim = (DWORD) lstrlen(buf);
 			memset(line, '\0', MAX_PATH);
@@ -273,12 +277,12 @@ int hashLoad()
 	{
         switch (*act) 
 		{
-			case '-':
+			case '\\':
 				*act = '\0';
 				file = primero;
 				md5 = act + 1;
 				break;
-			case '#':
+			case '/':
 				primero = act + 1; 
 				*act = '\0';
 				if (file != NULL && md5 != NULL) 

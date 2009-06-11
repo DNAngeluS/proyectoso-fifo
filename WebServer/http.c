@@ -395,35 +395,33 @@ char *getFilename(const char *path)
 	return ++filename;
 }
 
-int getKeywords(const char *filename, char ***palabras, int *cantPalabras)
+int getKeywords (const char *filename, char ***palabra, int *cantPalabras)
 {
     char nombre[MAX_PATH], *word, *ptr, *lim;
     int i=0;
     
-    if ((*palabras = (char **) malloc(sizeof(char*))) == NULL) 
-		return -1;
-    if (((*palabras)[0] = (char *) malloc(PALABRA_SIZE)) == NULL)
-		return -1;
-
-    lstrcpy(nombre, strrchr(filename, '\\'));
+    char **vp = NULL;
+    
+    vp = (char **) calloc(1, sizeof(char *));
+    if (vp == NULL)
+       return -1;
+    
+    strcpy(nombre, filename);
     lim = strchr(nombre, '\0');
     
-    for(ptr = word = nombre+1; ptr != lim; ptr++)
+    for(ptr = word = nombre; ptr != lim; ptr++)
 	{		
        if (*ptr == '_' || *ptr == '.')
        {
            *ptr = '\0';
-           
-           if ((*palabras = (char **) realloc(*palabras, sizeof(char*)*(i+1))) == NULL)
-			   return -1;
-           if (((*palabras)[i] = (char *) malloc(PALABRA_SIZE)) == NULL)
-			   return -1;
-           
-           lstrcpy((*palabras)[i++], word);
+           if ((vp[i] = (char *) calloc(i+1, sizeof(char) * PALABRA_SIZE)) == NULL)
+			   return -1;    
+           strcpy(vp[i++], word);
            word = ptr+1;
        }
     }
     *cantPalabras = i;
-
-	return 0;
+    *palabra = vp;
+        
+    return 0;
 }

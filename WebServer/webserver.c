@@ -4,6 +4,13 @@
 #include "irc.h"
 #include "hash.h"
 
+/*ESTO ES PARA DEBUGUEAR MEMORY LEAKS*/
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+/*ESTO ES PARA DEBUGUEAR MEMORY LEAKS*/
+/*Instruccion para ver leaks -->  _CrtDumpMemoryLeaks();   */
+
 /************************=== Funciones ===***********************************/
 
 void rutinaDeError					(char *error);
@@ -266,6 +273,9 @@ int main()
 	/*Se guarda el estado de la Tabla Hash*/
 	if (hashSave() < 0)
 		printf("Error al guardar Tabla Hash.\r\n");
+	
+	if (hashCleanAll() < 0)
+		printf("Error al liberar memoria de Tabla Hash.\r\n");
 
 	/*Generar archivo Log*/
 	printf("Se genera Archivo Log.\r\n");
@@ -274,6 +284,8 @@ int main()
 	else
 		printf("Archivo Log generado correctamente.\r\n\r\n");
 	CloseHandle(logMutex);
+
+	_CrtDumpMemoryLeaks();
 
 	return 0;
 }
@@ -493,6 +505,13 @@ void rutinaDeError (char* error)
 	/*Se guarda el estado de la Tabla Hash*/
 	if (hashSave() < 0)
 		printf("Error al guardar Tabla Hash.\r\n");
+
+	/*Se limpia de memoria la Tabla Hash*/
+	if (hashCleanAll() < 0)
+		printf("Error al liberar memoria de Tabla Hash.\r\n");
+
+	_CrtDumpMemoryLeaks();
+
 	exit(1);
 }
 
@@ -921,6 +940,8 @@ void rutinaAtencionCrawler (LPVOID args)
 	int rtaLen;
 	int pvez = (crawPresence == -1);
 	
+	_CrtDumpMemoryLeaks();
+
 	/*Conexion con Web Server*/
 	if ((sockWServ = establecerConexionServidorWeb(config.ip, config.puertoCrawler, &dirWServ)) < 0)
 	{
@@ -1065,7 +1086,7 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 	char md5[MAX_PATH];
 	crawler_URL paquete;
 
-	hashMD5(filename, md5);
+	hashMD5(filename, config.directorioFiles, md5);
 
 	if (np != NULL && attr == FILE_ATTRIBUTE_READONLY)
 	{
@@ -1097,8 +1118,10 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 		/*Libero las palabras del paquete que fueron cargadas dinamicamente*/
 		for (i=0;i<cantPalabras;i++)
 			free(paquete.palabras[i]);
-		free(paquete.palabras);
+		/*free(paquete.palabras);*/
 	}
+
+	_CrtDumpMemoryLeaks();
 
 	return 0;
 }
@@ -1108,7 +1131,8 @@ int generarPaqueteArchivos(const char *filename, crawler_URL *paquete, int *cant
     int ntype;
 	DWORD size;
     char type[5];
-    
+	char filedir[MAX_PATH];	
+
     ntype = getFileType(filename, type);
 	if (ntype < 0) return -1;
 
@@ -1118,13 +1142,14 @@ int generarPaqueteArchivos(const char *filename, crawler_URL *paquete, int *cant
 	else
 		lstrcpy(paquete->tipo, "2");
 
-	size = getFileSize(filename);
+	wsprintf(filedir, "%s\\%s", config.directorioFiles, filename);
+	size = getFileSize(filedir);
 	if (size < 0) return -1;
 	wsprintf(paquete->length, "%ld", size);
 
-	if (getKeywords(filename, &paquete->palabras, cantPalabras) < 0)
+	if (getKeywords(filename, &(paquete->palabras), cantPalabras) < 0)
 		return -1;
-	wsprintf(paquete->URL, "http://%s:%d/%s", "127.0.0.1", 3456,/*inet_ntoa(config.ip), ntohs(config.puerto),*/ &filename[1]);
+	wsprintf(paquete->URL, "http://%s:%d/%s", inet_ntoa(*(IN_ADDR *)&config.ip), ntohs(config.puerto), filename);
 
     printf("Size: %s\r\n", paquete->length);
 	printf("Type: %s\r\n", paquete->tipo);

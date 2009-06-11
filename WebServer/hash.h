@@ -19,7 +19,7 @@ struct nlist *hashLookup		(char *s);
 struct nlist *hashInstall		(char *file, char *md5);
 int hashCleanAll				();
 int hashClean					(char *file);
-int hashMD5						(char *filename, char *md5sum);
+int hashMD5						(char *filename, char *dir, char *md5sum);
 int hashSave					();
 int hashLoad					();
 BOOL hashVacia					();
