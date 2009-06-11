@@ -615,19 +615,23 @@ void rutinaAtencionCliente (LPVOID args)
 	char *fileBuscado = pathUnixToWin(config.directorioFiles, dataThread->getInfo.filename);
 
 	char logMsg[BUF_SIZE];
-	int logMsgSize, bytesWritten;
+    int logMsgSize, bytesWritten;
+    SYSTEMTIME time;
+    DWORD id;
 
-	WaitForSingleObject(logMutex, INFINITE);
-	infoLog.numRequests++;
-	ReleaseMutex(logMutex);
+    id = GetProcessId(GetCurrentProcess());
 
-	logMsgSize = sprintf_s(logMsg, BUF_SIZE, "Solicitante:\r\n%s - User Agent: %s - Recurso: %s\r\n\r\n", 
-															inet_ntoa(dataThread->direccion.sin_addr),
-															"(averiguar que es)" ,
-															dataThread->getInfo.filename);
+    GetLocalTime(&time);
+	logMsgSize = sprintf_s(logMsg, BUF_SIZE, "%d/%d/%d %02d:%02d:%02d Web Server %d:"
+											"\tSolicitante:\r\n\t%s - User Agent: %s - Recurso: %s.\r\n\r\n",
+                                    time.wDay, time.wMonth, time.wYear,
+									time.wHour, time.wMinute, time.wSecond, id,
+									inet_ntoa(dataThread->direccion.sin_addr),
+									"(?)" , dataThread->getInfo.filename);														
 
 	/* Para escribir el archivo log exigimos mutual exception */
 	WaitForSingleObject(logMutex, INFINITE);
+	infoLog.numRequests++;
 	WriteFile(config.archivoLog, logMsg, logMsgSize, &bytesWritten, NULL);
 	ReleaseMutex(logMutex);
 	
@@ -838,6 +842,7 @@ ptrListaThread BuscarProximoThread(ptrListaThread listaThread)
 		ptr = ptr->sgte;
 	return ptr;
 }
+
 void logInicio()
 {
         char logMsg[BUF_SIZE];
@@ -848,9 +853,9 @@ void logInicio()
         id = GetProcessId(GetCurrentProcess());
 
         GetLocalTime(&time);
-        logMsgSize = sprintf_s(logMsg, BUF_SIZE, "%s%d/%d/%d %02d:%02d Web Server %d: \r\n\r\n",
+		logMsgSize = sprintf_s(logMsg, BUF_SIZE, "%s%d/%d/%d %02d:%02d:%02d Web Server %d: Inicio de ejecucion.\r\n\r\n",
                                         ENCABEZADO_LOG ,time.wDay, time.wMonth, time.wYear,
-                                        time.wHour, time.wMinute, id);
+										time.wHour, time.wMinute, time.wSecond, id);
 
         /* Para escribir el archivo log exigimos mutual exception */
         WaitForSingleObject(logMutex, INFINITE);
@@ -882,14 +887,12 @@ int logFinal(infoLogFile infoLog)
 
 	tiempoTotal = GetTickCount() - infoLog.arrival;
 	memset(buffer, '\0', BUF_SIZE);
-	logMsgSize = sprintf_s(buffer, sizeof(buffer), "Cantidad de Requests Aceptados: %d\r\n"
+	logMsgSize = sprintf_s(buffer, sizeof(buffer), "%sCantidad de Requests Aceptados: %d\r\n"
 						"Cantidad de Bytes Transferidos: %ld\r\n"
 						"Tiempo Total de Ejecucion del Servidor (en segundos): %d\r\n"
 						"Tiempo Ejecucion:\r\n\tModo Kernel: %f\r\n\tModo Usuario: %f\r\n",
-															infoLog.numRequests, 
-															infoLog.numBytes,
-															tiempoTotal/1000,
-															kernel, user);
+									FINAL_LOG, infoLog.numRequests, infoLog.numBytes,
+									tiempoTotal/1000, kernel, user);
 
 	WaitForSingleObject(logMutex, INFINITE);
 	if (WriteFile(config.archivoLog, buffer, logMsgSize, &bytesEscritos, NULL) == FALSE)
@@ -1011,6 +1014,25 @@ void rutinaAtencionCrawler (LPVOID args)
 {
 	int pvez = (crawPresence == -1);
 	int error = 0;
+	char logMsg[BUF_SIZE];
+    int logMsgSize, bytesWritten;
+    SYSTEMTIME time;
+    DWORD idProcess;
+	DWORD idThread;
+	DWORD inicio = GetTickCount();
+
+    idProcess = GetProcessId(GetCurrentProcess());
+	idThread = GetCurrentThreadId();
+
+    GetLocalTime(&time);
+	logMsgSize = sprintf_s(logMsg, BUF_SIZE, "%d/%d/%d %02d:%02d:%02d Web Crawler %d-%d: Ingreso al sistema.\r\n\r\n",
+                                        time.wDay, time.wMonth, time.wYear,
+										time.wHour, time.wMinute, time.wSecond, idProcess, idThread);
+
+    /* Para escribir el archivo log exigimos mutual exception */
+    WaitForSingleObject(logMutex, INFINITE);
+    WriteFile(config.archivoLog, logMsg, logMsgSize, &bytesWritten, NULL);
+    ReleaseMutex(logMutex);
 	
 	_CrtDumpMemoryLeaks();
 
@@ -1024,8 +1046,14 @@ void rutinaAtencionCrawler (LPVOID args)
 		printf("Crawler: Error al procesar archivos. Se descarta Crawler.\r\n\r\n");	
 	
 	printf("Analisis del Web Crawler a finalizado %s.\r\n\r\n", error<0? "con error.":"satisfactoriamente");
+	
+	logMsgSize = sprintf_s(logMsg, BUF_SIZE, "%d/%d/%d %02d:%02d:%02d Web Crawler %d-%d: finalizado el analisis de documentos en %d milisegundos.\r\n\r\n",
+                                        time.wDay, time.wMonth, time.wYear,
+										time.wHour, time.wMinute, time.wSecond, 
+										idProcess, idThread, GetTickCount() - inicio);
 
 	WaitForSingleObject(crawMutex, INFINITE);
+	WriteFile(config.archivoLog, logMsg, logMsgSize, &bytesWritten, NULL);
 	crawTimeStamp = GetTickCount();
 	crawPresence = 0;
 	ReleaseMutex(crawMutex);

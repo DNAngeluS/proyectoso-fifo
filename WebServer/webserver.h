@@ -42,6 +42,7 @@ typedef unsigned short in_port_t;
 
 
 #define ENCABEZADO_LOG "Archivo Log - Web Server\r\n\r\n"
+#define FINAL_LOG "---Web Server Finalizado---\r\n\r\n"
 
 /*Estructuras para la cola de threads*/
 struct thread {

@@ -406,7 +406,7 @@ int getKeywords (const char *filename, char ***palabra, int *cantPalabras)
     if (vp == NULL)
        return -1;
     
-    strcpy(nombre, filename);
+    lstrcpy(nombre, filename);
     lim = strchr(nombre, '\0');
     
     for(ptr = word = nombre; ptr != lim; ptr++)
@@ -416,7 +416,7 @@ int getKeywords (const char *filename, char ***palabra, int *cantPalabras)
            *ptr = '\0';
            if ((vp[i] = (char *) calloc(i+1, sizeof(char) * PALABRA_SIZE)) == NULL)
 			   return -1;    
-           strcpy(vp[i++], word);
+           lstrcpy(vp[i++], word);
            word = ptr+1;
        }
     }
