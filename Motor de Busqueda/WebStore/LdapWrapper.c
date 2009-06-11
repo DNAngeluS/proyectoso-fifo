@@ -96,7 +96,6 @@ VOID initialize(PLDAP_CONTEXT context, PCHAR host) {
 	returnValue = ldap_initialize(&ldap, host);
 
 	if(returnValue != LDAP_SUCCESS) {
-
 		printf("Init Error: %s\n", getErrorDescription(returnValue));
 		context->errorCode = returnValue;
 		return;
@@ -138,10 +137,15 @@ PLDAP_SESSION newSession(PLDAP_CONTEXT context, PCHAR dn, PCHAR password) {
 VOID startSession(PLDAP_SESSION session) {
 
 	PLDAP_CONTEXT context = session->context;
+    INT returnValue;
 
-	ldap_simple_bind_s(context->ldap, session->dn, session->password);
-
-	session->started = 1;
+	returnValue = ldap_simple_bind_s(context->ldap, session->dn, session->password);
+    if(returnValue != LDAP_SUCCESS){
+      session->errorCode = returnValue;
+      printf("Bind Error: %s\n", getErrorDescription(returnValue));
+      session->started = 0;
+    }else
+      session->started = 1;
 
 }
 

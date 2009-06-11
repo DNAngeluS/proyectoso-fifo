@@ -53,7 +53,7 @@ Devuelve: ok? 0: -1.
 int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int cantidadPalabras)
 {
     char uuid[MAX_UUID];
-    char dn[MAX_UUID+25];
+    char dn[DN_LEN];
     int i;/*contardor para recorrer palabras*/
 
     /*Generar el identificador unico para el URL*/
