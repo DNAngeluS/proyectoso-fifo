@@ -11,7 +11,7 @@
 #include "http.h"
 
 #define WIN32_LEAN_AND_MEAN
-#define BUF_SIZE 1024
+/*#define BUF_SIZE 2048*/
 #define MAX_HEAP 1024*1024
 #define MAX_INPUT_CONSOLA 30
 
@@ -62,13 +62,21 @@ typedef struct nodoListaThread{
 
 typedef NodoListaThread *ptrListaThread;
 
+struct clienteLogData {
+	in_addr_t ip;
+	/*User Agent ¿?*/
+};
+
 /*Estructuras para el archivo Log*/
 typedef struct {
-	unsigned numRequests;
-	DWORD numBytes;
-	SYSTEMTIME arrivalKernel;
-	SYSTEMTIME arrivalUser;
-	DWORD arrival;
+	unsigned numRequests;				/*Numero de Clientes aceptados*/
+	struct clienteLogData *clientes;	/*El IP y el User Agent de cada Cliente*/
+	
+	DWORD numBytes;						/*Numero Total de Bytes Transferidos*/
+	DWORD kernelModeTotal;				/*Total de tiempo de ejecucion en modo Kernel*/
+	DWORD userModeTotal;				/*Total de tiempo de ejecucion en mode Usuario*/
+
+	DWORD arrival;						/*Momento de inicio de ejecucion del Web Server*/
 } infoLogFile;
 
 #endif

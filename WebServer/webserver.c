@@ -40,8 +40,9 @@ int EnviarCrawlerCreate				(in_addr_t nDireccion, in_port_t nPort);
 
 int generarPaqueteArchivos			(const char *filename, crawler_URL *paquete, int *cantPalabras);
 
-int generarReporteLog				(HANDLE archLog, infoLogFile infoLog); 
-									/*HACER Genera archivo log con datos estadisticos obtenidos*/
+int logFinal						(infoLogFile infoLog);
+void logInicio						();
+/*HACER Genera archivo log con datos estadisticos obtenidos*/
 
 
 
@@ -100,8 +101,8 @@ int main()
 		printf("Error tratando de cargar Tabla Hash. Continua ejecucion.\r\n\r\n");
 
 	/*Inicializo variable para archivo Log*/
-	GetLocalTime(&(infoLog.arrivalUser));
-	GetSystemTime(&(infoLog.arrivalKernel));
+	/*GetLocalTime(&(infoLog.arrivalUserMode));
+	GetSystemTime(&(infoLog.arrivalKernelMode));*/
 	infoLog.arrival = GetTickCount();
 	infoLog.numBytes = 0;
 	infoLog.numRequests = 0;
@@ -114,6 +115,8 @@ int main()
 	if ((crawMutex = CreateMutex(NULL, FALSE, NULL)) == NULL)
 		rutinaDeError("Error en CreateMutex()");
 	
+	logInicio();
+
 	/*Inicializacion de los sockets*/
 	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
 		rutinaDeError("WSAStartup");
@@ -207,7 +210,6 @@ int main()
 			else
 			{
 				FD_SET(sockCliente, &fdMaestro);
-				infoLog.numRequests++;
 			}	
 		}
 
@@ -222,9 +224,9 @@ int main()
 				if (control == (-2))
 					printf(" Servidor esta fuera de servicio.\r\nIngrese -run para reanudar ejecucion.\r\n");
 				else if (control == (-3))
-					printf(" No se prestan las condiciones de migracion de Crawler.\r\n");
+					printf(" No se prestan las condiciones de migracion de Crawler.\r\n\r\n");
 				else
-					printf("\r\n");
+					printf("\r\n\r\n");
 
 				continue;
 			}
@@ -279,11 +281,13 @@ int main()
 
 	/*Generar archivo Log*/
 	printf("Se genera Archivo Log.\r\n");
-	if (generarReporteLog(config.archivoLog, infoLog)< 0)
+	if (logFinal(infoLog) < 0)
 		printf("Error generando Archivo Log.\r\n\r\n");
 	else
 		printf("Archivo Log generado correctamente.\r\n\r\n");
+	
 	CloseHandle(logMutex);
+	CloseHandle(config.archivoLog);
 
 	_CrtDumpMemoryLeaks();
 
@@ -610,6 +614,23 @@ void rutinaAtencionCliente (LPVOID args)
 	struct thread *dataThread = (struct thread *) args;
 	char *fileBuscado = pathUnixToWin(config.directorioFiles, dataThread->getInfo.filename);
 
+	char logMsg[BUF_SIZE];
+	int logMsgSize, bytesWritten;
+
+	WaitForSingleObject(logMutex, INFINITE);
+	infoLog.numRequests++;
+	ReleaseMutex(logMutex);
+
+	logMsgSize = sprintf_s(logMsg, BUF_SIZE, "Solicitante:\r\n%s - User Agent: %s - Recurso: %s\r\n\r\n", 
+															inet_ntoa(dataThread->direccion.sin_addr),
+															"(averiguar que es)" ,
+															dataThread->getInfo.filename);
+
+	/* Para escribir el archivo log exigimos mutual exception */
+	WaitForSingleObject(logMutex, INFINITE);
+	WriteFile(config.archivoLog, logMsg, logMsgSize, &bytesWritten, NULL);
+	ReleaseMutex(logMutex);
+	
 	printf("Filename: %s. Protocolo: %d \r\n", dataThread->getInfo.filename, dataThread->getInfo.protocolo);
 	encontro = BuscarArchivo(fileBuscado);
 	
@@ -643,6 +664,7 @@ void rutinaAtencionCliente (LPVOID args)
 	}
 
 	closesocket(dataThread->socket);
+
 	/*Mutua exclusion para alterar variable*/
 	WaitForSingleObject(logMutex, INFINITE);
 	infoLog.numBytes += bytesEnviados;
@@ -816,26 +838,63 @@ ptrListaThread BuscarProximoThread(ptrListaThread listaThread)
 		ptr = ptr->sgte;
 	return ptr;
 }
+void logInicio()
+{
+        char logMsg[BUF_SIZE];
+        int logMsgSize, bytesWritten;
+        SYSTEMTIME time;
+        DWORD id;
 
-int generarReporteLog (HANDLE archLog, infoLogFile infoLog)
+        id = GetProcessId(GetCurrentProcess());
+
+        GetLocalTime(&time);
+        logMsgSize = sprintf_s(logMsg, BUF_SIZE, "%s%d/%d/%d %02d:%02d Web Server %d: \r\n\r\n",
+                                        ENCABEZADO_LOG ,time.wDay, time.wMonth, time.wYear,
+                                        time.wHour, time.wMinute, id);
+
+        /* Para escribir el archivo log exigimos mutual exception */
+        WaitForSingleObject(logMutex, INFINITE);
+        WriteFile(config.archivoLog, logMsg, logMsgSize, &bytesWritten, NULL);
+        ReleaseMutex(logMutex);
+        return;
+}
+
+int logFinal(infoLogFile infoLog)
 {
 	DWORD tiempoTotal;
 	DWORD bytesEscritos;
 	char buffer[BUF_SIZE];
-	int error = 0;
+	int error = 0, logMsgSize;
+	float kernel,user;
+	FILETIME lpCreationTime,lpExitTime,lpKernelTime,lpUserTime;
+    SYSTEMTIME stKernelTime,stUserTime;
+
+
+	GetProcessTimes(GetCurrentProcess(),&lpCreationTime,&lpExitTime,&lpKernelTime,&lpUserTime);
+	FileTimeToSystemTime(&lpUserTime,&stUserTime);
+	FileTimeToSystemTime(&lpKernelTime,&stKernelTime);
+
+	kernel = stKernelTime.wMilliseconds;
+	kernel = (kernel/1000) + stKernelTime.wHour*3600+ stKernelTime.wMinute*60+ stKernelTime.wSecond;
+    
+	user = stUserTime.wMilliseconds;
+	user = (user/1000) + stUserTime.wHour*3600+ stUserTime.wMinute*60+ stUserTime.wSecond;
 
 	tiempoTotal = GetTickCount() - infoLog.arrival;
 	memset(buffer, '\0', BUF_SIZE);
-	wsprintf(buffer, "%sCantidad de Requests Aceptados: %d\r\n"
+	logMsgSize = sprintf_s(buffer, sizeof(buffer), "Cantidad de Requests Aceptados: %d\r\n"
 						"Cantidad de Bytes Transferidos: %ld\r\n"
-						"Tiempo Total de Ejecucion (en segundos): %d\r\n", ENCABEZADO_LOG, 
+						"Tiempo Total de Ejecucion del Servidor (en segundos): %d\r\n"
+						"Tiempo Ejecucion:\r\n\tModo Kernel: %f\r\n\tModo Usuario: %f\r\n",
 															infoLog.numRequests, 
 															infoLog.numBytes,
-															tiempoTotal/1000);
+															tiempoTotal/1000,
+															kernel, user);
 
-	if (WriteFile(archLog, buffer, strlen(buffer)+1, &bytesEscritos, NULL) == FALSE)
+	WaitForSingleObject(logMutex, INFINITE);
+	if (WriteFile(config.archivoLog, buffer, logMsgSize, &bytesEscritos, NULL) == FALSE)
 		error = 1;
-	CloseHandle(archLog);
+	ReleaseMutex(logMutex);
 
 	return error? -1: 0;
 }
