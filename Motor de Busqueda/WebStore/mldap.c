@@ -56,6 +56,7 @@ int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int cant
     char dn[DN_LEN];
     int i;/*contardor para recorrer palabras*/
 
+    memset(dn, '\0', DN_LEN);
     /*Generar el identificador unico para el URL*/
     GenerarUUID(uuid);
     
@@ -111,7 +112,7 @@ int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int
     PLDAP_ENTRY entry = ldap->entryOp->createEntry();
     char dn[DN_LEN];
     
-    memset(dn, '\0', sizeof(DN_LEN));
+    memset(dn, '\0', DN_LEN);
     control = ldapObtenerDN(ldap, entrada->URL, mode, dn);
     if(!control)
     {
@@ -243,8 +244,8 @@ int ldapActualizarHost(ldapObj *ldap, const char *ipPuerto, time_t nuevoUts, int
        return -1;
     }
     
-    memset(dn, '\0', sizeof(DN_LEN));
-    memset(ts, '\0', sizeof(UTS_LEN));
+    memset(dn, '\0', DN_LEN);
+    memset(ts, '\0', UTS_LEN);
 
     existe = ldapComprobarExistencia(ldap, ipPuerto, IRC_CRAWLER_HOST);
     
@@ -305,6 +306,9 @@ int ldapObtenerDN(ldapObj *ldap,char *key, int mode, char *dn)
     char filtro[MAX_PATH], directorio[MAX_PATH];
     PLDAP_RESULT_SET resultSet = NULL;
 
+    memset(filtro, '\0', MAX_PATH);
+    memset(directorio, '\0', MAX_PATH);
+
     if (mode == IRC_CRAWLER_MODIFICACION_HTML || mode == IRC_CRAWLER_MODIFICACION_ARCHIVOS)
     {
         strcpy(filtro,"(labeledURL=");
@@ -346,9 +350,9 @@ Devuelve: ok? 0: -1. 1 si existe, 0 si no existe, -1 errores
 int ldapComprobarExistencia(ldapObj *ldap, const char *clave, int mode)
 {
     PLDAP_RESULT_SET resultSet = NULL;
-    char busqueda[MAX_PATH+15];
+    char busqueda[MAX_PATH];
 
-
+    memset(busqueda, '\0', MAX_PATH);
     if (mode == IRC_CRAWLER_ALTA_HTML ||
         mode == IRC_CRAWLER_ALTA_ARCHIVOS ||
         mode == IRC_CRAWLER_MODIFICACION_HTML ||
