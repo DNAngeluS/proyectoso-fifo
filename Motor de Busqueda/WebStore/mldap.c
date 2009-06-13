@@ -206,11 +206,7 @@ int ldapObtenerHosts(ldapObj *ldap, webServerHosts **hosts, int *maxHosts)
             }
             else if (!(strcmp(field->name, "utnHostModTimestamp")))
                 (*hosts)[i].uts = atoi(field->values[index]);
-            else
-            {
-                printf("Error en la base Ldap, no existe ninguna clave para Hosts");
-                return -1;
-            }
+
 
             /* se libera la memoria utilizada por el field si este ya no es necesario. */
             freeLDAPField(field);
@@ -237,6 +233,7 @@ int ldapActualizarHost(ldapObj *ldap, const char *ipPuerto, time_t nuevoUts, int
     char dn[DN_LEN];
     char ts[UTS_LEN];
     int existe;
+    time_t ahora;
     
     if (!(mode == ALTA || mode == MODIFICACION))
     {
@@ -262,17 +259,13 @@ int ldapActualizarHost(ldapObj *ldap, const char *ipPuerto, time_t nuevoUts, int
 
     strcpy(dn, "utnHostID=");
     strcat(dn, ipPuerto);
-    strcat(dn, ",ou=hosts,dc=utn,dc=edu");
+    strcat(dn, ",ou=hosts,dc=utn,dc=edu");    
+    
+    ahora = nuevoUts;
+    strftime ( ts , sizeof ( ts ) , "%Y%m%d%H%M%SZ" , localtime ( &ahora ) ) ;
+    ts[31] = '\0' ;    
 
-    /*
-     *time_t ahora;
-     *
-     *ahora = nuevoUts;
-     *strftime ( ts , sizeof ( ts ) , "%Y%m%d%H%M%SZ" , localtime ( &ahora ) ) ;
-     *ts[31] = '\0' ;
-    */
-
-    sprintf(ts, "%d", nuevoUts);
+    sprintf(ts, "%ld", nuevoUts);
 
     entry->dn = dn;
 
