@@ -155,6 +155,7 @@ SOCKET establecerConexionServidorWeb(in_addr_t nDireccionIP, in_port_t nPort, SO
     while ( connect (sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1 && errno != EISCONN )
         if ( errno != EINTR )
         {
+            close(sockfd);
             perror("connect");
             return -1;
         }
