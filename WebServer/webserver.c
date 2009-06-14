@@ -19,7 +19,7 @@ void rutinaAtencionCliente			(LPVOID args);
 
 SOCKET rutinaConexionCliente		(SOCKET sockWebServer, unsigned maxClientes);
 SOCKET establecerConexionEscucha	(in_addr_t direccionIP, in_port_t nPort);
-SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr);
+SOCKET establecerConexionServidor	(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr);
 
 void imprimeLista					(ptrListaThread ptr);
 int listaVacia						(ptrListaThread listaThread);
@@ -1084,8 +1084,11 @@ SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKA
 
     while ( connect (sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1 && errno != WSAEISCONN )
         if ( errno != WSAEINTR )
-            rutinaDeError("connect");
-    
+		{
+            fprintf(stderr, "Error en connect: error num %d", GetLastError());
+			closesocket(sockfd);
+			return -1;
+    	}
     
     return sockfd;
 }
@@ -1273,7 +1276,41 @@ int generarPaqueteArchivos(const char *filename, crawler_URL *paquete, int *cant
 	return 0;
 }
 
+int EnviarCrawler(in_addr_t nDireccion, in_port_t nPort)
+{
+    SOCKET sockWebServer;
+    SOCKADDR_IN dirServidorWeb;
+    char descriptorID[DESCRIPTORID_LEN];
+    char buf[BUF_SIZE];
+    int mode = 0x00;
 
+    /*Se levanta conexion con el Web Server*/
+    if ((sockWebServer = establecerConexionServidor(nDireccion, nPort, &dirServidorWeb)) < 0)
+        return -1;
+    printf("Se establecio conexion con WebServer en %s.\n", inet_ntoa(dirServidorWeb.sin_addr));
+
+    /*Se envia mensaje de instanciacion de un Crawler*/
+    if (ircRequest_send(sockWebServer, NULL, 0, descriptorID, IRC_CRAWLER_CONNECT) < 0)
+    {
+        close(sockWebServer);
+        return -1;
+    }
+    printf("Crawler disparado a %s.\n\n", inet_ntoa(dirServidorWeb.sin_addr));
+
+    if (ircRequest_recv (sockWebServer, buf, descriptorID, &mode) < 0)
+       return -1;
+
+    if (mode == IRC_CRAWLER_OK)
+       printf("Crawler a migrado safisfactoriamente a %s.\n\n", inet_ntoa(dirServidorWeb.sin_addr));
+    else if (mode == IRC_CRAWLER_FAIL)
+       printf("Crawler a sido rechazado de %s.\n\n", inet_ntoa(dirServidorWeb.sin_addr));
+    else
+       printf("Error en mensaje IRC, se descarta.\n\n");
+
+    closesocket(sockWebServer);
+    
+    return 0;
+}
 
 /*ANTIGUA rutinaAtencionCrawler*/
 
