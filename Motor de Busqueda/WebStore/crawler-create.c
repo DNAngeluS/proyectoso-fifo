@@ -17,7 +17,7 @@ int main(int argc, char **argv)
     time_t actualTime;
     ldapObj ldap;
 
-    /*sleep(10);*/
+   /* sleep(10);*/
 
     if (argc != 6)
         rutinaDeError("Argumentos invalidos");
@@ -80,8 +80,7 @@ int main(int argc, char **argv)
                 if (EnviarCrawlerCreate(hosts[i].hostIP, hosts[i].hostPort) < 0)
                 {
                     fprintf(stderr, "Error: Instanciacion de un Crawler a %s:%d\n",
-                            inet_ntoa(*(struct in_addr *) (hosts[i].hostIP)), ntohs(hosts[i].hostPort));
-                    continue;
+                            inet_ntoa(*(struct in_addr *) &(hosts[i].hostIP)), ntohs(hosts[i].hostPort));
                 }
                 else
                 {
@@ -89,7 +88,7 @@ int main(int argc, char **argv)
 
                     sprintf(ipPuerto, "%s:%d", inet_ntoa(*(struct in_addr *) (hosts[i].hostIP)), ntohs(hosts[i].hostPort));
 
-                    printf("Se envio peticion de Crawler a %s.\n", inet_ntoa(*(struct in_addr *) (hosts[i].hostIP)));
+                    printf("Se envio peticion de Crawler a %s.\n", inet_ntoa(*(struct in_addr *) &(hosts[i].hostIP)));
                     printf("Se actualizara su Unix Timestamp\n\n");
 
                     /*Se actualiza el timestamp del host al que se le envio el Crawler*/
@@ -99,7 +98,7 @@ int main(int argc, char **argv)
             }
             else printf("Aun quedan %ld segundos para enviar Crawler a %s\n\n",
                                         config.tiempoMigracionCrawler - tiempoRestante,
-                                        inet_ntoa(*(struct in_addr *) (hosts[i].hostIP)));
+                                        inet_ntoa(*(struct in_addr *) &(hosts[i].hostIP)));
             i++;
         }        
         
@@ -155,8 +154,10 @@ SOCKET establecerConexionServidorWeb(in_addr_t nDireccionIP, in_port_t nPort, SO
 
     while ( connect (sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1 && errno != EISCONN )
         if ( errno != EINTR )
-            rutinaDeError("connect");
-    
+        {
+            perror("connect");
+            return -1;
+        }
     
     return sockfd;
 }

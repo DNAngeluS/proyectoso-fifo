@@ -145,6 +145,8 @@ int main()
             if (childID != 0)
                 kill(childID, SIGUSR1);
             printf("Se a enviado señal SIGURS1 a proceso hijo: %d\n", childID);
+
+            pause();
         }
 
         if (rc > 0)

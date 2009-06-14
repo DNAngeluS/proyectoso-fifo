@@ -199,12 +199,22 @@ int ldapObtenerHosts(ldapObj *ldap, webServerHosts **hosts, int *maxHosts)
 
             if (!(strcmp(field->name, "utnHostID"))) /*el contenido de field->name es ObjectClass, preguntar a lucho*/
             {
-                ip = strtok(field->values[index], ":");
-                puerto = strtok(NULL, ":");
-                (*hosts)[i].hostIP = inet_addr(ip);
-                (*hosts)[i].hostPort = htons(atoi(puerto));
+                char ipPuerto[MAX_PATH];
+
+                strcpy(ipPuerto, field->values[index]);
+
+                if ((ip = strtok(ipPuerto, ":")) != NULL &&  (puerto = strtok(NULL, ":")) != NULL)
+                {
+                    if (isdigit(atoi(puerto))== 0)
+                    {
+                        (*hosts)[i].hostIP = inet_addr(ip);
+                        (*hosts)[i].hostPort = htons(atoi(puerto));
+                    }
+                    else printf("Entrada LDAP errónea. Se ignora.\n");
+                }  else printf("Entrada LDAP errónea. Se ignora.\n");
             }
-            else if (!(strcmp(field->name, "utnHostModTimestamp")))
+            else
+                if (!(strcmp(field->name, "utnHostModTimestamp")))
                 (*hosts)[i].uts = atoi(field->values[index]);
 
 
