@@ -36,7 +36,6 @@ int rutinaConexionCrawler			(SOCKET sockWebServer);
 void rutinaAtencionCrawler			(LPVOID args);
 int rutinaTrabajoCrawler			(WIN32_FIND_DATA filedata);
 int forAllFiles						(char *directorio, int (*funcion) (WIN32_FIND_DATA));
-int EnviarCrawlerCreate				(in_addr_t nDireccion, in_port_t nPort);
 
 int generarPaqueteArchivos			(const char *filename, crawler_URL *paquete, int *cantPalabras);
 int enviarPaquete					(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, int mode);
@@ -1273,31 +1272,6 @@ int generarPaqueteArchivos(const char *filename, crawler_URL *paquete, int *cant
 
 	return 0;
 }
-
-int EnviarCrawlerCreate(in_addr_t nDireccion, in_port_t nPort)
-{
-    SOCKET sockWebServer;
-    SOCKADDR_IN dirServidorWeb;
-    char descriptorID[DESCRIPTORID_LEN];
-
-    /*Se levanta conexion con el Web Server*/
-    if ((sockWebServer = establecerConexionServidor(nDireccion, nPort, &dirServidorWeb)) < 0)
-        return -1;
-    printf("Se establecio conexion con WebServer en %s.\n", inet_ntoa(dirServidorWeb.sin_addr));
-
-    /*Se envia mensaje de instanciacion de un Crawler*/
-    if (ircRequest_send(sockWebServer, NULL, 0, descriptorID, IRC_CRAWLER_CREATE) < 0)
-    {
-        closesocket(sockWebServer);
-        return -1;
-    }
-    printf("Crawler disparado a %s.\n\n", inet_ntoa(dirServidorWeb.sin_addr));
-
-    closesocket(sockWebServer);
-    
-    return 0;
-}
-
 
 
 
