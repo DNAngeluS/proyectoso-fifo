@@ -165,13 +165,20 @@ int ircRequest_recv (SOCKET sock, void *bloque, char *descriptorID, int *mode)
     }
 
     memcpy(descriptorID, header.descriptorID, DESCRIPTORID_LEN);
-    *mode = header.payloadDesc;
+    if (*mode == 0x00)
+        *mode = header.payloadDesc;
+    else
+        if (header.payloadDesc != *mode)
+            return -1;
 
     len = header.payloadLen;
-    if (RecibirNBloque(sock, bloque, len) != len)
+    if (len != 0)
     {
-        printf("Error en irc request recv header\n");
-        return -1;
+        if (RecibirNBloque(sock, bloque, len) != len)
+        {
+                printf("Error en irc request recv header\n");
+                return -1;
+        }
     }
 
     return 0;
