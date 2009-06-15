@@ -251,13 +251,15 @@ int atenderCrawler(SOCKET sockCrawler, ldapObj ldap)
     else if (mode == IRC_CRAWLER_MODIFICACION_HTML || mode == IRC_CRAWLER_MODIFICACION_ARCHIVOS)
        atenderModificarURL(&ldap, &paquete, mode);
 
-	free(paquete.palabras);
-
     else
     {
         printf("Inconcistencia en Payload Descriptor.\n");
         return -1;
     }
+
+    printf("Crawler a sido atendido satisfactoriamente.\n\n");
+    free(paquete.palabras);
+    
     return 0;
 }
 

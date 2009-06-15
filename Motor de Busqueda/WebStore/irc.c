@@ -66,7 +66,7 @@ int ircPaquete_send(SOCKET sock, crawler_URL *paquete, int palabrasLen,
     unsigned long len;
 
     GenerarID(header.descriptorID);
-    lstrcpy(descriptorID, header.descriptorID);
+    strcpy(descriptorID, header.descriptorID);
     header.payloadDesc = mode;
     header.payloadLen = sizeof(crawler_URL) + palabrasLen;
     header.payload = NULL;

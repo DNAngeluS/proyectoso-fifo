@@ -54,10 +54,12 @@ int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode)
 {
     char uuid[MAX_UUID];
     char dn[DN_LEN];
-	char keywords[] = entrada->palabras;
-	char *word, *lim;
+    char keywords[strlen(entrada->palabras)+1];
+    char *word;
 
     memset(dn, '\0', DN_LEN);
+    strcpy(keywords, entrada->palabras);
+
     /*Generar el identificador unico para el URL*/
     GenerarUUID(uuid);
     
@@ -74,14 +76,13 @@ int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode)
     ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnUrlID", 1, uuid));
     ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("labeledURL", 1, entrada->URL));
     
-	/*Guarda las palabras claves, ubicadas en entrada->palabras, separadas por coma*/
-	lim =strrchr(keywords, ",");
-	word = strtok(keywords, ",");
-	for (; ptr != lim;)
-	{
-        ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1,  word);
-		word = strtok(NULL, ",");
-	}
+    /*Guarda las palabras claves, ubicadas en entrada->palabras, separadas por coma*/
+    word = strtok(keywords, ",");
+    for (; word+1 == NULL;)
+    {
+    ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1,  word));
+            word = strtok(NULL, ",");
+    }
 
     /*Si es un Archivo guarda los campos espeficos del mismo*/
     if (mode == IRC_CRAWLER_ALTA_ARCHIVOS)
@@ -119,10 +120,12 @@ int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode)
     int control;
     PLDAP_ENTRY entry = ldap->entryOp->createEntry();
     char dn[DN_LEN];
-	char keywords[] = entrada->palabras;
-	char *word, *lim;
-    
+    char keywords[strlen(entrada->palabras)+1];
+    char *word;
+
     memset(dn, '\0', DN_LEN);
+    strcpy(keywords, entrada->palabras);
+    
     control = ldapObtenerDN(ldap, entrada->URL, mode, dn);
     if(!control)
     {
@@ -135,14 +138,13 @@ int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode)
 
     entry->dn = dn;
        
-    /*Guarda las palabras claves, ubicadas en entrada->palabras, separadas por coma*/
-	lim =strrchr(keywords, ",");
-	word = strtok(keywords, ",");
-	for (; ptr != lim;)
-	{
-        ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1,  word);
-		word = strtok(NULL, ",");
-	}
+   /*Guarda las palabras claves, ubicadas en entrada->palabras, separadas por coma*/
+    word = strtok(keywords, ",");
+    for (; word+1 == NULL;)
+    {
+         ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1,  word));
+        word = strtok(NULL, ",");
+    }
 
 
     /*Si es un Archivo guarda los campos espeficos del mismo*/
