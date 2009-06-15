@@ -28,8 +28,8 @@ typedef struct {
 int establecerConexionLDAP(ldapObj *ldap, configuracion config);
 int ldapObtenerDN(ldapObj *ldap,char *key, int mode, char *dn);
 
-int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int cantidadPalabras);
-int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int cantidadPalabras);
+int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode);
+int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode);
 int ldapComprobarExistencia(ldapObj *ldap, const char *clave, int mode);
 
 int ldapActualizarHost(ldapObj *ldap, const char *ipPuerto, time_t nuevoUts, int mode);

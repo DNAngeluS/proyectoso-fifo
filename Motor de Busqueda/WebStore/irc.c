@@ -12,6 +12,90 @@
 void GenerarID(char *cadenaOUT);
 
 
+int ircPaquete_recv (SOCKET sock, crawler_URL *paquete, char *descriptorID, int *mode)
+{
+    headerIRC header;
+    unsigned long len;
+
+    len = sizeof(headerIRC);
+
+    if (RecibirNBloque(sock, &header, len) != len)
+    {
+        printf("Error en irc request recv header\n");
+        return -1;
+    }
+
+    memcpy(descriptorID, header.descriptorID, DESCRIPTORID_LEN);
+    if (*mode == 0x00) 
+		*mode = header.payloadDesc;
+	else
+		if (header.payloadDesc != *mode)
+			return -1;
+    len = sizeof(crawler_URL);
+	header.payload = NULL;
+
+	if (len != 0)
+	{
+		if (RecibirNBloque(sock, paquete, len) != len)
+		{
+			printf("Error en irc request recv header\n");
+			return -1;
+		}
+	}
+
+	len = header.payloadLen - sizeof(crawler_URL);
+	if (len != 0)
+	{
+		paquete->palabras = malloc(len);
+		if (RecibirNBloque(sock, (void *)paquete->palabras, len) != len)
+			{
+				printf("Error en irc request recv header\n");
+				return -1;
+			}
+	}
+	else
+		paquete->palabras = NULL;
+
+    return 0;
+}
+
+int ircPaquete_send(SOCKET sock, crawler_URL *paquete, int palabrasLen,
+                    char *descriptorID, int mode)
+{
+    headerIRC header;
+    unsigned long len;
+
+    GenerarID(header.descriptorID);
+    lstrcpy(descriptorID, header.descriptorID);
+    header.payloadDesc = mode;
+    header.payloadLen = sizeof(crawler_URL) + palabrasLen;
+    header.payload = NULL;
+
+    len = sizeof(headerIRC);
+    if (EnviarBloque(sock, len, &header) != len)
+    {
+        printf("Error en irc request send header\n");
+        return -1;
+    }
+
+    len = sizeof(crawler_URL);
+    if (EnviarBloque(sock, len, paquete) != len)
+    {
+        printf("Error en irc request send bloque\n");
+        return -1;
+    }
+
+	len = palabrasLen;
+	if (EnviarBloque(sock, len, paquete->palabras) != len)
+    {
+        printf("Error en irc request send bloque\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+
 /*
 Descripcion: Envia un bloque de datos
 Ultima modificacion: Scheinkman, Mariano

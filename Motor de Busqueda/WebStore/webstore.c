@@ -14,8 +14,8 @@ void signalHandler(int sig);
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
 
 int atenderCrawler(SOCKET sockCrawler, ldapObj ldap);
-int atenderAltaURL(ldapObj *ldap, crawler_URL *entrada, unsigned int sizePalabras, int mode);
-int atenderModificarURL(ldapObj *ldap, crawler_URL *entrada, unsigned int sizePalabras, int mode);
+int atenderAltaURL(ldapObj *ldap, crawler_URL *entrada, int mode);
+int atenderModificarURL(ldapObj *ldap, crawler_URL *entrada, int mode);
 
 configuracion config;
 volatile sig_atomic_t sigRecibida=0;
@@ -232,24 +232,24 @@ int atenderCrawler(SOCKET sockCrawler, ldapObj ldap)
     char descID[DESCRIPTORID_LEN];
     unsigned long paqueteLen;
     int mode;
-    unsigned int sizePalabras;
 
-    if (ircRequest_recv(sockCrawler, &paquete, descID, &mode) < 0)
+    if (ircPaquete_recv(sockCrawler, &paquete, descID, &mode) < 0)
     {
         perror("ircRequest_recv");
         return -1;
     }
 
     if (paquete.palabras == NULL)
-        sizePalabras = 0;
-    else
-        sizePalabras = sizeof(*(paquete.palabras));
+	{
+        printf("No se detectaron palabras para ese URL. Sera descartado.\n\n");
+		return 0;
+	}
 
     if (mode == IRC_CRAWLER_ALTA_HTML || mode == IRC_CRAWLER_ALTA_ARCHIVOS)
-       atenderAltaURL(&ldap, &paquete, sizePalabras, mode);
+       atenderAltaURL(&ldap, &paquete, mode);
 
     else if (mode == IRC_CRAWLER_MODIFICACION_HTML || mode == IRC_CRAWLER_MODIFICACION_ARCHIVOS)
-       atenderModificarURL(&ldap, &paquete, sizePalabras, mode);
+       atenderModificarURL(&ldap, &paquete, mode);
 
     else
     {
@@ -259,7 +259,7 @@ int atenderCrawler(SOCKET sockCrawler, ldapObj ldap)
     return 0;
 }
 
-int atenderAltaURL(ldapObj *ldap, crawler_URL *entrada, unsigned int sizePalabras, int mode)
+int atenderAltaURL(ldapObj *ldap, crawler_URL *entrada, int mode)
 {
     char ipPuerto[MAX_PATH];
     char *ptr, *lim;;
@@ -277,16 +277,16 @@ int atenderAltaURL(ldapObj *ldap, crawler_URL *entrada, unsigned int sizePalabra
     if (!existeHost)
         ldapActualizarHost(ldap, ipPuerto, time(NULL), ALTA);
 
-    if (ldapAltaURL(ldap, entrada, mode, sizePalabras/MAX_SIZE_PALABRA) < 0)
+    if (ldapAltaURL(ldap, entrada, mode) < 0)
         return -1;
 
     return 0;
 }
 
-int atenderModificarURL(ldapObj *ldap, crawler_URL *entrada, unsigned int sizePalabras, int mode)
+int atenderModificarURL(ldapObj *ldap, crawler_URL *entrada, int mode)
 {
 
-    if (ldapModificarURL(ldap, entrada, mode, sizePalabras/MAX_SIZE_PALABRA) < 0)
+    if (ldapModificarURL(ldap, entrada, mode) < 0)
         return -1;
 
     return 0;

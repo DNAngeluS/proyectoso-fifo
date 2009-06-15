@@ -37,7 +37,7 @@ typedef struct {
 
 typedef struct {
     char URL[MAX_PATH];
-    char **palabras;
+    char *palabras;
     char titulo[MAX_PATH];
     char descripcion[MAX_PATH];
     char htmlCode[MAX_HTMLCODE];
@@ -60,6 +60,9 @@ int ircRequest_send(SOCKET sock, void *bloque, unsigned long bloqueLen, char *de
 int ircRequest_recv (SOCKET sock, void *bloque, char *descriptorID, int *mode);
 int ircResponse_send (SOCKET sock, char *descriptorID, void *bloque, unsigned long bloqueLen, int mode);
 int ircResponse_recv (SOCKET sock, void **bloque, unsigned long *respuestaLen, int *mode);
+
+int ircPaquete_recv (SOCKET sock, crawler_URL *paquete, char *descriptorID, int *mode);
+int ircPaquete_send(SOCKET sock, crawler_URL *paquete, int palabrasLen, char *descriptorID, int mode);
 
 int EnviarBloque                        (SOCKET sockfd, unsigned long bAEnviar, void *bloque);
 int RecibirBloque                       (SOCKET sockfd, char *bloque);

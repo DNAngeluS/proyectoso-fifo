@@ -50,11 +50,12 @@ Ultima modificacion: Moya Farina, Lucio
 Recibe: entrada con los datos modificados, tipo de archivo, cantidad de palabras
 Devuelve: ok? 0: -1.
 */
-int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int cantidadPalabras)
+int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode)
 {
     char uuid[MAX_UUID];
     char dn[DN_LEN];
-    int i;/*contardor para recorrer palabras*/
+	char keywords[] = entrada->palabras;
+	char *word, *lim;
 
     memset(dn, '\0', DN_LEN);
     /*Generar el identificador unico para el URL*/
@@ -72,8 +73,15 @@ int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int cant
     ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("objectclass", 2, "top", "utnUrl"));
     ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnUrlID", 1, uuid));
     ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("labeledURL", 1, entrada->URL));
-    for (i=0; i<cantidadPalabras; i++)
-        ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1,  entrada->palabras[i]));
+    
+	/*Guarda las palabras claves, ubicadas en entrada->palabras, separadas por coma*/
+	lim =strrchr(keywords, ",");
+	word = strtok(keywords, ",");
+	for (; ptr != lim;)
+	{
+        ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1,  word);
+		word = strtok(NULL, ",");
+	}
 
     /*Si es un Archivo guarda los campos espeficos del mismo*/
     if (mode == IRC_CRAWLER_ALTA_ARCHIVOS)
@@ -106,11 +114,13 @@ Ultima modificacion: Moya Farina, Lucio
 Recibe: entrada con los datos modificados, tipo de archivo, cantidad de palabras
 Devuelve: ok? 0: -1.
 */
-int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int cantidadPalabras)
+int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode)
 {
-    int i, control;
+    int control;
     PLDAP_ENTRY entry = ldap->entryOp->createEntry();
     char dn[DN_LEN];
+	char keywords[] = entrada->palabras;
+	char *word, *lim;
     
     memset(dn, '\0', DN_LEN);
     control = ldapObtenerDN(ldap, entrada->URL, mode, dn);
@@ -125,8 +135,14 @@ int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode, unsigned int
 
     entry->dn = dn;
        
-    for (i=0; i<cantidadPalabras ;i++)
-        ldap->entryOp->editAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1, ((char *) entrada->palabras)[i]));
+    /*Guarda las palabras claves, ubicadas en entrada->palabras, separadas por coma*/
+	lim =strrchr(keywords, ",");
+	word = strtok(keywords, ",");
+	for (; ptr != lim;)
+	{
+        ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1,  word);
+		word = strtok(NULL, ",");
+	}
 
 
     /*Si es un Archivo guarda los campos espeficos del mismo*/
