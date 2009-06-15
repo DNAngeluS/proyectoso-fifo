@@ -3,6 +3,7 @@
 #include "http.h"
 #include "irc.h"
 #include "hash.h"
+#include "htmlParser.h"
 
 /*ESTO ES PARA DEBUGUEAR MEMORY LEAKS*/
 #define _CRTDBG_MAP_ALLOC
@@ -39,6 +40,7 @@ int forAllFiles						(char *directorio, int (*funcion) (WIN32_FIND_DATA));
 
 int generarPaqueteArchivos			(const char *filename, crawler_URL *paquete, int *cantPalabras);
 int enviarPaquete					(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, int mode);
+int EnviarCrawler					(in_addr_t nDireccion, in_port_t nPort);
 
 int logFinal						(infoLogFile infoLog);
 void logInicio						();
@@ -1186,10 +1188,9 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 				mode = IRC_CRAWLER_ALTA_HTML;
 			else
 				mode = IRC_CRAWLER_MODIFICACION_HTML;
-			/*
-			PARSEAR
-			GENERAR PAQUETE HTML
-			*/
+
+			if (parsearHtml(filename, &paquete) < 0)
+				return -1;
 		}
 		else
 		{
@@ -1203,7 +1204,7 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 		}
 
 		/*Se envia el paquete al Web Store*/
-/*		if (enviarPaquete(config.ipWebStore, config.puertoWebStore, &paquete, mode) < 0)
+		if (enviarPaquete(config.ipWebStore, config.puertoWebStore, &paquete, mode) < 0)
 			printf("Error en el envio de Paquete al Web Store para %s", filename);
 
 		/*Libero las palabras del paquete que fueron cargadas dinamicamente*/
@@ -1226,7 +1227,7 @@ int enviarPaquete(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, i
     /*Se levanta conexion con el Web Store*/
     if ((sockWebStore = establecerConexionServidor(nDireccion, nPort, &dirServidor)) < 0)
         return -1;
-    printf("Se establecio conexion con Web Store en %s.\n", inet_ntoa(dirServidor.sin_addr));
+    printf("Se establecio conexion con WebStore en %s.\r\n", inet_ntoa(dirServidor.sin_addr));
 
 	/*Se envia el paquete al Web Store*/
     if (ircResponse_send(sockWebStore, descriptorID, (void*) paquete, sizeof(*paquete), mode) < 0)
@@ -1234,12 +1235,11 @@ int enviarPaquete(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, i
         closesocket(sockWebStore);
         return -1;
     }
-    printf("Crawler disparado a %s.\n\n", inet_ntoa(dirServidor.sin_addr));
+    printf("Paquete enviado a WebStore en %s.\r\n\r\n", inet_ntoa(dirServidor.sin_addr));
 
     closesocket(sockWebStore);
     
     return 0;
-
 }
 
 int generarPaqueteArchivos(const char *filename, crawler_URL *paquete, int *cantPalabras)
@@ -1292,7 +1292,7 @@ int EnviarCrawler(in_addr_t nDireccion, in_port_t nPort)
     /*Se envia mensaje de instanciacion de un Crawler*/
     if (ircRequest_send(sockWebServer, NULL, 0, descriptorID, IRC_CRAWLER_CONNECT) < 0)
     {
-        close(sockWebServer);
+        closesocket(sockWebServer);
         return -1;
     }
     printf("Crawler disparado a %s.\n\n", inet_ntoa(dirServidorWeb.sin_addr));
