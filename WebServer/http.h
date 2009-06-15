@@ -31,6 +31,6 @@ char *pathUnixToWin		(const char *dir, char *path);
 int getFileType			(const char *nombre, char *type);
 char *getFilename		(const char *path);
 DWORD getFileSize		(const char *nombre);
-int getKeywords        (const char *filename, char ***palabras, int *cantPalabras);
+int getKeywords			(const char *filename, char **palabras, int *palabrasLen);
 
 #endif

@@ -22,7 +22,7 @@ int xmlReadAtt						(xmlAttr *nodo, crawler_URL *paq);
 char* xmlGetContent					(xmlNode *nodo);
 char* xmlGetAttContent				(xmlAttr *nodo);
 
-int xmlGetKeywords					(const char *keywords, char ***palabra, int *cantPalabras);
+int xmlGetKeywords					(const char *keywords, char **palabra, int *palabrasLen);
 int xmlCopyCode						(const char *filename, char htmlCode[MAX_HTMLCODE]);
 
 int xmlIdentificarWebServer			(const char *imgDir);

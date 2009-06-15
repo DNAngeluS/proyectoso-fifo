@@ -166,9 +166,9 @@ int xmlReadAtt(xmlAttr *nodo, crawler_URL *paq)
     }
 	if (keywords)
 	{	
-		DWORD cantPalabras;
+		DWORD palabrasLen;
 
-		xmlGetKeywords(campo, &paq->palabras, &cantPalabras);
+		xmlGetKeywords(campo, &paq->palabras, &palabrasLen);
 	}
 
 	return 0;
@@ -203,14 +203,15 @@ Ultima modificacion: Scheinkman, Mariano.
 Recibe: palabras separada por com, array de palabras, puntero qe espera la cantidad de palabras.
 Devuelve: ok? 0: -1. completo el array de palabras y la cantidad de palabras en el array.
 */
-int xmlGetKeywords (const char *keywords, char ***palabra, int *cantPalabras)
+int xmlGetKeywords (const char *keywords, char **palabra, int *palabrasLen)
 {
     char nombre[MAX_PATH], *word, *ptr, *lim;
+	char lastKeyword[PALABRA_SIZE];
     int i=0;
     
-    char **vp = NULL;
+    char *vp = NULL;
     
-    vp = (char **) calloc(1, sizeof(char *));
+    vp = (char) calloc(1, sizeof(char));
     if (vp == NULL)
        return -1;
     
@@ -221,25 +222,30 @@ int xmlGetKeywords (const char *keywords, char ***palabra, int *cantPalabras)
 	{		
        if (*ptr == ',')
        {
-           *ptr = '\0';
-           if ((vp[i] = (char *) calloc(i+1, sizeof(char) * PALABRA_SIZE)) == NULL)
-			   return -1;    
-           lstrcpy(vp[i++], word);
-           word = ptr+1;
+			char keyword[PALABRA_SIZE];
+			
+			*ptr = '\0';
+			wsprintf(keyword, "%s,", word);
+
+			vp = realloc(vp, strlen(vp) + strlen(keyword)+1);
+
+			lstrcat(vp, keyword);
+			word = ptr+1;
        }
     }
+			
+	*ptr = '\0';
+	wsprintf(lastKeyword, "%s,", word);
 
-	if ((vp[i] = (char *) calloc(i+1, sizeof(char) * PALABRA_SIZE)) == NULL)
-		return -1;    
-	lstrcpy(vp[i++], word);
-	word = ptr+1;
+	vp = realloc(vp, strlen(vp) + strlen(lastKeyword)+1);
 
-    *cantPalabras = i;
+	lstrcat(vp, lastKeyword);
+
+    *palabrasLen = lstrlen(vp);
     *palabra = vp;
         
     return 0;
 }
-
 /*
 Descripcion: Copia el contenido del html completo en la estructura.
 Ultima modificacion: Scheinkman, Mariano

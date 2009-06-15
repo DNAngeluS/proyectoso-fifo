@@ -395,14 +395,14 @@ char *getFilename(const char *path)
 	return ++filename;
 }
 
-int getKeywords (const char *filename, char ***palabra, int *cantPalabras)
+int getKeywords (const char *filename, char **palabras, int *palabrasLen)
 {
     char nombre[MAX_PATH], *word, *ptr, *lim;
     int i=0;
     
-    char **vp = NULL;
+    char *vp = NULL;
     
-    vp = (char **) calloc(1, sizeof(char *));
+    vp = (char *) calloc(1, sizeof(char));
     if (vp == NULL)
        return -1;
     
@@ -413,15 +413,20 @@ int getKeywords (const char *filename, char ***palabra, int *cantPalabras)
 	{		
        if (*ptr == '_' || *ptr == '.')
        {
-           *ptr = '\0';
-           if ((vp[i] = (char *) calloc(i+1, sizeof(char) * PALABRA_SIZE)) == NULL)
-			   return -1;    
-           lstrcpy(vp[i++], word);
-           word = ptr+1;
+			char keyword[PALABRA_SIZE];
+
+			*ptr = '\0';
+			wsprintf(keyword, "%s,", word);
+
+			vp = realloc(vp, strlen(vp) + strlen(keyword)+1);
+
+			lstrcat(vp, keyword);
+			word = ptr+1;
        }
     }
-    *cantPalabras = i;
-    *palabra = vp;
+
+    *palabrasLen = (strlen(vp)+1);
+    *palabras = vp;
         
     return 0;
 }

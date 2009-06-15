@@ -38,8 +38,8 @@ void rutinaAtencionCrawler			(LPVOID args);
 int rutinaTrabajoCrawler			(WIN32_FIND_DATA filedata);
 int forAllFiles						(char *directorio, int (*funcion) (WIN32_FIND_DATA));
 
-int generarPaqueteArchivos			(const char *filename, crawler_URL *paquete, int *cantPalabras);
-int enviarPaquete					(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, int mode);
+int generarPaqueteArchivos			(const char *filename, crawler_URL *paquete, int *palabrasLen);
+int enviarPaquete					(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, int mode, int cantPalabras);
 int EnviarCrawler					(in_addr_t nDireccion, in_port_t nPort);
 
 int logFinal						(infoLogFile infoLog);
@@ -1178,7 +1178,7 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 	else if ((np == NULL && attr != FILE_ATTRIBUTE_READONLY) || 
 			(np != NULL && attr != FILE_ATTRIBUTE_READONLY && strcmp(np->md5, md5)))
 	{
-		int i, cantPalabras = 0;
+		int i, palabrasLen = 0;
 
 		if (hashInstall(filename, md5) < 0)
 			return -1;
@@ -1199,18 +1199,13 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 			else
 				mode = IRC_CRAWLER_MODIFICACION_ARCHIVOS;
 
-			if (generarPaqueteArchivos(filename, &paquete, &cantPalabras) < 0)
+			if (generarPaqueteArchivos(filename, &paquete, &palabrasLen) < 0)
 				return -1;
 		}
 
 		/*Se envia el paquete al Web Store*/
-		if (enviarPaquete(config.ipWebStore, config.puertoWebStore, &paquete, mode) < 0)
-			printf("Error en el envio de Paquete al Web Store para %s", filename);
-
-		/*Libero las palabras del paquete que fueron cargadas dinamicamente*/
-		for (i=0;i<cantPalabras;i++)
-			free(paquete.palabras[i]);
-		paquete.palabras = NULL;
+		if (enviarPaquete(config.ipWebStore, config.puertoWebStore, &paquete, mode, palabrasLen) < 0)
+			printf("Error en el envio de Paquete al Web Store para %s.\r\n\r\n", filename);
 	}
 
 	_CrtDumpMemoryLeaks();
@@ -1218,7 +1213,7 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 	return 0;
 }
 
-int enviarPaquete(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, int mode)
+int enviarPaquete(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, int mode, int palabrasLen)
 {
     SOCKET sockWebStore;
     SOCKADDR_IN dirServidor;
@@ -1230,19 +1225,21 @@ int enviarPaquete(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, i
     printf("Se establecio conexion con WebStore en %s.\r\n", inet_ntoa(dirServidor.sin_addr));
 
 	/*Se envia el paquete al Web Store*/
-    if (ircResponse_send(sockWebStore, descriptorID, (void*) paquete, sizeof(*paquete), mode) < 0)
+    if (ircPaquete_send(sockWebStore, paquete, palabrasLen, descriptorID,  mode) < 0)
     {
         closesocket(sockWebStore);
         return -1;
     }
+
     printf("Paquete enviado a WebStore en %s.\r\n\r\n", inet_ntoa(dirServidor.sin_addr));
 
+	free(paquete->palabras);
     closesocket(sockWebStore);
     
     return 0;
 }
 
-int generarPaqueteArchivos(const char *filename, crawler_URL *paquete, int *cantPalabras)
+int generarPaqueteArchivos(const char *filename, crawler_URL *paquete, int *palabrasLen)
 {   
     int ntype;
 	DWORD size;
@@ -1263,7 +1260,7 @@ int generarPaqueteArchivos(const char *filename, crawler_URL *paquete, int *cant
 	if (size < 0) return -1;
 	wsprintf(paquete->length, "%ld", size);
 
-	if (getKeywords(filename, &(paquete->palabras), cantPalabras) < 0)
+	if (getKeywords(filename, &paquete->palabras, palabrasLen) < 0)
 		return -1;
 	wsprintf(paquete->URL, "http://%s:%d/%s", inet_ntoa(*(IN_ADDR *)&config.ip), ntohs(config.puerto), filename);
 
@@ -1271,6 +1268,7 @@ int generarPaqueteArchivos(const char *filename, crawler_URL *paquete, int *cant
 	printf("Type: %s\r\n", paquete->tipo);
 	printf("URL: %s\r\n", paquete->URL);
 	printf("Formato: %s\r\n", paquete->formato);
+	printf("Palabras: %s\r\n", paquete->palabras);
 	printf("\r\n");
 
 	return 0;
