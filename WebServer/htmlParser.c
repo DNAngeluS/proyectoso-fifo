@@ -60,7 +60,6 @@ Devuelve: ok? 0: -1. completa la estructura xmlNode
 */
 int xmlOpen(const char *filename,xmlDoc **doc, xmlNode **root)
 {
-	
 	/*Apertura del archivo XML*/
 	*doc = xmlReadFile(filename, NULL, 0);
 	if (doc == NULL) 
@@ -211,7 +210,7 @@ int xmlGetKeywords (const char *keywords, char **palabra, int *palabrasLen)
     
     char *vp = NULL;
     
-    vp = (char) calloc(1, sizeof(char));
+    vp = (char *) calloc(1, sizeof(char));
     if (vp == NULL)
        return -1;
     
@@ -288,15 +287,15 @@ Devuelve: ok? 0: -1. completa la estructura htmlCode
 */
 int xmlEnviarCrawler(const char *htmlDir)
 {
-	char *dir;
+	char *dir, *nextT;
 	in_addr_t ip;
 	in_port_t puerto;
     
 	dir = strstr(htmlDir, "//");
 	dir+=2;
     
-	ip = inet_addr(strtok(dir, ":"));
-	puerto = htons(atoi(strtok(NULL, "/")));
+	ip = inet_addr(strtok_s(dir, ":", &nextT));
+	puerto = htons(atoi(strtok_s(NULL, "/", &nextT)));
 
 	if (EnviarCrawler(ip, puerto) < 0)
 		return -1;
@@ -313,7 +312,7 @@ Devuelve: 1 si el URL es externo. 0 si es propio o si es del formato "/carpeta/u
 */
 int xmlIdentificarWebServer(const char *imgDir)
 {
-	char *dir;
+	char *dir, *nextT;
 	in_addr_t ip;
 	in_port_t puerto;
     
@@ -322,8 +321,8 @@ int xmlIdentificarWebServer(const char *imgDir)
 	
 	dir+=2;
     
-	ip = inet_addr(strtok(dir, ":"));
-	puerto = htons(atoi(strtok(NULL, "/")));
+	ip = inet_addr(strtok_s(dir, ":", &nextT));
+	puerto = htons(atoi(strtok_s(NULL, "/", &nextT)));
 
 	return !(ip == config.ip && (puerto == config.puerto || puerto == config.puertoCrawler));
 		

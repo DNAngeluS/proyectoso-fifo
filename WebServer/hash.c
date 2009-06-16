@@ -1,6 +1,6 @@
 #include "hash.h"
 
-extern struct nlist *hashtab[HASHSIZE];
+extern struct hashManager hashman;
 
 unsigned hash(char *s)
 {
@@ -15,7 +15,7 @@ struct nlist *hashLookup(char *s)
 {
 	struct nlist *np;
 
-	for (np = hashtab[hash(s)]; np != NULL; np = np->next)
+	for (np = hashman.hashtab[hash(s)]; np != NULL; np = np->next)
 		if (lstrcmp(s, np->file) == 0)
 			return np;	/*Se encontro*/
 	return NULL;	/*No se encontro*/
@@ -30,15 +30,19 @@ struct nlist *hashInstall(char *file, char *md5)
 	/*No fue encontrado*/
 	{
 		np = (struct nlist *) malloc(sizeof(*np));
-		if (np == NULL || (np->file = strdup(file)) == NULL)
+		if (np == NULL || (np->file = _strdup(file)) == NULL)
 			return NULL;
 		hashval = hash(file);
-		np->next = hashtab[hashval];
-		hashtab[hashval] = np;
+		np->next = hashman.hashtab[hashval];
+		hashman.hashtab[hashval] = np;
+
+		/*Actualiza estado del Hash Manager*/
+		hashman.flag[hashval] = RECIENTEMENTE_ACCEDIDO;
+		hashman.ocupados++;
 	}
 	else /*Ya esta alli*/
 		free ((void *) np->md5); /*Libera anterior md5*/
-	if ((np->md5 = strdup(md5)) == NULL)
+	if ((np->md5 = _strdup(md5)) == NULL)
 		return NULL;
 	return np;
 }
@@ -48,8 +52,8 @@ int hashCleanAll()
 	int i;
 
 	for (i = 0; i < HASHSIZE; i++)
-		if (hashtab[i] != NULL)
-			if (hashClean(hashtab[i]->file) < 0)
+		if (hashman.hashtab[i] != NULL)
+			if (hashClean(hashman.hashtab[i]->file) < 0)
 				return -1;
 	return 0;
 }
@@ -57,20 +61,25 @@ int hashCleanAll()
 int hashClean(char *file)
 {
     struct nlist *np1, *np2;
+	int index = hash(file);
 
     if ((np1 = hashLookup(file)) == NULL)	/*No encontro*/
         return 1;
 
-    for ( np1 = np2 = hashtab[hash(file)]; np1 != NULL; np2 = np1, np1 = np1->next ) 
+    for ( np1 = np2 = hashman.hashtab[index]; np1 != NULL; np2 = np1, np1 = np1->next ) 
 	{
         if ( lstrcmp(file, np1->file) == 0 ) 
 		/*Encontro*/
 		{
             /*Remover nodo de la lista*/
             if ( np1 == np2 )
-                hashtab[hash(file)] = np1->next;
+                hashman.hashtab[index] = np1->next;
             else
                 np2->next = np1->next;
+			
+			/*Actualizar estado del Hash Manager*/
+			hashman.flag[index] = VACIO;
+			hashman.ocupados--;
 
             /*Liberar memoria*/
             free(np1->file);
@@ -221,9 +230,9 @@ int hashSave()
 	memset(line, '\0', MAX_PATH);
 	for (i = lim = 0; i < HASHSIZE; i++)
 	{	
-        if (hashtab[i] != NULL)
+        if (hashman.hashtab[i] != NULL)
 		{
-			sprintf_s(line, MAX_PATH, "%s\\%s/", hashtab[i]->file, hashtab[i]->md5);
+			sprintf_s(line, MAX_PATH, "%s\\%s/", hashman.hashtab[i]->file, hashman.hashtab[i]->md5);
 			lstrcat(buf, line);
 			lim = (DWORD) lstrlen(buf);
 			memset(line, '\0', MAX_PATH);
@@ -245,7 +254,10 @@ int hashLoad()
 	char *lim, *primero, *act, *file, *md5, *pos;
 	char buf[BUF_SIZE];
 
-    memset(hashtab, '\0', sizeof(hashtab));
+    memset(hashman.hashtab, '\0', sizeof(hashman.hashtab));
+	memset(hashman.flag, VACIO, sizeof(hashman.flag));
+	hashman.ocupados = 0;
+
     archivoHash = CreateFileA("hash.txt", GENERIC_READ, 0, NULL,
                              OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
@@ -298,8 +310,8 @@ int hashLoad()
 
 static int ingresarValor(char *file, char *md5, int pos)
 {
-	hashtab[pos]->file = strdup(file);
-	hashtab[pos]->md5 = strdup(md5);
+	hashman.hashtab[pos]->file = _strdup(file);
+	hashman.hashtab[pos]->md5 = _strdup(md5);
 
 	return 0;
 }
@@ -310,7 +322,7 @@ BOOL hashVacia()
 
 	while (i < HASHSIZE)
 	{
-		if (hashtab[i++] != NULL)
+		if (hashman.hashtab[i++] != NULL)
 			break;
 	}
 

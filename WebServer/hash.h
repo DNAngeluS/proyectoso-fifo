@@ -8,10 +8,18 @@
 #define BUF_SIZE 1024
 #define MD5LEN 16
 
+enum estadoHash_t {VACIO, LLENO, RECIENTEMENTE_ACCEDIDO};
+
 struct nlist {
 	struct nlist *next;
 	char *file;
 	char *md5;
+};
+
+struct hashManager {
+	int ocupados;
+	int flag[HASHSIZE];
+	struct nlist *hashtab[HASHSIZE];
 };
 
 unsigned hash					(char *s);

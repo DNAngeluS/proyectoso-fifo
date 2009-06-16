@@ -425,7 +425,7 @@ int getKeywords (const char *filename, char **palabras, int *palabrasLen)
        }
     }
 
-    *palabrasLen = (strlen(vp)+1);
+    *palabrasLen = (int)(strlen(vp)+1);
     *palabras = vp;
         
     return 0;

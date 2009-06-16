@@ -69,7 +69,7 @@ HANDLE crawMutex;
 int crawPresence = -1;
 DWORD crawTimeStamp = 0;
 
-struct nlist *hashtab[HASHSIZE];
+struct hashManager hashman;
 
 /*      
 Descripcion: Provee de archivos a clientes solicitantes en la red.
@@ -365,8 +365,8 @@ void rutinaAtencionConsola (LPVOID args)
 		int centinela=0;	    
 
 /**------	Validaciones a la hora de ingresar comandos	------**/
-		
-		gets(consolaStdin);
+
+		gets_s(consolaStdin, MAX_INPUT_CONSOLA);
 		if (*consolaStdin == '-')
 		{
 			if (!lstrcmp(&consolaStdin[1], "queuestatus"))
@@ -473,9 +473,10 @@ void rutinaAtencionConsola (LPVOID args)
 				printf("%s", STR_MSG_HASH);
 				if (!hashVacia())
 				{
+					printf("%d archivos en Tabla Hash:\r\n", hashman.ocupados);
 					for (i=0; i<HASHSIZE; i++)
-						if (hashtab[i] != NULL)
-							printf("\t%s : %s\r\n", hashtab[i]->md5, hashtab[i]->file);
+						if (hashman.hashtab[i] != NULL)
+							printf("\t%s : %s\r\n", hashman.hashtab[i]->md5, hashman.hashtab[i]->file);
 				}
 				else
 					printf("(Vacia)\r\n");
@@ -1023,7 +1024,7 @@ void rutinaAtencionCrawler (LPVOID args)
 	int pvez = (crawPresence == -1);
 	int error = 0;
 	char logMsg[BUF_SIZE];
-    int logMsgSize, bytesWritten;
+    int logMsgSize, bytesWritten, i;
     SYSTEMTIME time;
     DWORD idProcess;
 	DWORD idThread;
@@ -1053,6 +1054,11 @@ void rutinaAtencionCrawler (LPVOID args)
 	if ((error = forAllFiles(config.directorioFiles, rutinaTrabajoCrawler)) < 0)
 		printf("Crawler: Error al procesar archivos. Se descarta Crawler.\r\n\r\n");	
 	
+	/*Deja consistente el estado del Hash Manager*/
+	for (i = 0; i < HASHSIZE; i++)
+		if (hashman.flag[i] == RECIENTEMENTE_ACCEDIDO)
+			hashman.flag[i] = LLENO;
+
 	printf("Analisis del Web Crawler a finalizado %s.\r\n\r\n", error<0? "con error.":"satisfactoriamente");
 	
 	logMsgSize = sprintf_s(logMsg, BUF_SIZE, "%d/%d/%d %02d:%02d:%02d Web Crawler %d-%d: finalizado el analisis de documentos en %d milisegundos.\r\n\r\n",
@@ -1101,6 +1107,7 @@ int forAllFiles(char *directorio, int (*funcion) (WIN32_FIND_DATA))
 	char szDir[MAX_PATH];
 	size_t length_of_arg;
 	HANDLE hFind = INVALID_HANDLE_VALUE;
+	int archivosProcesados = 0;
 
 	/*Chequea la longuitud del directorio*/
 	length_of_arg = lstrlen(directorio);
@@ -1140,11 +1147,24 @@ int forAllFiles(char *directorio, int (*funcion) (WIN32_FIND_DATA))
 		}
 		else
 		{
-			if (funcion(ffd) < 0)
+			int control;
+
+			if ((control = funcion(ffd)) < 0)
 				return -1;
+			if (control != ELIMINA_NO_PUBLICO)
+				archivosProcesados++;
 		}
+	} while (FindNextFile(hFind, &ffd) != 0);
+
+	if (archivosProcesados != hashman.ocupados)
+	{
+		int i;
+
+		for (i = 0; i < HASHSIZE; i++)
+			if (hashman.hashtab[i] != NULL && hashman.flag[i] == LLENO)
+				if (hashClean(hashman.hashtab[i]->file) < 0)
+					return -1;
 	}
-	while (FindNextFile(hFind, &ffd) != 0);
 
 	if (GetLastError() != ERROR_NO_MORE_FILES)
 	{
@@ -1166,6 +1186,7 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 	char md5[MAX_PATH];
 	crawler_URL paquete;
 	int mode;
+	int tipoProceso = ARCHIVO_NO_SUFRIO_CAMBIOS;
 
 	hashMD5(filename, config.directorioFiles, md5);
 
@@ -1173,12 +1194,12 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 	{
 		if (hashClean(filename) < 0)
 			return -1;
+		tipoProceso = ELIMINA_NO_PUBLICO;
 	}
-
 	else if ((np == NULL && attr != FILE_ATTRIBUTE_READONLY) || 
 			(np != NULL && attr != FILE_ATTRIBUTE_READONLY && strcmp(np->md5, md5)))
 	{
-		int i, palabrasLen = 0;
+		int palabrasLen = 0;
 
 		if (hashInstall(filename, md5) < 0)
 			return -1;
@@ -1189,8 +1210,8 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 			else
 				mode = IRC_CRAWLER_MODIFICACION_HTML;
 
-			if (parsearHtml(filename, &paquete) < 0)
-				return -1;
+			/*if (parsearHtml(filename, &paquete) < 0)
+				return -1;*/
 		}
 		else
 		{
@@ -1204,13 +1225,17 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 		}
 
 		/*Se envia el paquete al Web Store*/
-		if (enviarPaquete(config.ipWebStore, config.puertoWebStore, &paquete, mode, palabrasLen) < 0)
-			printf("Error en el envio de Paquete al Web Store para %s.\r\n\r\n", filename);
+		/*if (enviarPaquete(config.ipWebStore, config.puertoWebStore, &paquete, mode, palabrasLen) < 0)
+			printf("Error en el envio de Paquete al Web Store para %s.\r\n\r\n", filename);*/
+
+		tipoProceso = ATIENDE_NUEVO_O_MODIFICADO;
 	}
+	else
+		hashman.flag[hash(np->file)] = RECIENTEMENTE_ACCEDIDO;
 
 	_CrtDumpMemoryLeaks();
 
-	return 0;
+	return tipoProceso;
 }
 
 int enviarPaquete(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, int mode, int palabrasLen)
