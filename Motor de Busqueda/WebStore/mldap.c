@@ -289,10 +289,6 @@ int ldapActualizarHost(ldapObj *ldap, const char *ipPuerto, time_t nuevoUts, int
     strcat(dn, ipPuerto);
     strcat(dn, ",ou=hosts,dc=utn,dc=edu");    
     
-    ahora = nuevoUts;
-    strftime ( ts , sizeof ( ts ) , "%Y%m%d%H%M%SZ" , localtime ( &ahora ) ) ;
-    ts[31] = '\0' ;    
-
     sprintf(ts, "%ld", nuevoUts);
 
     entry->dn = dn;
