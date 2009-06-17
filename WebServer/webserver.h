@@ -15,12 +15,35 @@
 #define MAX_HEAP 1024*1024
 #define MAX_INPUT_CONSOLA 30
 
-enum estado_t {ESPERA, ATENDIDO};
 enum codop_t {RUNNING, FINISH, OUTOFSERVICE};
 enum proceso_t {ELIMINA_NO_PUBLICO, ATIENDE_NUEVO_O_MODIFICADO, ARCHIVO_NO_SUFRIO_CAMBIOS};
 
 typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
+
+/*********** LISTAS **********************/
+enum estado_t {ESPERA, ATENDIDO};
+
+/*Estructuras para la cola de threads*/
+struct thread {
+	DWORD threadID;
+	SOCKET socket;
+	SOCKADDR_IN direccion;
+	HANDLE threadHandle;
+	DWORD arrival;
+	msgGet getInfo;
+	DWORD bytesEnviados;
+	BOOL estado;
+};
+
+typedef struct nodoListaThread{
+	struct thread info;
+	struct nodoListaThread *sgte;
+} NodoListaThread;
+
+typedef NodoListaThread *ptrListaThread;
+/*******************************************/
+
 
 /*Definiciones para el manejo de los mensajes de consola*/
 #define STR_MSG_HELP "USO:\r\n\t-help: Desplega modo de uso\r\n\t-queuestatus: Desplega estado de la Cola de Espera\r\n\t-run: Pone el Web Server en funcionamiento\r\n\t-finish: Finaliza el Web Server\r\n\t-outofservice: Establece al Web Server fuera de servicio\r\n\t-private file: Establece a file como archivo privado\r\n\t-public file: Establece a file como archivo publico\r\n\t-files: Desplega la lista de archivos y su hash\r\n\t-reset: Limpia la Tabla Hash de archivo publicos del Web Server\r\n\r\n"
@@ -45,25 +68,6 @@ typedef unsigned short in_port_t;
 
 #define ENCABEZADO_LOG "Archivo Log - Web Server\r\n\r\n"
 #define FINAL_LOG "---Web Server Finalizado---\r\n\r\n"
-
-/*Estructuras para la cola de threads*/
-struct thread {
-	DWORD threadID;
-	SOCKET socket;
-	SOCKADDR_IN direccion;
-	HANDLE threadHandle;
-	DWORD arrival;
-	msgGet getInfo;
-	DWORD bytesEnviados;
-	BOOL estado;
-};
-
-typedef struct nodoListaThread{
-	struct thread info;
-	struct nodoListaThread *sgte;
-} NodoListaThread;
-
-typedef NodoListaThread *ptrListaThread;
 
 struct clienteLogData {
 	in_addr_t ip;

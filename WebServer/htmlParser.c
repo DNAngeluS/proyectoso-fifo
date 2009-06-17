@@ -14,9 +14,12 @@ Devuelve: ok? 0: -1. crawler_URL completo.
 int parsearHtml(const char *htmlFile, crawler_URL *paquete) 
 {
 	xmlDoc *xmlTree = NULL;
-	xmlNode *rootElement = NULL;	
-	
-	if (xmlOpen(htmlFile, &xmlTree, &rootElement) < 0)
+	xmlNode *rootElement = NULL;
+	char dirFile[MAX_PATH];
+
+	wsprintf(dirFile, "%s\\%s", config.directorioFiles, htmlFile);
+
+	if (xmlOpen(dirFile, &xmlTree, &rootElement) < 0)
 		return -1;
 
 	memset(paquete, '\0', sizeof(*paquete));
@@ -25,10 +28,16 @@ int parsearHtml(const char *htmlFile, crawler_URL *paquete)
 
 	xmlReadNodo(rootElement, paquete);
 
-	if (xmlCopyCode(htmlFile, paquete->htmlCode) < 0)
+	if (xmlCopyCode(dirFile, paquete->htmlCode) < 0)
 		return -1;
 
-	xmlFreeDoc(xmlTree); 
+	xmlFreeDoc(xmlTree);
+
+	printf("Titulo: %s\r\n", paquete->titulo);
+	printf("Descripcion: %s\r\n", paquete->descripcion);
+	printf("URL: %s\r\n", paquete->URL);
+	printf("Palabras: %s\r\n", paquete->palabras);
+	printf("\r\n");
 	
 	return 0;
 }
@@ -41,14 +50,7 @@ Devuelve: ok? 0: -1. campo URL completo.
 */
 int xmlAddUrl(const char *filename, char *url)
 {
-/*Problema con las variable global config. No me la toma-> Faltaba declararla como extern. SOLUCIONADO*/
-	char URL[MAX_PATH] = "http://";
-
-	lstrcat(URL, inet_ntoa(*(IN_ADDR *)&config.ip) );
-	lstrcat(URL, ":");
-	wsprintf(URL, "%d", ntohs(config.puerto) );
-	lstrcat(URL, "/");
-	lstrcat(URL, filename);
+	wsprintf(url, "%s%s:%d/%s", "http://", inet_ntoa(*(IN_ADDR *)&config.ip), ntohs(config.puerto), filename );
 
 	return 0;
 }
@@ -62,7 +64,7 @@ int xmlOpen(const char *filename,xmlDoc **doc, xmlNode **root)
 {
 	/*Apertura del archivo XML*/
 	*doc = xmlReadFile(filename, NULL, 0);
-	if (doc == NULL) 
+	if (*doc == NULL) 
 	{
 		printf("xmlOpen: Fallo al leer el archivo %s\r\n", filename);
 		return -1;
@@ -70,7 +72,7 @@ int xmlOpen(const char *filename,xmlDoc **doc, xmlNode **root)
 
 	/*Creacion del arbol desde la raiz*/
 	*root = xmlDocGetRootElement(*doc);
-	if (root == NULL) 
+	if (*root == NULL) 
 	{
 		printf("xmlOpen: Fallo al obtener el nodo Raiz de %s\r\n", filename);
 		return -1;
@@ -290,12 +292,19 @@ int xmlEnviarCrawler(const char *htmlDir)
 	char *dir, *nextT;
 	in_addr_t ip;
 	in_port_t puerto;
+	char *p = NULL;
     
 	dir = strstr(htmlDir, "//");
 	dir+=2;
     
 	ip = inet_addr(strtok_s(dir, ":", &nextT));
-	puerto = htons(atoi(strtok_s(NULL, "/", &nextT)));
+
+	if ((p = strtok_s(NULL, "/", &nextT)) == NULL)
+	{
+		puerto = htons(80);
+	}
+	else
+		puerto = htons(atoi(p));
 
 	if (EnviarCrawler(ip, puerto) < 0)
 		return -1;
@@ -315,14 +324,20 @@ int xmlIdentificarWebServer(const char *imgDir)
 	char *dir, *nextT;
 	in_addr_t ip;
 	in_port_t puerto;
+    char *p = NULL;
     
 	dir = strstr(imgDir, "//");
 	if (dir == NULL) return 0;
-	
 	dir+=2;
     
 	ip = inet_addr(strtok_s(dir, ":", &nextT));
-	puerto = htons(atoi(strtok_s(NULL, "/", &nextT)));
+
+	if ((p = strtok_s(NULL, "/", &nextT)) == NULL)
+	{
+		puerto = htons(80);
+	}
+	else
+		puerto = htons(atoi(p));
 
 	return !(ip == config.ip && (puerto == config.puerto || puerto == config.puertoCrawler));
 		

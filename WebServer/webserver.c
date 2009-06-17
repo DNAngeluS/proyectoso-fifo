@@ -38,7 +38,7 @@ void rutinaAtencionCrawler			(LPVOID args);
 int rutinaTrabajoCrawler			(WIN32_FIND_DATA filedata);
 int forAllFiles						(char *directorio, int (*funcion) (WIN32_FIND_DATA));
 
-int generarPaqueteArchivos			(const char *filename, crawler_URL *paquete, int *palabrasLen);
+int generarPaqueteArchivos			(const char *filename, crawler_URL *paquete);
 int enviarPaquete					(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, int mode, int cantPalabras);
 int EnviarCrawler					(in_addr_t nDireccion, in_port_t nPort);
 
@@ -1087,16 +1087,16 @@ SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKA
     their_addr->sin_addr.s_addr = nDireccionIP;
     memset(&(their_addr->sin_zero),'\0',8);
 
-    /*if (connect(sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1)
-        rutinaDeError("connect");*/
+    if (connect(sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1)
+        rutinaDeError("connect");
 
-    while ( connect (sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1 && errno != WSAEISCONN )
+    /*while ( connect (sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1 && errno != WSAEISCONN )
         if ( errno != WSAEINTR )
 		{
             fprintf(stderr, "Error en connect: error num %d", GetLastError());
 			closesocket(sockfd);
 			return -1;
-    	}
+    	}*/
     
     return sockfd;
 }
@@ -1201,8 +1201,6 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 	{
 		int palabrasLen = 0;
 
-		if (hashInstall(filename, md5) < 0)
-			return -1;
 		if (getFileType(filename, type) == HTML)
 		{
 			if (np == NULL && attr != FILE_ATTRIBUTE_READONLY)
@@ -1210,8 +1208,8 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 			else
 				mode = IRC_CRAWLER_MODIFICACION_HTML;
 
-			/*if (parsearHtml(filename, &paquete) < 0)
-				return -1;*/
+			if (parsearHtml(filename, &paquete) < 0)
+				return -1;
 		}
 		else
 		{
@@ -1220,15 +1218,17 @@ int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 			else
 				mode = IRC_CRAWLER_MODIFICACION_ARCHIVOS;
 
-			if (generarPaqueteArchivos(filename, &paquete, &palabrasLen) < 0)
+			if (generarPaqueteArchivos(filename, &paquete) < 0)
 				return -1;
 		}
 
 		/*Se envia el paquete al Web Store*/
-		/*if (enviarPaquete(config.ipWebStore, config.puertoWebStore, &paquete, mode, palabrasLen) < 0)
-			printf("Error en el envio de Paquete al Web Store para %s.\r\n\r\n", filename);*/
+		if (enviarPaquete(config.ipWebStore, config.puertoWebStore, &paquete, mode, (int) (strlen(paquete.palabras)+1)) < 0)
+			printf("Error en el envio de Paquete al Web Store para %s.\r\n\r\n", filename);
 
 		tipoProceso = ATIENDE_NUEVO_O_MODIFICADO;
+		if (hashInstall(filename, md5) < 0)
+			return -1;
 	}
 	else
 		hashman.flag[hash(np->file)] = RECIENTEMENTE_ACCEDIDO;
@@ -1250,7 +1250,7 @@ int enviarPaquete(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, i
     printf("Se establecio conexion con WebStore en %s.\r\n", inet_ntoa(dirServidor.sin_addr));
 
 	/*Se envia el paquete al Web Store*/
-    if (ircPaquete_send(sockWebStore, paquete, palabrasLen, descriptorID,  mode) < 0)
+	if (ircPaquete_send(sockWebStore, paquete, palabrasLen, descriptorID,  mode) < 0)
     {
         closesocket(sockWebStore);
         return -1;
@@ -1264,7 +1264,7 @@ int enviarPaquete(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, i
     return 0;
 }
 
-int generarPaqueteArchivos(const char *filename, crawler_URL *paquete, int *palabrasLen)
+int generarPaqueteArchivos(const char *filename, crawler_URL *paquete)
 {   
     int ntype;
 	DWORD size;
@@ -1285,7 +1285,7 @@ int generarPaqueteArchivos(const char *filename, crawler_URL *paquete, int *pala
 	if (size < 0) return -1;
 	wsprintf(paquete->length, "%ld", size);
 
-	if (getKeywords(filename, &paquete->palabras, palabrasLen) < 0)
+	if (getKeywords(filename, &paquete->palabras) < 0)
 		return -1;
 	wsprintf(paquete->URL, "http://%s:%d/%s", inet_ntoa(*(IN_ADDR *)&config.ip), ntohs(config.puerto), filename);
 
