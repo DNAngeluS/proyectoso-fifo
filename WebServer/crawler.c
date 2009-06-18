@@ -205,7 +205,8 @@ static int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 			return -1;
 	}
 	else
-		hashman.flag[hash(np->file)] = RECIENTEMENTE_ACCEDIDO;
+		if (np != NULL)
+			hashman.flag[hash(np->file)] = RECIENTEMENTE_ACCEDIDO;
 
 	_CrtDumpMemoryLeaks();
 

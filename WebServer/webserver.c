@@ -151,12 +151,11 @@ int main()
 					if (httpTimeout_send(ptrAux->info.socket, ptrAux->info.getInfo) < 0)
 						printf("Error %d al enviar Http timeout a %s.\r\n\r\n", GetLastError(), inet_ntoa(ptrAux->info.direccion.sin_addr));
 					
+					closesocket(ptrAux->info.socket);
+
 					WaitForSingleObject(listMutex, INFINITE);
 					ptrAux->info.estado = ATENDIDO;
-					ReleaseMutex(listMutex);
-
-					ptrAux->info.estado = ATENDIDO;
-					closesocket(ptrAux->info.socket);
+					ReleaseMutex(listMutex);					
 				}
 
 				/*== Usuarios finalizados ==*/

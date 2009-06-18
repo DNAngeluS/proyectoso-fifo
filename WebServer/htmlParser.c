@@ -17,12 +17,13 @@ int parsearHtml(const char *htmlFile, crawler_URL *paquete)
 	xmlNode *rootElement = NULL;
 	char dirFile[MAX_PATH];
 
+	memset(dirFile, '\0', sizeof(dirFile));
+	memset(paquete, '\0', sizeof(*paquete));
+
 	wsprintf(dirFile, "%s\\%s", config.directorioFiles, htmlFile);
 
 	if (xmlOpen(dirFile, &xmlTree, &rootElement) < 0)
 		return -1;
-
-	memset(paquete, '\0', sizeof(*paquete));
 
 	xmlAddUrl(htmlFile, paquete->URL);
 
@@ -60,7 +61,7 @@ Ultima modificacion: Moya Farina, Lucio
 Recibe: nombre de archivo, xmlNode estrutura para el arbol del xml
 Devuelve: ok? 0: -1. completa la estructura xmlNode
 */
-int xmlOpen(const char *filename,xmlDoc **doc, xmlNode **root)
+int xmlOpen(const char *filename, xmlDoc **doc, xmlNode **root)
 {
 	/*Apertura del archivo XML*/
 	*doc = xmlReadFile(filename, NULL, 0);

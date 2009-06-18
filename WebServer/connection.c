@@ -144,7 +144,7 @@ SOCKET rutinaConexionCliente(SOCKET sockWebServer, unsigned maxClientes)
 					closesocket(sockCliente);
 					return -2;
 				}
-				if (cantidadThreadsLista(listaThread, ATENDIENDOSE) <= maxClientes && maxClientes != 0)
+				if (cantidadThreadsLista(listaThread, ATENDIENDOSE) < maxClientes)
 				{
 					ptrListaThread ptr = BuscarThread(listaThread, sockCliente);
 					if (ptr != NULL)
