@@ -147,7 +147,7 @@ int main()
 				/*== Busqueda de usarios con Timeout ==*/
 				if (ptrAux->info.estado == ESPERA && timeDiff > config.esperaMaxima)
 				{
-					printf("Resquet de %s timed-out.\r\n\r\n", inet_ntoa(ptrAux->info.direccion.sin_addr));
+					printf("Request de %s timed-out.\r\n\r\n", inet_ntoa(ptrAux->info.direccion.sin_addr));
 					if (httpTimeout_send(ptrAux->info.socket, ptrAux->info.getInfo) < 0)
 						printf("Error %d al enviar Http timeout a %s.\r\n\r\n", GetLastError(), inet_ntoa(ptrAux->info.direccion.sin_addr));
 					
