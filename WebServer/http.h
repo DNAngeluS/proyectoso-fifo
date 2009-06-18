@@ -1,7 +1,12 @@
 #ifndef HTTP
 #define HTTP
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <winsock2.h>
 #include <windows.h>
 
@@ -27,10 +32,10 @@ int httpGet_recv		(SOCKET sockfd, msgGet *getInfo);
 int httpTimeout_send	(SOCKET sockfd, msgGet getInfo);
 int httpNotFound_send	(SOCKET sockfd, msgGet getInfo);
 
-char *pathUnixToWin		(const char *dir, char *path);
+void pathUnixToWin		(const char *dir, char *path, char *pathBuscado);
 int getFileType			(const char *nombre, char *type);
 char *getFilename		(const char *path);
 DWORD getFileSize		(const char *nombre);
-int getKeywords			(const char *filename, char **palabras, int *palabrasLen);
+int getKeywords			(const char *filename, char **palabras);
 
 #endif

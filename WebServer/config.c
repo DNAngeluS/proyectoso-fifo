@@ -85,34 +85,34 @@ Devuelve: ok? 0: -1
  */
 int asignarDatos (configuracion *config, char *key, char *value)
 {
-	if (!lstrcmp(key, "IP")) 
+	if (!strcmp(key, "IP")) 
 		config->ip = inet_addr(value);
 
-	else if (!lstrcmp(key, "PUERTO"))
+	else if (!strcmp(key, "PUERTO"))
 		config->puerto = htons(atoi(value));
 
-	else if (!lstrcmp(key, "IP_WEBSTORE")) 
+	else if (!strcmp(key, "IP_WEBSTORE")) 
 		config->ipWebStore = inet_addr(value);
 
-	else if (!lstrcmp(key, "PUERTO_WEBSTORE"))
+	else if (!strcmp(key, "PUERTO_WEBSTORE"))
 		config->puertoWebStore = htons(atoi(value));
 
-	else if (!lstrcmp(key, "PATH_DOWNLOADS"))
+	else if (!strcmp(key, "PATH_DOWNLOADS"))
 		strcpy_s(config->directorioFiles, MAX_PATH, value);
 
-	else if (!lstrcmp(key, "MAX_CLIENTES_CONCURRENTES"))
+	else if (!strcmp(key, "MAX_CLIENTES_CONCURRENTES"))
 		config->cantidadClientes = (unsigned) atoi(value);
 
-	else if (!lstrcmp(key, "MAX_ESPERA_CLIENTES"))
+	else if (!strcmp(key, "MAX_ESPERA_CLIENTES"))
 		config->esperaMaxima = (unsigned) atoi(value);
 
-	else if (!lstrcmp(key, "PUERTO_CRAWLER"))
+	else if (!strcmp(key, "PUERTO_CRAWLER"))
 		config->puertoCrawler = htons(atoi(value));
 
-	else if (!lstrcmp(key, "MAX_ESPERA_CRAWLER"))
+	else if (!strcmp(key, "MAX_ESPERA_CRAWLER"))
 		config->esperaCrawler = (unsigned) atoi(value);
 
-	else if (!lstrcmp(key, "PATH_LOG"))
+	else if (!strcmp(key, "PATH_LOG"))
 	{
 		config->archivoLog = CreateFileA(value, GENERIC_WRITE,
 		0, NULL, CREATE_ALWAYS,

@@ -1,3 +1,10 @@
+#ifndef HASH
+#define HASH
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,3 +38,5 @@ int hashMD5						(char *filename, char *dir, char *md5sum);
 int hashSave					();
 int hashLoad					();
 BOOL hashVacia					();
+
+#endif

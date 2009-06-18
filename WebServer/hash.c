@@ -16,7 +16,7 @@ struct nlist *hashLookup(char *s)
 	struct nlist *np;
 
 	for (np = hashman.hashtab[hash(s)]; np != NULL; np = np->next)
-		if (lstrcmp(s, np->file) == 0)
+		if (strcmp(s, np->file) == 0)
 			return np;	/*Se encontro*/
 	return NULL;	/*No se encontro*/
 }
@@ -68,7 +68,7 @@ int hashClean(char *file)
 
     for ( np1 = np2 = hashman.hashtab[index]; np1 != NULL; np2 = np1, np1 = np1->next ) 
 	{
-        if ( lstrcmp(file, np1->file) == 0 ) 
+        if ( strcmp(file, np1->file) == 0 ) 
 		/*Encontro*/
 		{
             /*Remover nodo de la lista*/

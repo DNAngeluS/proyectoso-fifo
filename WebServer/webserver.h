@@ -1,6 +1,9 @@
 #ifndef WEBSERVER
 #define WEBSERVER
 
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <stdio.h>
 #include <time.h>
 #include <conio.h>
@@ -8,63 +11,26 @@
 #include <process.h>
 #include <winsock2.h>
 #include <windows.h>
-#include "http.h"
+#ifndef HTTP
+	#include "http.h"
+#endif
 
-#define WIN32_LEAN_AND_MEAN
+/*ESTO ES PARA DEBUGUEAR MEMORY LEAKS*/
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+/*ESTO ES PARA DEBUGUEAR MEMORY LEAKS*/
+/*Instruccion para ver leaks -->  _CrtDumpMemoryLeaks();   */
+
 /*#define BUF_SIZE 2048*/
 #define MAX_HEAP 1024*1024
-#define MAX_INPUT_CONSOLA 30
 
 enum codop_t {RUNNING, FINISH, OUTOFSERVICE};
+enum estado_t {ESPERA, ATENDIENDOSE, ATENDIDO};
 enum proceso_t {ELIMINA_NO_PUBLICO, ATIENDE_NUEVO_O_MODIFICADO, ARCHIVO_NO_SUFRIO_CAMBIOS};
 
 typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
-
-/*********** LISTAS **********************/
-enum estado_t {ESPERA, ATENDIDO};
-
-/*Estructuras para la cola de threads*/
-struct thread {
-	DWORD threadID;
-	SOCKET socket;
-	SOCKADDR_IN direccion;
-	HANDLE threadHandle;
-	DWORD arrival;
-	msgGet getInfo;
-	DWORD bytesEnviados;
-	BOOL estado;
-};
-
-typedef struct nodoListaThread{
-	struct thread info;
-	struct nodoListaThread *sgte;
-} NodoListaThread;
-
-typedef NodoListaThread *ptrListaThread;
-/*******************************************/
-
-
-/*Definiciones para el manejo de los mensajes de consola*/
-#define STR_MSG_HELP "USO:\r\n\t-help: Desplega modo de uso\r\n\t-queuestatus: Desplega estado de la Cola de Espera\r\n\t-run: Pone el Web Server en funcionamiento\r\n\t-finish: Finaliza el Web Server\r\n\t-outofservice: Establece al Web Server fuera de servicio\r\n\t-private file: Establece a file como archivo privado\r\n\t-public file: Establece a file como archivo publico\r\n\t-files: Desplega la lista de archivos y su hash\r\n\t-reset: Limpia la Tabla Hash de archivo publicos del Web Server\r\n\r\n"
-#define STR_MSG_QUEUESTATUS "Estado actual de la Cola de Espera:\r\n\r\n"
-#define STR_MSG_HASH "Estado de la Tabla Hash segun ultima migracion de Web Crawler:\r\n\r\n"
-#define STR_MSG_RUN "Web Server en servicio\r\n\r\n"
-#define STR_MSG_RESET "Se a limpiado la Tabla Hash\r\n\r\n"
-#define STR_MSG_FINISH "Web Server a finalizado\r\n\r\n"
-#define STR_MSG_OUTOFSERVICE "Web Server fuera de servicio\r\n\r\n"
-#define STR_MSG_PUBLIC "El archivo es ahora publico. Proximos Crawlers podran detectarlos\r\n\r\n"
-#define STR_MSG_PRIVATE "El archivo es ahora privado. Proximos Crawlers no podran detectarlos\r\n\r\n"
-#define STR_MSG_INVALID_OUTOFSERVICE "Error: Web Server ya se encuentra fuera de servicio. Ingrese -run para activar el servicio\r\n\r\n"
-#define STR_MSG_INVALID_INPUT "Error: Comando invalido. Escriba -help para informacion de comandos\r\n\r\n"
-#define STR_MSG_WELCOME "----Web Server----\r\n------------------\r\n\r\n"
-#define STR_MSG_INVALID_PRIVATE "Error: El archivo ya es privado\r\n\r\n"
-#define STR_MSG_INVALID_PUBLIC "Error: El archivo ya es publico\r\n\r\n"
-#define STR_MSG_INVALID_ARG "Error: Argumento invalido\r\n\r\n"
-#define STR_MSG_INVALID_FILE "Error: El archivo no existe\r\n\r\n"
-#define STR_MSG_INVALID_RESET "No se pudo realizar la limpieza de la Tabla Hash. Se conserva su estado actual.\r\nIngrese -files para conocer el estado actual de la Tabla Hash\r\n\r\n"
-#define STR_MSG_INVALID_RUN "Error: Web Server ya se encuentra en servicio. Ingrese -outofservice para desactivar servicio o -finish para finalizar\r\n\r\n"
-
 
 #define ENCABEZADO_LOG "Archivo Log - Web Server\r\n\r\n"
 #define FINAL_LOG "---Web Server Finalizado---\r\n\r\n"

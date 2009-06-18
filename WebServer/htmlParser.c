@@ -95,13 +95,13 @@ int xmlReadNodo(xmlNode *nodo, crawler_URL *paq)
 	{
         if (curNode->type == XML_ELEMENT_NODE)
 		{
-			if(!(lstrcmp(curNode->name, "title")))
+			if(!(strcmp(curNode->name, "title")))
 			{
 				lstrcpy(paq->titulo, xmlGetContent(curNode) );
 			}
-			if( (!(lstrcmp(curNode->name, "META"))) ||
-				(!(lstrcmp(curNode->name, "a"))) ||
-				(!(lstrcmp(curNode->name, "img"))) )
+			if( (!(strcmp(curNode->name, "META"))) ||
+				(!(strcmp(curNode->name, "a"))) ||
+				(!(strcmp(curNode->name, "img"))) )
 				xmlReadAtt(curNode->properties, paq);
 
 		}		
@@ -127,18 +127,18 @@ int xmlReadAtt(xmlAttr *nodo, crawler_URL *paq)
 	{
 		if (curNode->type == XML_ATTRIBUTE_NODE)
 		{
-			if (!(lstrcmp(curNode->children->content, "keywords")))
+			if (!(strcmp(curNode->children->content, "keywords")))
 			{
 				char palabras[MAX_PATH];
 				memset(palabras, '\0', MAX_PATH);
 				campo = palabras;
 				keywords = 1;
 			}
-			if (!(lstrcmp(curNode->children->content, "description")))
+			if (!(strcmp(curNode->children->content, "description")))
 				campo = paq->descripcion;
-			if (!(lstrcmp(curNode->name, "content")))
+			if (!(strcmp(curNode->name, "content")))
 				lstrcpy(campo, xmlGetAttContent(curNode) );	
-			if (!(lstrcmp(curNode->name, "href")))
+			if (!(strcmp(curNode->name, "href")))
 			{ 
 				char *htmlDir = xmlGetAttContent(curNode); /*contiene "http://xxxx.xxxx.xxxx.xxxx:xxxxx/unaPAG.html"*/
 				
@@ -148,7 +148,7 @@ int xmlReadAtt(xmlAttr *nodo, crawler_URL *paq)
 				else
 					printf("Crawler se a instanciado con exito.\r\n\r\n");			
 			}
-			if (!(lstrcmp(curNode->name, "src")))
+			if (!(strcmp(curNode->name, "src")))
 			{
 				char *imgDir = xmlGetAttContent(curNode); /*contiene "http://xxxx.xxxx.xxxx.xxxx:xxxx/unaIMG.jpg" o "img/unaIMG.jpg"*/ 
 				

@@ -60,9 +60,7 @@ int RecibirBloque(SOCKET sockfd, char *bloque) {
     int bHastaAhora = 0;
     int NonBlock = 1;
 
-    errno = 0;
-
-    do
+	do
 	{
 		if (bRecibidos != 0)
 		{
@@ -96,44 +94,51 @@ int RecibirBloque(SOCKET sockfd, char *bloque) {
 
 int httpGet_recv(SOCKET sockfd, msgGet *getInfo)
 {
-	char buffer[BUF_SIZE], *ptr, *nextT;
-	char header[4];
-	int bytesRecv, error = 0;
+    char buffer[BUF_SIZE], *ptr;
+    int bytesRecv=-1, error = 0;
 
-	if ((bytesRecv = RecibirBloque(sockfd, buffer)) == -1)
-		error = 1;
-	else
-	{
-		buffer[bytesRecv+1] = '\0';
-		
-		lstrcpy(header, strtok_s(buffer, " ", &nextT));
+    memset(buffer, '\0', BUF_SIZE);
 
-		if(!lstrcmp(header, "GET"))
-		{
-			char *filename = getInfo->filename;
-			
-			lstrcpy(filename, strtok_s(NULL, " ", &nextT));
-			filename[strlen(filename)] = '\0';
-			filename;
-			lstrcpy(getInfo->filename,filename);
-			
-			ptr = strtok_s(NULL, ".", &nextT);
-			getInfo->protocolo = atoi(strtok_s(NULL, "\r\n", &nextT));
+    if ((bytesRecv = RecibirBloque(sockfd, buffer)) == -1)
+        error = 1;
+    else
+    {
+        int error = 1;
+        char *palabras;
 
-			if (getInfo->protocolo != 0 && getInfo->protocolo != 1)
-				error = 1;
-		}
-		else
-			error = 1;
-	}
-	if (error)
-	{
-		getInfo->protocolo = -1;
-		lstrcpy(getInfo->filename, "");
-		return -1;
-	}
-	else
-		return 0;
+        ptr = buffer;
+        for (;*ptr != '\0';ptr++)
+        {
+            if (!memcmp(ptr,"GET ", strlen("GET ")))
+            {
+                error = 0;
+                ptr = ptr + strlen("GET ");
+                palabras = ptr;
+            }
+            if (!error && *ptr == ' ')
+            {
+				memcpy(getInfo->filename, palabras, ptr - palabras);
+                getInfo->filename[ptr - palabras] = '\0';
+            }
+
+            if (!error && !memcmp(ptr,"HTTP/1.", strlen("HTTP/1.")))
+            {
+                ptr = ptr + strlen("HTTP/1.");
+                getInfo->protocolo = *ptr - '0';
+                break;
+            }
+        }
+
+        if (getInfo->protocolo != 0 && getInfo->protocolo != 1)
+            error = 1;
+    }
+    if (error)
+    {
+        getInfo->protocolo = -1;
+        lstrcpy(getInfo->filename, "");
+        return -1;
+    }
+    else return 0;
 }
 
 DWORD getFileSize(const char *nombre)
@@ -156,31 +161,31 @@ int getFileType(const char *nombre, char *type)
 	ptr++;
 	lstrcpy(type, ptr);
 
-	if (!lstrcmp(ptr, "jpg"))
+	if (!strcmp(ptr, "jpg"))
 		return JPG;
-	if (!lstrcmp(ptr, "txt"))
+	if (!strcmp(ptr, "txt"))
 		return TXT;
-	if (!lstrcmp(ptr, "pdf"))
+	if (!strcmp(ptr, "pdf"))
 		return PDF;
-	if (!lstrcmp(ptr, "exe"))
+	if (!strcmp(ptr, "exe"))
 		return EXE;
-	if (!lstrcmp(ptr, "zip"))
+	if (!strcmp(ptr, "zip"))
 		return ZIP;
-	if (!lstrcmp(ptr, "html"))
+	if (!strcmp(ptr, "html"))
 		return HTML;
-	if (!lstrcmp(ptr, "doc"))
+	if (!strcmp(ptr, "doc"))
 		return DOC;
-	if (!lstrcmp(ptr, "xls"))
+	if (!strcmp(ptr, "xls"))
 		return XLS;
-	if (!lstrcmp(ptr, "ppt"))
+	if (!strcmp(ptr, "ppt"))
 		return PPT;
-	if (!lstrcmp(ptr, "gif"))
+	if (!strcmp(ptr, "gif"))
 		return GIF;
-	if (!lstrcmp(ptr, "png"))
+	if (!strcmp(ptr, "png"))
 		return PNG;
-	if (!lstrcmp(ptr, "jpeg"))
+	if (!strcmp(ptr, "jpeg"))
 		return JPEG;
-	if (!lstrcmp(ptr, "php"))
+	if (!strcmp(ptr, "php"))
 		return PHP;
 	return ARCHIVO;
 }
@@ -192,10 +197,12 @@ int httpOk_send(SOCKET sockfd, msgGet getInfo)
 	char tipoArchivo[50];
 	char type[MAX_FORMATO];
 	int bytesSend = 0, error = 0;
-	int fileType;
-	DWORD fileSize;
+	int fileType = -1;
+	DWORD fileSize = -1;
 
-	ZeroMemory(buffer, BUF_SIZE);
+	memset(buffer, '\0', sizeof(buffer));
+	memset(tipoArchivo, '\0', sizeof(tipoArchivo));
+	memset(type, '\0', sizeof(type));
 	
 	fileSize = getFileSize(getInfo.filename);
 	fileType = getFileType(getInfo.filename, type);
@@ -303,21 +310,21 @@ int EnviarArchivo(SOCKET sockRemoto, char *fileBuscado)
 	
 	char buf[BUF_SIZE];
 	DWORD fileSize, bAEnviar = 0;
-	HANDLE fileHandle;
+	HANDLE fileHandle = INVALID_HANDLE_VALUE;
 	int bEnviadosAux, bEnviadosTot = 0;
 	int lenALeer = 0, error = 0, neof = 1;
-	DWORD valor;
-	DWORD dato1, dato2;
+	DWORD valor = 0;
+	DWORD dato1 = 0, dato2 = 0;
 
 	/*fileHandle = CreateFile(fileBuscado, GENERIC_READ, FILE_SHARE_READ, 
-						NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_READONLY, NULL);
-	*/
-	fileHandle = CreateFile(fileBuscado, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 
-						NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-	
-
+						NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_READONLY, NULL);*/	
 	/*fileHandle = CreateFile(fileBuscado, GENERIC_READ, FILE_SHARE_READ, 
 						NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY | FILE_FLAG_OVERLAPPED, NULL);*/
+
+	memset(buf, '\0', sizeof(buf));
+
+	fileHandle = CreateFile(fileBuscado, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 
+						NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
 	fileSize = GetFileSize(fileHandle, NULL);
 
@@ -327,7 +334,7 @@ int EnviarArchivo(SOCKET sockRemoto, char *fileBuscado)
 	SetFilePointer(fileHandle, 0, NULL, FILE_BEGIN);
 	do 
 	{
-		ZeroMemory(buf, BUF_SIZE);
+		memset(buf, '\0', sizeof(buf));
 		if (FALSE == ReadFile(fileHandle, buf, BUF_SIZE, &bAEnviar, NULL))
 		{
 			printf("Error en ReadFile");
@@ -355,22 +362,30 @@ int EnviarArchivo(SOCKET sockRemoto, char *fileBuscado)
 int BuscarArchivo(char *filename)
 {
 	WIN32_FIND_DATA findData;
-	HANDLE hFind;
+	HANDLE hFind = INVALID_HANDLE_VALUE;
+	int encontro = 0;
+
+	memset(&findData, '\0', sizeof(WIN32_FIND_DATA));
 
 	hFind = FindFirstFile(filename, &findData);
 
-	if (hFind == INVALID_HANDLE_VALUE)
-		return 0;
-	FindClose(hFind);
+	if (hFind != INVALID_HANDLE_VALUE)
+		encontro = 1;
+	else if (hFind == INVALID_HANDLE_VALUE && GetLastError() == ERROR_FILE_NOT_FOUND)
+		encontro = 0;
+	else
+		encontro = -1;
 
-	return 1;
+	return encontro;
 }
 
-char *pathUnixToWin(const char *dir, char *path)
+void pathUnixToWin(const char *dir, char *path, char *pathBuscado)
 {
     char filename[MAX_PATH];
     char *i, *j, *lim = path + lstrlen(path);
 	int k;
+
+	memset(filename, '\0', sizeof(filename));
 
     /* Buscamos el ultimo nombre, el del archivo */
 	j = path;
@@ -385,7 +400,8 @@ char *pathUnixToWin(const char *dir, char *path)
     strcpy_s(filename, MAX_PATH, j);
     sprintf_s(path, MAX_PATH, "%s%s", dir, filename);
 	
-    return path;
+	lstrcpy(pathBuscado, path);
+    return;
 }
 
 char *getFilename(const char *path)
@@ -395,7 +411,7 @@ char *getFilename(const char *path)
 	return ++filename;
 }
 
-int getKeywords (const char *filename, char **palabras, int *palabrasLen)
+int getKeywords (const char *filename, char **palabras)
 {
     char nombre[MAX_PATH], *word, *ptr, *lim;
     int i=0;
@@ -425,7 +441,6 @@ int getKeywords (const char *filename, char **palabras, int *palabrasLen)
        }
     }
 
-    *palabrasLen = (int)(strlen(vp)+1);
     *palabras = vp;
         
     return 0;

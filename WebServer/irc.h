@@ -5,8 +5,8 @@
  * Created on 2 de mayo de 2009, 20:09
  */
 
-#ifndef _IRC_H
-#define	_IRC_H
+#ifndef IRC
+#define	IRC
 
 #include "webserver.h"
 
