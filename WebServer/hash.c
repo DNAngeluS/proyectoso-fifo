@@ -29,7 +29,7 @@ struct nlist *hashInstall(char *file, char *md5)
 	if ((np = hashLookup(file)) == NULL)
 	/*No fue encontrado*/
 	{
-		np = (struct nlist *) malloc(sizeof(*np));
+		np = HeapAlloc(GetProcessHeap(), 0, sizeof(*np));
 		if (np == NULL || (np->file = _strdup(file)) == NULL)
 			return NULL;
 		hashval = hash(file);
@@ -41,7 +41,7 @@ struct nlist *hashInstall(char *file, char *md5)
 		hashman.ocupados++;
 	}
 	else /*Ya esta alli*/
-		free ((void *) np->md5); /*Libera anterior md5*/
+		HeapFree (GetProcessHeap(), 0, np->md5); /*Libera anterior md5*/
 	if ((np->md5 = _strdup(md5)) == NULL)
 		return NULL;
 	return np;
@@ -82,9 +82,9 @@ int hashClean(char *file)
 			hashman.ocupados--;
 
             /*Liberar memoria*/
-            free(np1->file);
-            free(np1->md5);
-            free(np1);
+			HeapFree (GetProcessHeap(), 0, np1->file);
+			HeapFree (GetProcessHeap(), 0, np1->md5);
+			HeapFree (GetProcessHeap(), 0, np1);
 
             return 0;
         }

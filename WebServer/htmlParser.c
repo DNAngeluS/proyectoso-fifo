@@ -213,8 +213,7 @@ int xmlGetKeywords (const char *keywords, char **palabra, int *palabrasLen)
     
     char *vp = NULL;
     
-    vp = (char *) calloc(1, sizeof(char));
-    if (vp == NULL)
+	if ( (vp = HeapAlloc(GetProcessHeap(), 0, sizeof(char))) == NULL)
        return -1;
     
     lstrcpy(nombre, keywords);

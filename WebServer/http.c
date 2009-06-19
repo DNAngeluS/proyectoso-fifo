@@ -418,8 +418,7 @@ int getKeywords (const char *filename, char **palabras)
     
     char *vp = NULL;
     
-    vp = (char *) calloc(1, sizeof(char));
-    if (vp == NULL)
+    if ( (vp = HeapAlloc(GetProcessHeap(), 0, sizeof(char))) == NULL)
        return -1;
     
     lstrcpy(nombre, filename);

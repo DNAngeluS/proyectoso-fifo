@@ -99,7 +99,7 @@ int enviarPaquete(in_addr_t nDireccion, in_port_t nPort, crawler_URL *paquete, i
 
     printf("Paquete enviado a WebStore en %s.\r\n\r\n", inet_ntoa(dirServidor.sin_addr));
 
-	free(paquete->palabras);
+	HeapFree (GetProcessHeap(), 0, paquete->palabras);
     closesocket(sockWebStore);
     
     return 0;
