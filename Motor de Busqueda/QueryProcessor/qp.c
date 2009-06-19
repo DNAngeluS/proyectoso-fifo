@@ -195,8 +195,8 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
         }
 
          /*Si no hay concordancia con los tipos de recursos que se enviaron y que se atienden*/
-        if (!((config.tipoRecurso == 0 && (mode == IRC_REQUEST_HTML || mode == IRC_REQUEST_CACHE))
-                ||  (config.tipoRecurso == 1 && mode == IRC_REQUEST_ARCHIVOS)))
+	if ( (config.tipoRecurso == 1 && mode != IRC_REQUEST_ARCHIVOS) ||
+		(config.tipoRecurso == 0 && (mode != IRC_REQUEST_HTML || mode != IRC_REQUEST_CACHE)) )
         {
            /*Envia el IRC con codigo de error*/
             if (ircResponse_send(sockCliente, descriptorID, NULL, 0, IRC_RESPONSE_ERROR) < 0)
@@ -208,7 +208,7 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
         }
 
 	/*Realiza la busqueda*/
-	if ((resultSet = consultarLDAP(ldap, getInfo.queryString, mode)) == NULL)
+	if ((resultSet = consultarLDAP(ldap, getInfo.queryString)) == NULL)
 	{
             perror("consultarLDAP");
             return -1;
@@ -223,12 +223,20 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
 
         /*Indentifica el tipo de busqueda*/
 	if (mode == IRC_REQUEST_HTML)
+	{
             len = (sizeof(so_URL_HTML))*cantBloques;
+	    mode = IRC_RESPONSE_HTML;
+	}	
 	if (mode == IRC_REQUEST_ARCHIVOS)
+	{
             len = (sizeof(so_URL_Archivos))*cantBloques;
+	    mode = IRC_RESPONSE_ARCHIVOS;
+	}
         if (mode == IRC_REQUEST_CACHE)
+	{
             len = sizeof(hostsCodigo);
-
+	    mode = IRC_RESPONSE_CACHE;
+	}
 	/*Envia el IRC con los datos encontrados*/
 	if (ircResponse_send(sockCliente, descriptorID, resultados, len, mode) < 0)
 	{

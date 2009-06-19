@@ -481,6 +481,7 @@ int obtenerUUID(msgGet getThread, msgGet *getInfo)
     uuid = strtok(NULL, "");
 
     strcpy(getInfo->palabras, uuid);
+    sprintf(getInfo->queryString, "(utnurlID=%s)", uuid);
 
     return 0;
 }

@@ -138,7 +138,7 @@ int solicitarBusquedaCache(SOCKET sockQP, msgGet getInfo, hostsCodigo **respuest
       return -1;
     }
 
-    mode = 0x00;
+    *mode = 0x00;
 
     /*Recibir respuesta cache de QP*/
     if (ircResponse_recv(sockQP, (void *)respuesta, descriptorID, &respuestaLen, mode) < 0)
@@ -174,12 +174,17 @@ int solicitarBusqueda(SOCKET sockQP, msgGet getInfo, void **respuesta, unsigned 
       return -1;
     }
 
+    modeSend = 0x00;
+
     /*Recibir consulta de QP*/
-    if (ircResponse_recv(sockQP, respuesta, descriptorID, respuestaLen, mode) < 0)
+    if (ircResponse_recv(sockQP, respuesta, descriptorID, respuestaLen, &modeSend) < 0)
     {
         printf("Error al enviar consulta a QP.\n\n");
         return -1;
     }
+
+    *mode = modeSend;
+
     return 0;
 }
 
@@ -211,14 +216,11 @@ int EnviarRespuestaHtmlCache (SOCKET socket, char *htmlCode, msgGet getInfo)
 	     perror("write: htmlFile");
 	     return -1;
 	 }
-    if (nBytes != strlen(buffer))
+    if (nBytes != strlen(htmlCode))
     {
         perror("write: no completo escritura");
         return -1;
     }
-
-    /*Libero las respuestas ya utlizadas*/
-    free(respuesta);
 
     /*Se cierra archivo y vuelve a abrir en modo lectura*/
     close(htmlFile);
@@ -326,6 +328,9 @@ void *rutinaAtencionCache (void *args)
         if (httpInternalServiceError_send(sockCliente, getInfo) < 0)
             printf("Error al enviar HTTP Internal Service Error.\n\n");
     }
+
+    /*Libero las respuestas ya utlizadas*/
+    free(respuesta);
 
     /*Se cierra conexion con Cliente y con QP*/
     close(sockCliente);
