@@ -14,19 +14,22 @@
 
 void rutinaDeError(char *string);
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
-int atenderConsulta(SOCKET sockfd, ldapObj ldap);
+int atenderConsulta(SOCKET sockfd, ldapObj ldap, int cantidadConexiones);
+
+configuracion config;
 
 int main()
 {
     SOCKET sockQP;
     
-    configuracion config;
     ldapObj ldap;
     
     fd_set fdMaestro;
     fd_set fdLectura;
     struct timeval timeout;
-    int fdMax, cli;
+    int fdMax, cli, cantidadConexiones;
+
+    fdMax = cli = cantidadConexiones = 0;
     
     /*Lectura de Archivo de Configuracion*/
     if (leerArchivoConfiguracion(&config) < 0)
@@ -81,7 +84,7 @@ int main()
                         char descriptorID[DESCRIPTORID_LEN];
 
                         memset(descriptorID, '\0', DESCRIPTORID_LEN);
-
+                       
                         /*Acepta la conexion entrante. Thread en el front end*/
                         sockCliente = accept(sockQP, (SOCKADDR *) &dirCliente, &nAddrSize);
                         if (sockCliente == INVALID_SOCKET)
@@ -94,24 +97,34 @@ int main()
                         FD_SET (sockCliente, &fdMaestro);
                         if (sockCliente > fdMax)
                                 fdMax = sockCliente;
+                        cantidadConexiones++;
 
                         printf ("Conexion aceptada de %s.\n", inet_ntoa(dirCliente.sin_addr));
                     }
                     else
                     /*Cliente detectado -> esta enviando consultas*/
                     {
-                        if (atenderConsulta(cli, ldap) < 0)
-                            printf("Hubo un error al atender Cliente.");
-                        else
-                            printf("Atencion de cliente finalizada satisfactoriamente.");
+                        int control;
 
-                        printf("Se cierra conexion.\n\n");
+                        control = atenderConsulta(cli, ldap, cantidadConexiones);
+
+                        if (control == 2)
+                            printf("Se ah llegado al tope conexiones, se rechaza el pedido.");
+                        else if (control == 1)
+                            printf("Se a solicitado un recurso que no atiende este Query Processor.");
+                        else if (control == 0)
+                                  printf("Atencion de cliente finalizada satisfactoriamente.");
+                        else if (control < 0)
+                                printf("Hubo un error al atender Cliente.");
+                        printf(" Se cierra conexion.\n\n");
+                   
                         /*Eliminar cliente y actualizar nuevo maximo*/
                         close(cli);
                         FD_CLR(cli, &fdMaestro);
                         if (cli == fdMax)
                             while (FD_ISSET(fdMax, &fdMaestro) == 0)
                                 fdMax--;
+                        cantidadConexiones--;
                     }
                 }
             }
@@ -141,12 +154,13 @@ Recibe: Socket y estructura LDAP.
 Devuelve: ok? Socket del servidor: socket invalido.
 */
 
-int atenderConsulta(SOCKET sockCliente, ldapObj ldap)
+int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
 { 
 	/*IRC/IPC*/
 	msgGet getInfo;
 	char descriptorID[DESCRIPTORID_LEN];
 	int mode = 0x00;
+        int tipoRecurso;
 	void *resultados = NULL;
 	unsigned long len = 0;
 	PLDAP_RESULT_SET resultSet = NULL;
@@ -155,12 +169,43 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap)
         memset(&getInfo, '\0', sizeof(getInfo));
         memset(descriptorID, '\0', sizeof(descriptorID));
 
+        if (config.tipoRecurso == 0)
+            tipoRecurso = IRC_REQUEST_HTML;
+        else if (config.tipoRecurso == 1)
+            tipoRecurso = IRC_REQUEST_ARCHIVOS;
+
 	/*Recibe las palabras a buscar*/
 	if (ircRequest_recv (sockCliente, (void *) &getInfo, descriptorID, &mode) < 0)
 	{
             perror("ircRequest_recv");
             return -1;
 	}
+
+        /*Si no hay conexiones disponibles*/
+        if (!(cantidadConexiones < config.cantidadConexiones))
+        {
+            /*Envia el IRC con codigo de error*/
+            if (ircResponse_send(sockCliente, descriptorID, NULL, 0, IRC_RESPONSE_ERROR) < 0)
+            {
+              perror("ircResponse_send");
+              return -1;
+            }
+
+            return 2;
+        }
+
+         /*Si no hay concordancia con los tipos de recursos que se enviaron y que se atienden*/
+        if (!((config.tipoRecurso == 0 && (mode == IRC_REQUEST_HTML || mode == IRC_REQUEST_CACHE))
+                ||  (config.tipoRecurso == 1 && mode == IRC_REQUEST_ARCHIVOS)))
+        {
+           /*Envia el IRC con codigo de error*/
+            if (ircResponse_send(sockCliente, descriptorID, NULL, 0, IRC_RESPONSE_ERROR) < 0)
+            {
+              perror("ircResponse_send");
+              return -1;
+            }
+            return 1;
+        }
 
 	/*Realiza la busqueda*/
 	if ((resultSet = consultarLDAP(ldap, getInfo.queryString, mode)) == NULL)

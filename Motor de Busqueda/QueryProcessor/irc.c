@@ -108,11 +108,14 @@ int ircResponse_send (SOCKET sock, char *descriptorID, void *bloque,
         return -1;
     }
 
-    len = bloqueLen;
-    if (EnviarBloque(sock, len, bloque) != len)
+    if (bloqueLen != 0 || bloque != NULL)
     {
-        printf("Error en irc request send bloque\n");
-        return -1;
+        len = bloqueLen;
+        if (EnviarBloque(sock, len, bloque) != len)
+        {
+            printf("Error en irc request send bloque\n");
+            return -1;
+        }
     }
     return 0;
 }
