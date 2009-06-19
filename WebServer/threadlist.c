@@ -83,10 +83,8 @@ int AgregarThread(ptrListaThread *ths, SOCKET socket, SOCKADDR_IN dirCliente, ms
 
 	while (actual != NULL)
 	{
-		WaitForSingleObject(listMutex, INFINITE);
 		anterior = actual;
 		actual = actual->sgte;
-		ReleaseMutex(listMutex);
 	}
 	
 	if (anterior == NULL)
@@ -97,11 +95,8 @@ int AgregarThread(ptrListaThread *ths, SOCKET socket, SOCKADDR_IN dirCliente, ms
 		ReleaseMutex(listMutex);
 	}
 	else
-	{
-		WaitForSingleObject(listMutex, INFINITE);
-		anterior->sgte = nuevo;
+	{		anterior->sgte = nuevo;
 		nuevo->sgte = actual;
-		ReleaseMutex(listMutex);
 	}
 
 	return 0;
