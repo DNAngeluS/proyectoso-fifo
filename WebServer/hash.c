@@ -1,6 +1,7 @@
 #include "hash.h"
 
 extern struct hashManager hashman;
+static char *miStrdup(char *s);
 
 unsigned hash(char *s)
 {
@@ -30,7 +31,7 @@ struct nlist *hashInstall(char *file, char *md5)
 	/*No fue encontrado*/
 	{
 		np = HeapAlloc(GetProcessHeap(), 0, sizeof(*np));
-		if (np == NULL || (np->file = _strdup(file)) == NULL)
+		if (np == NULL || (np->file = miStrdup(file)) == NULL)
 			return NULL;
 		hashval = hash(file);
 		np->next = hashman.hashtab[hashval];
@@ -42,7 +43,7 @@ struct nlist *hashInstall(char *file, char *md5)
 	}
 	else /*Ya esta alli*/
 		HeapFree (GetProcessHeap(), 0, np->md5); /*Libera anterior md5*/
-	if ((np->md5 = _strdup(md5)) == NULL)
+	if ((np->md5 = miStrdup(md5)) == NULL)
 		return NULL;
 	return np;
 }
@@ -310,8 +311,8 @@ int hashLoad()
 
 static int ingresarValor(char *file, char *md5, int pos)
 {
-	hashman.hashtab[pos]->file = _strdup(file);
-	hashman.hashtab[pos]->md5 = _strdup(md5);
+	hashman.hashtab[pos]->file = miStrdup(file);
+	hashman.hashtab[pos]->md5 = miStrdup(md5);
 
 	return 0;
 }
@@ -327,4 +328,16 @@ BOOL hashVacia()
 	}
 
 	return (i == HASHSIZE);
+}
+
+
+char *miStrdup(char *s)
+{
+	char *result = HeapAlloc(GetProcessHeap(), 0, strlen(s) + 1);
+    
+	if (result == NULL)
+		return NULL;
+
+    lstrcpy(result, s);
+    return result;
 }

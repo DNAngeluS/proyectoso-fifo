@@ -239,7 +239,8 @@ int ircResponse_recv (SOCKET sock, void **bloque, unsigned long *respuestaLen, c
         len = header.payloadLen;
         *respuestaLen = header.payloadLen;
         
-        *bloque = realloc(*bloque, len);
+		if ((*bloque = HeapReAlloc(GetProcessHeap(), 0, *bloque, len)) == NULL)
+				return -1;
 
         if (RecibirNBloque(sock, *bloque, len) != len)
         {

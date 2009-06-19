@@ -433,7 +433,8 @@ int getKeywords (const char *filename, char **palabras)
 			*ptr = '\0';
 			wsprintf(keyword, "%s,", word);
 
-			vp = realloc(vp, strlen(vp) + strlen(keyword)+1);
+			if ((vp = HeapReAlloc(GetProcessHeap(), 0, vp, strlen(vp) + strlen(keyword)+1)) == NULL)
+				return -1;
 
 			lstrcat(vp, keyword);
 			word = ptr+1;
