@@ -36,6 +36,7 @@ int httpOk_send                         (SOCKET sockfd, msgGet getInfo);
 
 int obtenerGetType                      (const char *palabras);
 int obtenerQueryString                  (msgGet getThread, msgGet *getInfo);
+int obtenerUUID                         (msgGet getThread, msgGet *getInfo);
 unsigned long getFileSize               (int fdFile);
 
 #endif	/* _HTTP_H */

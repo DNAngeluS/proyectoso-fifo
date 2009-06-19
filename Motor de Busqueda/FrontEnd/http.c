@@ -11,7 +11,7 @@ int detectarCaracter                    (char *palabra);
 void desplazarCadena                    (char *ptr, char caracter);
 void transformarCaracteresEspeciales    (char *palabra);
 void formatQueryString                  (char *palabras, char *queryString);
-
+char *eliminarEspaciosEnBlanco          (char *palabra);
 
 
 /*
@@ -432,25 +432,32 @@ Devuelve: codigo del tipo de pedido
 */
 int obtenerGetType(const char *palabras)
 {
-    char *ptr;
-
-    ptr = strchr(palabras, '?');
-
-    if (ptr == NULL)
-    {
-        return BROWSER;
-    }
+    if (strstr(palabras, "buscar="))
+        return FORMULARIO;
+    else if (strstr(palabras,"cache="))
+        return CACHE;
     else
-    {
-        if (strstr(palabras, "buscar="))
-        {
-            return FORMULARIO;
-        }
-        else
-            return BROWSER;
-    }
+        return BROWSER;
 }
 
+
+int obtenerUUID(msgGet getThread, msgGet *getInfo)
+{
+    char busqueda[MAX_PATH];
+    char *uuid;
+
+    memset(busqueda, '\0', MAX_PATH);
+    memset(getInfo, '\0', sizeof(*getInfo));
+
+    strcpy(busqueda, getThread.palabras);
+
+    strtok(busqueda, "=");
+    uuid = strtok(NULL, "");
+
+    strcpy(getInfo->palabras, uuid);
+
+    return 0;
+}
 
 /*
 Descripcion: Obtiene el query string de una busqueda
@@ -490,8 +497,9 @@ int obtenerQueryString(msgGet getThread, msgGet *getInfo)
     }
 
     transformarCaracteresEspeciales(palabra);
-    strcpy(getInfo->palabras, palabra);
-    formatQueryString(getInfo->palabras, queryString);
+    formatQueryString(palabra, queryString);
+    strcpy(getInfo->palabras, eliminarEspaciosEnBlanco(palabra));
+    
 
     strcpy(getInfo->queryString, queryString);
 
@@ -539,7 +547,7 @@ void formatQueryString(char *palabras, char *queryString)
                 strcat(andBuf, buf);
                 and = 1;
            }
-           if (*ptrSeek == '-')		*ptrSeek = '+';
+           /*if (*ptrSeek == '-')		*ptrSeek = '+';*/
         }
 
         if (*ptrSeek == '+')
@@ -590,7 +598,28 @@ void formatQueryString(char *palabras, char *queryString)
     strcat(queryString, or? ")": andBuf);
 }
 
+char *eliminarEspaciosEnBlanco(char *palabra)
+{
+    char *psinblancos;
+    int j = 0;
 
+    memset(psinblancos, '\0', sizeof(psinblancos));
+
+     for (;*palabra != NULL;palabra++)
+     {
+         if (*palabra == '+' && *(palabra+1) == '+')
+             continue;
+         if (*palabra == '+' && *(palabra+1) == '-')
+             continue;
+         if (*palabra == '+' && *(palabra-1) == '-')
+             continue;
+         psinblancos[j++] = *palabra;
+     }
+
+    psinblancos[j] = '\0';
+
+    return psinblancos;
+}
 
 /*
 Descripcion: Cambia los caracteres que se modifican por el
@@ -660,8 +689,6 @@ void transformarCaracteresEspeciales(char *palabra)
             else    desplazarCadena(palabra,'\\');
         }
     }
-
-
 }
 
 

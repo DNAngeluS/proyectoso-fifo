@@ -32,9 +32,10 @@
 #define QUERYSTRING_SIZE 256
 #define MAX_HTML 512
 #define MAX_HTTP 512
+#define MAX_HTMLCODE 4096
 
 
-enum getType_t {FORMULARIO, BROWSER};
+enum getType_t {FORMULARIO, BROWSER, CACHE};
 enum searchType_t {WEB, IMG, OTROS};
 
 typedef int SOCKET;

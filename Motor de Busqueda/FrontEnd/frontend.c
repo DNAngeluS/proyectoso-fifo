@@ -18,12 +18,14 @@ SOCKET establecerConexionEscucha    (in_addr_t nDireccionIP, in_port_t nPort);
 SOCKET establecerConexionQP         (in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *dir);
 
 void *rutinaAtencionCliente         (void *sock);
+void *rutinaAtencionCache           (void *args);
 int rutinaCrearThread               (void *(*funcion)(void *), SOCKET sockfd,
                                         msgGet getInfo, SOCKADDR_IN dir);
 
 int EnviarFormularioHtml            (SOCKET sockfd, msgGet getInfo);
 int EnviarRespuestaHtml             (SOCKET socket, msgGet getInfo, void *respuesta,
                                         unsigned long respuestaLen, struct timeb tiempoInicio);
+int EnviarRespuestaHtmlCache        (SOCKET socket, char *htmlCode, msgGet getInfo);
 
 int generarHtmlWEB                  (int htmlFile, so_URL_HTML      *respuesta, unsigned long respuestaLen);
 int generarHtmlOTROS                (int htmlFile, so_URL_Archivos  *respuesta, unsigned long respuestaLen);
@@ -32,7 +34,7 @@ int generarEncabezadoHtml           (int htmlFile, msgGet getInfo,
                                         unsigned int cantidad, struct timeb tiempoInicio);
 
 int solicitarBusqueda               (SOCKET sockQP, msgGet getInfo, void **respuesta, unsigned long *respuestaLen);
-
+int solicitarBusquedaCache          (SOCKET sockQP, msgGet getInfo, hostsCodigo **respuesta);
 configuracion config;
 
 /*
@@ -100,6 +102,16 @@ int main(int argc, char** argv) {
                 close(sockCliente);
             }
         }
+        else if (getType == CACHE)
+        /*Si el GET corresponde a un cliente pidiendo una pagina Cache*/
+        {
+            /*Crea el thread que atendera al nuevo cliente*/
+            if (rutinaCrearThread(rutinaAtencionCache, sockCliente, getInfo, dirCliente) < 0)
+            {
+                printf("No se ha podido atender cliente de %s. Se cierra conexion.\n\n", inet_ntoa(dirCliente.sin_addr));
+                close(sockCliente);
+            }
+        }
     }
 
     /*
@@ -111,6 +123,30 @@ int main(int argc, char** argv) {
 }
 
 
+int solicitarBusquedaCache(SOCKET sockQP, msgGet getInfo, hostsCodigo **respuesta)
+{
+    char descriptorID[DESCRIPTORID_LEN];
+    int mode = IRC_REQUEST_CACHE;
+    unsigned long respuestaLen;
+
+    memset(descriptorID, '\0', DESCRIPTORID_LEN);
+
+    /*Enviar consulta cache a QP*/
+    if (ircRequest_send(sockQP, (void *) &getInfo.palabras, sizeof(getInfo.palabras), descriptorID, mode) < 0)
+    {
+      printf("Error al enviar consulta Cache a QP.\n\n");
+      return -1;
+    }
+
+    /*Recibir respuesta cache de QP*/
+    if (ircResponse_recv(sockQP, (void *)respuesta, descriptorID, &respuestaLen, mode) < 0)
+    {
+        printf("Error al enviar consulta a QP.\n\n");
+        return -1;
+    }
+    return 0;
+}
+
 /*
 Descripcion: Solicita al QP la busqueda de ciertas palabras claves
 Ultima modificacion: Scheinkman, Mariano
@@ -121,7 +157,7 @@ Devuelve: ok? 0: -1. Estructura de respuestas llena.
 int solicitarBusqueda(SOCKET sockQP, msgGet getInfo, void **respuesta, unsigned long *respuestaLen)
 {
     char descriptorID[DESCRIPTORID_LEN];
-    int mode;
+    int mode = 0x00;
 
     memset(descriptorID, '\0', DESCRIPTORID_LEN);
 
@@ -146,6 +182,144 @@ int solicitarBusqueda(SOCKET sockQP, msgGet getInfo, void **respuesta, unsigned 
 }
 
 
+int EnviarRespuestaHtmlCache (SOCKET socket, char *htmlCode, msgGet getInfo)
+{
+    char buffer[strlen(htmlCode) + 1];
+    int htmlFile;
+    int nBytes;
+    char tmpFile[MAX_PATH];
+
+    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+
+    sprintf(tmpFile, "cache%d.txt", socket);
+
+    /*Crea o trunca (si ya existe) el archivo a enviar al Cliente en modo escritura*/
+    if ((htmlFile = open(tmpFile, O_CREAT | O_WRONLY, mode)) < 0)
+    {
+        if ((htmlFile = open(tmpFile, O_TRUNC | O_WRONLY, mode)) < 0)
+        {
+            perror("open htmlFile");
+            return -1;
+        }
+    }
+
+    lseek(htmlFile,0L,0);
+    if ((nBytes = write(htmlFile, htmlCode, strlen(htmlCode))) == -1)
+    {
+	     perror("write: htmlFile");
+	     return -1;
+	 }
+    if (nBytes != strlen(buffer))
+    {
+        perror("write: no completo escritura");
+        return -1;
+    }
+
+    /*Se cierra archivo y vuelve a abrir en modo lectura*/
+    close(htmlFile);
+    if ((htmlFile = open(tmpFile, O_RDONLY, mode)) < 0)
+    {
+        perror("open htmlFile");
+        return -1;
+    }
+
+    /*Se envia Http Ok*/
+    if (httpOk_send(socket, getInfo) < 0)
+    {
+        printf("Error al enviar HTTP OK.\n\n");
+        close(htmlFile);
+        return -1;
+    }
+
+    /*Se envia archivo*/
+    if (EnviarArchivo(socket, htmlFile) != getFileSize(htmlFile))
+    {
+        printf("Error al enviar Archivo.\n\n");
+        close(htmlFile);
+        return -1;
+    }
+    close(htmlFile);
+
+    /*Se borra el archivo una vez enviado*/
+    unlink(tmpFile);
+
+    return 0;
+}
+
+
+/*
+Descripcion: Atiende al pedido cache
+Ultima modificacion: Scheinkman, Mariano
+Recibe: un argumento que contiene socket, msg Get y direccion del Cliente
+Devuelve: ok? 0: -1
+*/
+void *rutinaAtencionCache (void *args)
+{
+    threadArgs *arg = (threadArgs *) args;
+    SOCKET sockCliente = arg->socket;
+    msgGet getThread = arg->getInfo, getInfo;
+    SOCKADDR_IN dirCliente = arg->dir;
+    SOCKET sockQP;
+    SOCKADDR_IN dirQP;
+    hostsCodigo *respuesta = NULL;
+
+    memset(&getInfo, '\0', sizeof(msgGet));
+
+    /*Se establece conexion con el Query Procesor*/
+    if ((sockQP = establecerConexionQP(config.ipQP, config.puertoQP, &dirQP)) == INVALID_SOCKET)
+    {
+        perror("Establecer conexion QP");
+        close(sockCliente);
+        close(sockQP);
+        thr_exit(NULL);
+    }
+
+    printf("Se establecio conexion con el QP satisfactoriamente.");
+    printf ("Se comienza a atender Request Cache de %s.\n\n", inet_ntoa(dirCliente.sin_addr));
+
+    /*Se obtiene el uuid a buscar*/
+    if (obtenerUUID(getThread, &getInfo) < 0)
+    {
+        perror("obtenerQueryString: error de tipo");
+
+        /*Si hubo un error, envia Http Not Found y cierra conexion*/
+        if (httpNotFound_send(sockCliente, getThread) < 0)
+            printf("Error al enviar HTTP Not Found.\n\n");
+
+        close(sockCliente);
+        close(sockQP);
+        thr_exit(NULL);
+    }
+
+    printf("UUID a buscar: %s.\n", getInfo.palabras);
+
+    /*Se solicita la busqueda al Query Processor y se recibe las respuestas*/
+    if (solicitarBusquedaCache(sockQP, getInfo, &respuesta) < 0)
+    {
+        perror("Solicitar busqueda");
+        close(sockCliente);
+        close(sockQP);
+        thr_exit(NULL);
+    }
+
+    /*Se envia el Html de respuesta al Cliente*/
+    if (EnviarRespuestaHtmlCache(sockCliente, respuesta->html, getThread) < 0)
+    {
+        perror("Enviar respuesta html Cache");
+
+        /*Si hubo un error, envia Http Not Found y cierra conexion*/
+        if (httpNotFound_send(sockCliente, getThread) < 0)
+            printf("Error al enviar HTTP Not Found.\n\n");
+    }
+
+    /*Libero la respuesta ya utilizada*/
+    free(respuesta);
+
+    /*Se cierra conexion con Cliente y con QP*/
+    close(sockCliente);
+    close(sockQP);
+    thr_exit(NULL);
+}
 
 /*
 Descripcion: Atiende al cliente
@@ -190,12 +364,8 @@ void *rutinaAtencionCliente (void *args)
         
         /*Si hubo un error, envia Http Not Found y cierra conexion*/
         if (httpNotFound_send(sockCliente, getInfo) < 0)
-        {
             printf("Error al enviar HTTP Not Found.\n\n");
-            close(sockCliente);
-            close(sockQP);
-            thr_exit(NULL);
-        }
+
         close(sockCliente);
         close(sockQP);
         thr_exit(NULL);
@@ -220,21 +390,13 @@ void *rutinaAtencionCliente (void *args)
     /*Se envia el Html de respuesta al Cliente*/
     if (EnviarRespuestaHtml(sockCliente, getInfo, respuesta,
                             respuestaLen, tiempoInicio) < 0)
-        {
-            perror("Enviar respuesta html");
+    {
+        perror("Enviar respuesta html");
 
-            /*Si hubo un error, envia Http Not Found y cierra conexion*/
-            if (httpNotFound_send(sockCliente, getInfo) < 0)
-            {
-                printf("Error al enviar HTTP Not Found.\n\n");
-                close(sockCliente);
-                close(sockQP);
-                thr_exit(NULL);
-            }
-            close(sockCliente);
-            close(sockQP);
-            thr_exit(NULL);
-        }
+        /*Si hubo un error, envia Http Not Found y cierra conexion*/
+        if (httpNotFound_send(sockCliente, getInfo) < 0)
+            printf("Error al enviar HTTP Not Found.\n\n");
+    }
 
     /*Se cierra conexion con Cliente y con QP*/
     close(sockCliente);
@@ -263,10 +425,14 @@ int generarHtmlWEB(int htmlFile, so_URL_HTML *respuesta, unsigned long respuesta
         memset(buffer,'\0',MAX_HTML);
         sprintf(buffer, "<b>%d</b>.<br/>Titulo: %s<br/>"
                     "Descripcion: %s<br/>"
-                    "Link: %s<br/>"
-                    "En cache: %s/cache=%s<br/><br/>"
-                    , i+1, respuesta[i].titulo, respuesta[i].descripcion
-                    , respuesta[i].URL, respuesta[i].URL, respuesta[i].UUID);
+                    "Link: "
+                    "<a href=\"%s\">%s</a><br/>"
+                    "En cache: "
+                    "<a href=\"%s\">%s</a><br/>"
+                    "<br/>",
+                    i+1, respuesta[i].titulo, respuesta[i].descripcion,
+                    respuesta[i].URL, respuesta[i].URL,
+                    respuesta[i].UUID, respuesta[i].UUID);
 
         lseek(htmlFile,0L,2);
         nBytes = write(htmlFile, buffer, strlen(buffer));
@@ -418,16 +584,19 @@ Devuelve: ok? 0: -1
 int EnviarRespuestaHtml(SOCKET socket, msgGet getInfo, void *respuesta,
                         unsigned long respuestaLen, struct timeb tiempoInicio)
 {
+    char tmpFile[MAX_PATH];
     int htmlFile;
     int control;
     int cantidadRespuestas;
 
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
+    sprintf(tmpFile, "resultados%d.txt", socket);
+
     /*Crea o trunca (si ya existe) el archivo a enviar al Cliente en modo escritura*/
-    if ((htmlFile = open("resultados.txt", O_CREAT | O_WRONLY, mode)) < 0)
+    if ((htmlFile = open(tmpFile, O_CREAT | O_WRONLY, mode)) < 0)
     {
-        if ((htmlFile = open("resultados.txt", O_TRUNC | O_WRONLY, mode)) < 0)
+        if ((htmlFile = open(tmpFile, O_TRUNC | O_WRONLY, mode)) < 0)
         {
             perror("open htmlFile");
             return -1;
@@ -480,7 +649,7 @@ int EnviarRespuestaHtml(SOCKET socket, msgGet getInfo, void *respuesta,
 
     /*Se cierra archivo y vuelve a abrir en modo lectura*/
     close(htmlFile);
-    if ((htmlFile = open("resultados.txt", O_RDONLY, mode)) < 0)
+    if ((htmlFile = open(tmpFile, O_RDONLY, mode)) < 0)
     {
         perror("open htmlFile");
         return -1;
@@ -504,7 +673,7 @@ int EnviarRespuestaHtml(SOCKET socket, msgGet getInfo, void *respuesta,
     close(htmlFile);
 
     /*Se borra el archivo una vez enviado*/
-    unlink("resultados.txt");
+    unlink(tmpFile);
 
     return 0;
 }
