@@ -9,6 +9,7 @@
 
 void generarArrayHTML    (so_URL_HTML * resultados, PLDAP_FIELD field, int pos);
 void generarArrayOTROS   (so_URL_Archivos * resultados, PLDAP_FIELD field, int pos);
+void generarArrayCACHE   (hostsCodigo *resultados, PLDAP_FIELD field, int pos);
 
 int establecerConexionLDAP(ldapObj *ldap, configuracion config)
 {
@@ -54,7 +55,8 @@ PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char querystring[QUERYSTRING_SIZE],
         resultSet = ldap.sessionOp->searchEntry(ldap.session, "ou=so,dc=utn,dc=edu", querystring);
     if (mode == IRC_REQUEST_ARCHIVOS)
         resultSet = ldap.sessionOp->searchEntry(ldap.session, "ou=so,dc=utn,dc=edu", querystring);
-
+    if (mode == IRC_REQUEST_CACHE)
+         resultSet = ldap.sessionOp->searchEntry(ldap.session, "ou=so,dc=utn,dc=edu", querystring);
     return resultSet;
 }
 
@@ -73,6 +75,8 @@ int armarPayload(PLDAP_RESULT_SET resultSet, void **resultados, int mode, unsign
         allocLen = sizeof(so_URL_HTML);
     else if (mode == IRC_REQUEST_ARCHIVOS)
         allocLen = sizeof(so_URL_Archivos);
+    else if (mode == IRC_REQUEST_CACHE)
+        allocLen = sizeof(hostsCodigo);
     else
     {
         perror("Armar payload: inconcistencia de payload descriptor");
@@ -111,6 +115,8 @@ int armarPayload(PLDAP_RESULT_SET resultSet, void **resultados, int mode, unsign
                 generarArrayHTML((so_URL_HTML *) *resultados, field, i);
             else if (mode == IRC_REQUEST_ARCHIVOS)
                 generarArrayOTROS((so_URL_Archivos *) *resultados, field, i);
+            else if (mode == IRC_REQUEST_CACHE)
+                generarArrayCACHE((hostsCodigo *) *resultados, field, i);
 
             /*Se libera la memoria utilizada por el field*/
             freeLDAPField(field);
@@ -127,6 +133,19 @@ int armarPayload(PLDAP_RESULT_SET resultSet, void **resultados, int mode, unsign
     freeLDAPRecordOperations(recordOp);
 
     return 0;
+}
+
+/*Devuelve 1 si agrego una entrada. 0 si no agrego ninguna*/
+void generarArrayCACHE(hostsCodigo *resultados, PLDAP_FIELD field, int pos)
+{
+    int	index = 0;
+
+    if (!(strcmp(field->name,"utnurlID")))
+        strcpy(resultados[pos].UUID, field->values[index]);
+    else if (!(strcmp(field->name,"utnurlContent")))
+        strcpy(resultados[pos].html, field->values[index]);
+    else
+        return;
 }
 
 /*Devuelve 1 si agrego una entrada. 0 si no agrego ninguna*/

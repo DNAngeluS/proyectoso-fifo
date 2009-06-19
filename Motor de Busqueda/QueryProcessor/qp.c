@@ -146,13 +146,14 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap)
 	/*IRC/IPC*/
 	msgGet getInfo;
 	char descriptorID[DESCRIPTORID_LEN];
-	int mode;
-	 
-	/*Crea las estructuras para enviar el IRC*/
+	int mode = 0x00;
 	void *resultados = NULL;
-	unsigned long len;  
-	PLDAP_RESULT_SET resultSet;
+	unsigned long len = 0;
+	PLDAP_RESULT_SET resultSet = NULL;
         unsigned int cantBloques = 0;
+
+        memset(&getInfo, '\0', sizeof(getInfo));
+        memset(descriptorID, '\0', sizeof(descriptorID));
 
 	/*Recibe las palabras a buscar*/
 	if (ircRequest_recv (sockCliente, (void *) &getInfo, descriptorID, &mode) < 0)
@@ -176,8 +177,12 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap)
 	}
 
         /*Indentifica el tipo de busqueda*/
-	if (mode == IRC_REQUEST_HTML)       len = (sizeof(so_URL_HTML))*cantBloques;
-	if (mode == IRC_REQUEST_ARCHIVOS)   len = (sizeof(so_URL_Archivos))*cantBloques;
+	if (mode == IRC_REQUEST_HTML)
+            len = (sizeof(so_URL_HTML))*cantBloques;
+	if (mode == IRC_REQUEST_ARCHIVOS)
+            len = (sizeof(so_URL_Archivos))*cantBloques;
+        if (mode == IRC_REQUEST_CACHE)
+            len = sizeof(hostsCodigo);
 
 	/*Envia el IRC con los datos encontrados*/
 	if (ircResponse_send(sockCliente, descriptorID, resultados, len, mode) < 0)
