@@ -33,6 +33,7 @@ int EnviarArchivo                       (SOCKET sockRemoto, int filefd);
 int httpGet_recv                        (SOCKET sockfd, msgGet *getInfo, int *getType);
 int httpNotFound_send                   (SOCKET sockfd, msgGet getInfo);
 int httpOk_send                         (SOCKET sockfd, msgGet getInfo);
+int httpInternalServiceError_send		(SOCKET sockfd, msgGet getInfo);
 
 int obtenerGetType                      (const char *palabras);
 int obtenerQueryString                  (msgGet getThread, msgGet *getInfo);

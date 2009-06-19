@@ -33,8 +33,8 @@ int generarFinDeHtml                (int htmlFile);
 int generarEncabezadoHtml           (int htmlFile, msgGet getInfo,
                                         unsigned int cantidad, struct timeb tiempoInicio);
 
-int solicitarBusqueda               (SOCKET sockQP, msgGet getInfo, void **respuesta, unsigned long *respuestaLen);
-int solicitarBusquedaCache          (SOCKET sockQP, msgGet getInfo, hostsCodigo **respuesta);
+int solicitarBusqueda               (SOCKET sockQP, msgGet getInfo, void **respuesta, unsigned long *respuestaLen, int *mode);
+int solicitarBusquedaCache          (SOCKET sockQP, msgGet getInfo, hostsCodigo **respuesta, int *mode);
 configuracion config;
 
 /*
@@ -123,20 +123,22 @@ int main(int argc, char** argv) {
 }
 
 
-int solicitarBusquedaCache(SOCKET sockQP, msgGet getInfo, hostsCodigo **respuesta)
+int solicitarBusquedaCache(SOCKET sockQP, msgGet getInfo, hostsCodigo **respuesta, int *mode)
 {
     char descriptorID[DESCRIPTORID_LEN];
-    int mode = IRC_REQUEST_CACHE;
+    int modeSend = IRC_REQUEST_CACHE;
     unsigned long respuestaLen;
 
     memset(descriptorID, '\0', DESCRIPTORID_LEN);
 
     /*Enviar consulta cache a QP*/
-    if (ircRequest_send(sockQP, (void *) &getInfo.palabras, sizeof(getInfo.palabras), descriptorID, mode) < 0)
+    if (ircRequest_send(sockQP, (void *) &getInfo, sizeof(getInfo), descriptorID, modeSend) < 0)
     {
       printf("Error al enviar consulta Cache a QP.\n\n");
       return -1;
     }
+
+    mode = 0x00;
 
     /*Recibir respuesta cache de QP*/
     if (ircResponse_recv(sockQP, (void *)respuesta, descriptorID, &respuestaLen, mode) < 0)
@@ -154,24 +156,24 @@ Recibe: socket del QP,, msg Get a buscar, estructura de respuestas vacia
  *      y su longitud
 Devuelve: ok? 0: -1. Estructura de respuestas llena.
 */
-int solicitarBusqueda(SOCKET sockQP, msgGet getInfo, void **respuesta, unsigned long *respuestaLen)
+int solicitarBusqueda(SOCKET sockQP, msgGet getInfo, void **respuesta, unsigned long *respuestaLen, int *mode)
 {
     char descriptorID[DESCRIPTORID_LEN];
-    int mode = 0x00;
+    int modeSend = 0x00;
 
     memset(descriptorID, '\0', DESCRIPTORID_LEN);
 
-    if (getInfo.searchType == WEB)      mode = IRC_REQUEST_HTML;
-    if (getInfo.searchType == IMG)      mode = IRC_REQUEST_ARCHIVOS;
-    if (getInfo.searchType == OTROS)    mode = IRC_REQUEST_ARCHIVOS;
+    if (getInfo.searchType == WEB)      modeSend = IRC_REQUEST_HTML;
+    if (getInfo.searchType == IMG)      modeSend = IRC_REQUEST_ARCHIVOS;
+    if (getInfo.searchType == OTROS)    modeSend = IRC_REQUEST_ARCHIVOS;
 
     /*Enviar consulta a QP*/
-    if (ircRequest_send(sockQP, (void *) &getInfo, sizeof(getInfo), descriptorID, mode) < 0)
+    if (ircRequest_send(sockQP, (void *) &getInfo, sizeof(getInfo), descriptorID, modeSend) < 0)
     {
       printf("Error al enviar consulta a QP.\n\n");
       return -1;
     }
-    
+
     /*Recibir consulta de QP*/
     if (ircResponse_recv(sockQP, respuesta, descriptorID, respuestaLen, mode) < 0)
     {
@@ -214,6 +216,9 @@ int EnviarRespuestaHtmlCache (SOCKET socket, char *htmlCode, msgGet getInfo)
         perror("write: no completo escritura");
         return -1;
     }
+
+    /*Libero las respuestas ya utlizadas*/
+    free(respuesta);
 
     /*Se cierra archivo y vuelve a abrir en modo lectura*/
     close(htmlFile);
@@ -262,8 +267,10 @@ void *rutinaAtencionCache (void *args)
     SOCKET sockQP;
     SOCKADDR_IN dirQP;
     hostsCodigo *respuesta = NULL;
+    int mode = 0x00;
 
     memset(&getInfo, '\0', sizeof(msgGet));
+    getInfo.protocolo = getThread.protocolo;
 
     /*Se establece conexion con el Query Procesor*/
     if ((sockQP = establecerConexionQP(config.ipQP, config.puertoQP, &dirQP)) == INVALID_SOCKET)
@@ -283,7 +290,7 @@ void *rutinaAtencionCache (void *args)
         perror("obtenerQueryString: error de tipo");
 
         /*Si hubo un error, envia Http Not Found y cierra conexion*/
-        if (httpNotFound_send(sockCliente, getThread) < 0)
+        if (httpNotFound_send(sockCliente, getInfo) < 0)
             printf("Error al enviar HTTP Not Found.\n\n");
 
         close(sockCliente);
@@ -294,7 +301,7 @@ void *rutinaAtencionCache (void *args)
     printf("UUID a buscar: %s.\n", getInfo.palabras);
 
     /*Se solicita la busqueda al Query Processor y se recibe las respuestas*/
-    if (solicitarBusquedaCache(sockQP, getInfo, &respuesta) < 0)
+    if (solicitarBusquedaCache(sockQP, getInfo, &respuesta, &mode) < 0)
     {
         perror("Solicitar busqueda");
         close(sockCliente);
@@ -302,18 +309,23 @@ void *rutinaAtencionCache (void *args)
         thr_exit(NULL);
     }
 
-    /*Se envia el Html de respuesta al Cliente*/
-    if (EnviarRespuestaHtmlCache(sockCliente, respuesta->html, getThread) < 0)
+    if (mode == IRC_RESPONSE_CACHE)
     {
-        perror("Enviar respuesta html Cache");
+        /*Se envia el Html de respuesta al Cliente*/
+        if (EnviarRespuestaHtmlCache(sockCliente, respuesta->html, getInfo) < 0)
+        {
+            perror("Enviar respuesta html Cache");
 
-        /*Si hubo un error, envia Http Not Found y cierra conexion*/
-        if (httpNotFound_send(sockCliente, getThread) < 0)
-            printf("Error al enviar HTTP Not Found.\n\n");
+            /*Si hubo un error, envia Http Not Found y cierra conexion*/
+            if (httpNotFound_send(sockCliente, getInfo) < 0)
+                printf("Error al enviar HTTP Not Found.\n\n");
+        }
     }
-
-    /*Libero la respuesta ya utilizada*/
-    free(respuesta);
+    else if (mode == IRC_RESPONSE_ERROR)
+    {
+        if (httpInternalServiceError_send(sockCliente, getInfo) < 0)
+            printf("Error al enviar HTTP Internal Service Error.\n\n");
+    }
 
     /*Se cierra conexion con Cliente y con QP*/
     close(sockCliente);
@@ -335,6 +347,7 @@ void *rutinaAtencionCliente (void *args)
     SOCKADDR_IN dirCliente = arg->dir;
     SOCKET sockQP;
     SOCKADDR_IN dirQP;
+    int mode = 0x00;
 
     void *respuesta = NULL;
     unsigned long respuestaLen = 0;
@@ -379,7 +392,7 @@ void *rutinaAtencionCliente (void *args)
     if (getInfo.searchType == OTROS)    respuesta = (so_URL_Archivos *)  malloc (sizeof(so_URL_Archivos));
 
     /*Se solicita la busqueda al Query Processor y se recibe las respuestas*/
-    if (solicitarBusqueda(sockQP, getInfo, &respuesta, &respuestaLen) < 0)
+    if (solicitarBusqueda(sockQP, getInfo, &respuesta, &respuestaLen, &mode) < 0)
     {
         perror("Solicitar busqueda");
         close(sockCliente);
@@ -387,15 +400,23 @@ void *rutinaAtencionCliente (void *args)
         thr_exit(NULL);
     }
 
-    /*Se envia el Html de respuesta al Cliente*/
-    if (EnviarRespuestaHtml(sockCliente, getInfo, respuesta,
-                            respuestaLen, tiempoInicio) < 0)
+    if (mode == IRC_RESPONSE_HTML || mode == IRC_RESPONSE_ARCHIVOS)
     {
-        perror("Enviar respuesta html");
+        /*Se envia el Html de respuesta al Cliente*/
+        if (EnviarRespuestaHtml(sockCliente, getInfo, respuesta,
+                                respuestaLen, tiempoInicio) < 0)
+        {
+            perror("Enviar respuesta html");
 
-        /*Si hubo un error, envia Http Not Found y cierra conexion*/
-        if (httpNotFound_send(sockCliente, getInfo) < 0)
-            printf("Error al enviar HTTP Not Found.\n\n");
+            /*Si hubo un error, envia Http Not Found y cierra conexion*/
+            if (httpNotFound_send(sockCliente, getInfo) < 0)
+                printf("Error al enviar HTTP Not Found.\n\n");
+        }
+    }
+    else if (mode == IRC_RESPONSE_ERROR)
+    {
+        if (httpInternalServiceError_send(sockCliente, getInfo) < 0)
+            printf("Error al enviar HTTP Internal Service Error.\n\n");
     }
 
     /*Se cierra conexion con Cliente y con QP*/

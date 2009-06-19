@@ -233,6 +233,32 @@ int EnviarArchivo(SOCKET sockRemoto, int filefd)
 
 
 /*
+Descripcion: Envia un mensaje Internal Service Error del protocolo HTTP
+Ultima modificacion: Scheinkman, Mariano
+Recibe: socket, estructura msgGet
+Devuelve: ok? 0: -1
+*/
+int httpInternalServiceError_send(SOCKET sockfd, msgGet getInfo)
+{
+    char buffer[MAX_HTTP];
+
+    memset(buffer,'\0',MAX_HTTP);
+
+    sprintf(buffer, "HTTP/1.%d 500 Internal Service Error\n\n",
+                    getInfo.protocolo);
+
+    /*Enviamos el buffer como stream (sin el \0)*/
+    if (EnviarBloque(sockfd, strlen(buffer), buffer) == -1 )
+        return -1;
+    else
+    {
+        printf("Se ha enviado HTTP 500 Internal Service Error\n");
+        return 0;
+    }
+}
+
+
+/*
 Descripcion: Recibe un mensaje Not Found del protocolo Html
 Ultima modificacion: Scheinkman, Mariano
 Recibe: socket, estructura msgGet
