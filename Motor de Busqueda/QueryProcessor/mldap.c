@@ -29,16 +29,16 @@ int establecerConexionLDAP(ldapObj *ldap, configuracion config)
 		perror("ldap initialize");
 		return -1;
 	}
-	
+
 	ldap->session = ldap->ctxOp->newSession(ldap->context, "cn=Directory Manager", config.claveLDAP);
 	if(ldap->session == NULL)
 	{
 		perror("ldap newSession");
 		return -1;
 	}
-		
-	ldap->sessionOp->startSession(ldap->session);	
-	if(ldap->session->started!=1)    	
+
+	ldap->sessionOp->startSession(ldap->session);
+	if (ldap->session->started != 1)
 	{
 		perror("ldap startSession");
 		return -1;
@@ -47,9 +47,9 @@ int establecerConexionLDAP(ldapObj *ldap, configuracion config)
 	return 0;
 }
 
-PLDAP_RESULT_SET consultarLDAP(ldapObj ldap, char querystring[QUERYSTRING_SIZE])
+PLDAP_RESULT_SET consultarLDAP(ldapObj *ldap, char querystring[QUERYSTRING_SIZE])
 {
-    return ldap.sessionOp->searchEntry(ldap.session, "ou=so,dc=utn,dc=edu", querystring);
+    return ldap->sessionOp->searchEntry(ldap->session, "ou=so,dc=utn,dc=edu", querystring);
 }
 
 
