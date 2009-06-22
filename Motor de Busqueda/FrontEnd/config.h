@@ -12,8 +12,9 @@ typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
 
 typedef struct {
-    in_addr_t ipQP;	/*ip del QP*/
+    in_addr_t ipQP;		/*ip del QP*/
     in_port_t puertoQP;	/*puerto del QP*/
+	in_addr_t ipL;		/*ip local*/
     in_port_t puertoL;	/*puerto local*/
 } configuracion;
 

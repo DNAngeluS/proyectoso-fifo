@@ -453,12 +453,12 @@ int generarHtmlWEB(int htmlFile, so_URL_HTML *respuesta, unsigned long respuesta
                     "Descripcion: %s<br/>"
                     "Link: "
                     "<a href=\"%s\">%s</a><br/>"
-                    "En cache: "
-                    "<a href=\"%s\">%s</a><br/>"
+					"En cache: "
+                    "<a href=\"%s\">http://%s/cache=%s</a><br/>"
                     "<br/>",
                     i+1, respuesta[i].titulo, respuesta[i].descripcion,
                     respuesta[i].URL, respuesta[i].URL,
-                    respuesta[i].UUID, respuesta[i].UUID);
+                    respuesta[i].UUID, config.ipL, respuesta[i].UUID);
 
         lseek(htmlFile,0L,2);
         nBytes = write(htmlFile, buffer, strlen(buffer));
