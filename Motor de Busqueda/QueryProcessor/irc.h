@@ -12,6 +12,7 @@
 
 #define MAX_UUID 35
 #define DESCRIPTORID_LEN 16
+#define MAX_FORMATO 5
 
 #define IRC_REQUEST_HTML 0x10
 #define IRC_REQUEST_ARCHIVOS 0x11
@@ -31,20 +32,20 @@ typedef struct {
 } headerIRC;
 
 typedef struct {
-    char URL            [MAX_PATH];
-    char UUID           [MAX_UUID];
-    char palabras       [MAX_PATH];
-    char titulo         [MAX_PATH];
-    char descripcion    [MAX_PATH];
+    char URL [MAX_PATH];
+    char UUID [MAX_UUID];
+    char palabras [MAX_PATH];
+    char titulo [MAX_PATH];
+    char descripcion [MAX_PATH];
 } so_URL_HTML;
 
 typedef struct {
-    char URL            [MAX_PATH];
-    char nombre         [MAX_PATH];
-    char palabras       [MAX_PATH];
-    char tipo           [2];
-    char formato        [4];
-    char length         [20];
+    char URL [MAX_PATH];
+    char nombre [MAX_PATH];
+    char palabras [MAX_PATH];
+    char tipo [2];
+    char formato [MAX_FORMATO];
+    char length [20];
 } so_URL_Archivos;
 
 typedef struct {
