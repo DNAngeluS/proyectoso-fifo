@@ -136,10 +136,12 @@ int ircResponse_recv (SOCKET sock, void **bloque, char *descriptorID,
         printf("Error en irc request recv header\n");
         return -1;
     }
+
     if (*mode == 0x00)
         *mode = header.payloadDesc;
     else if (header.payloadDesc != *mode)
         return -1;
+    
     if (!memcmp(header.descriptorID, descriptorID, DESCRIPTORID_LEN))
     {
         int i;

@@ -77,18 +77,12 @@ Devuelve: ok? 0: -1
 */
 int asignarDatos (configuracion *config, char *key, char *value)
 {
-    if (strcmp(key, "IP_QUERY_PROCESSOR") == 0)
-        config->ipQP = inet_addr(value);
-
-	else if (strcmp(key, "IP_LOCAL") == 0)
+    if (strcmp(key, "IP_LOCAL") == 0)
         config->ipL = inet_addr(value);
 
     else if (strcmp(key, "PUERTO_LOCAL") == 0)
         config->puertoL = htons(atoi(value));
 
-    else if (strcmp(key, "PUERTO_QUERY_PROCESSOR") == 0)
-        config->puertoQP = htons(atoi(value));
-    
     else
     {
         printf("Archivo de configuracion: Opcion inexistente ('%s')\n", key);

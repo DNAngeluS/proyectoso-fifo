@@ -14,13 +14,27 @@
 #define DESCRIPTORID_LEN 16
 #define MAX_FORMATO 5
 
+/*Peticiones de busqueda del Front-End*/
 #define IRC_REQUEST_HTML 0x10
 #define IRC_REQUEST_ARCHIVOS 0x11
 #define IRC_REQUEST_CACHE 0x12
+#define IRC_REQUEST_UNICOQP 0x13
+
+/*Respuestas del QP a peticiones de busqueda*/
 #define IRC_RESPONSE_HTML 0x20
 #define IRC_RESPONSE_ARCHIVOS 0x21
 #define IRC_RESPONSE_CACHE 0x22
+
+/*QP no esta disponible para busquedas*/
 #define IRC_RESPONSE_ERROR 0x23
+
+/*QP realiza handshake para conectarse al QM, al comienzo*/
+#define IRC_HANDSHAKE_QP 0x90
+#define IRC_HANDSHAKE_QP_OK 0x91
+#define IRC_HANDSHAKE_QP_FAIL 0x92
+
+/*QM realiza handshake para conectarse al Front-End, al comienzo*/
+#define IRC_HANDSHAKE_QM 0x93
 
 
 

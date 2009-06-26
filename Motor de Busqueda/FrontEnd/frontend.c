@@ -15,7 +15,7 @@ void rutinaDeError(char *string);
 void itoa_SearchType(int searchType, char *tipo);
 
 SOCKET establecerConexionEscucha    (in_addr_t nDireccionIP, in_port_t nPort);
-SOCKET establecerConexionQP         (in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *dir);
+SOCKET establecerConexionServidor         (in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *dir);
 
 void *rutinaAtencionCliente         (void *sock);
 void *rutinaAtencionCache           (void *args);
@@ -35,6 +35,7 @@ int generarEncabezadoHtml           (int htmlFile, msgGet getInfo,
 
 int solicitarBusqueda               (SOCKET sockQP, msgGet getInfo, void **respuesta, unsigned long *respuestaLen, int *mode);
 int solicitarBusquedaCache          (SOCKET sockQP, msgGet getInfo, hostsCodigo **respuesta, int *mode);
+
 configuracion config;
 
 /*
@@ -46,11 +47,40 @@ int main(int argc, char** argv) {
     
     /*Lectura de Archivo de Configuracion*/
     if (leerArchivoConfiguracion(&config) != 0)
-       rutinaDeError("Lectura Archivo de configuracion");  
+       rutinaDeError("Lectura Archivo de configuracion");
+
 
     /*Se establece conexion a puerto de escucha*/
     if ((sockFrontEnd = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
        rutinaDeError("Socket invalido");
+
+    /*Hasta que llegue el handshake del QM*/
+    while ()
+    {
+        SOCKET sockCliente;
+        SOCKADDR_IN dirCliente;
+        int nAddrSize = sizeof(dirCliente);
+        char buffer[BUF_SIZE];
+        char descID[DESCRIPTORID_LEN];
+
+        printf("Esperando conexion del Query Manager para estar operativo.\n");
+
+        /*Conecto nuevo cliente, posiblemente el QM*/
+        sockCliente = accept(sockCliente, (SOCKADDR *) &dirCliente, &nAddrSize);
+
+        /*Si el socket es invalido, ignora y vuelve a empezar*/
+        if (sockCliente == INVALID_SOCKET || (ircRequest_recv (sockCliente, buffer, descID, IRC_HANDSHAKE_QM) < 0))
+        {
+            printf("No se recibio el handshake correctamente. Se cierra conexion.\n\n");
+            if (sockCliente != INVALID_SOCKET)
+                close(sockCliente);
+            continue;
+        }
+
+        /*Guarda en la estructura de configuracion global el ip y puerto del Query Manager*/
+        config.ipQM = inet_addr(strtok(buffer, ":"));
+        config.puertoQM = htons(atoi(strtok(NULL, "")));
+    }
 
     printf("FRONT-END. Conexion establecida.\n");
 
@@ -66,7 +96,7 @@ int main(int argc, char** argv) {
         printf("Esperando conexiones entrantes.\n\n");
 
         /*Acepta la conexion entrante*/
-        sockCliente = accept(sockFrontEnd, (SOCKADDR *) &dirCliente, &nAddrSize);
+        sockCliente = accept(sockCliente, (SOCKADDR *) &dirCliente, &nAddrSize);
         
         /*Si el socket es invalido, ignora y vuelve a empezar*/
         if (sockCliente == INVALID_SOCKET)
@@ -275,7 +305,7 @@ void *rutinaAtencionCache (void *args)
     getInfo.protocolo = getThread.protocolo;
 
     /*Se establece conexion con el Query Procesor*/
-    if ((sockQP = establecerConexionQP(config.ipQP, config.puertoQP, &dirQP)) == INVALID_SOCKET)
+    if ((sockQP = establecerConexionServidor(config.ipQP, config.puertoQP, &dirQP)) == INVALID_SOCKET)
     {
         perror("Establecer conexion QP");
         close(sockCliente);
@@ -360,16 +390,6 @@ void *rutinaAtencionCliente (void *args)
 
     memset(&getInfo, '\0', sizeof(msgGet));
 
-    /*Se establece conexion con el Query Procesor*/
-    if ((sockQP = establecerConexionQP(config.ipQP, config.puertoQP, &dirQP)) == INVALID_SOCKET)
-    {
-        perror("Establecer conexion QP");
-        close(sockCliente);
-        close(sockQP);
-        thr_exit(NULL);
-    }
-    
-    printf("Se establecio conexion con el QP satisfactoriamente.");
     printf ("Se comienza a atender Request de %s.\n\n", inet_ntoa(dirCliente.sin_addr));
 
     /*Se obtiene el tiempo de inicio de la busqueda*/
@@ -385,11 +405,19 @@ void *rutinaAtencionCliente (void *args)
             printf("Error al enviar HTTP Not Found.\n\n");
 
         close(sockCliente);
-        close(sockQP);
         thr_exit(NULL);
     }
     else
          printf("palabras buscadas: %s\ntipo: %d\n", getInfo.palabras, getInfo.searchType);
+
+    /*Se establece conexion con el Query Procesor*/
+    if ((sockQP = establecerConexionServidor(config.ipQP, config.puertoQP, &dirQP)) == INVALID_SOCKET)
+    {
+        perror("Establecer conexion QP");
+        close(sockCliente);
+        thr_exit(NULL);
+    }
+    printf("Se establecio conexion con el QP satisfactoriamente.");
 
     /*Reserva un bloque de memoria para poder recibir las respuestas*/
     if (getInfo.searchType == WEB)      respuesta = (so_URL_HTML *)      malloc (sizeof(so_URL_HTML));
@@ -910,7 +938,7 @@ Ultima modificacion: Scheinkman, Mariano
 Recibe: Direccion ip y puerto del QP.
 Devuelve: ok? Socket del servidor: socket invalido.
 */
-SOCKET establecerConexionQP(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr)
+SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr)
 {
     SOCKET sockfd;
 
@@ -922,8 +950,16 @@ SOCKET establecerConexionQP(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN
     their_addr->sin_addr.s_addr = nDireccionIP;
     memset(&(their_addr->sin_zero),'\0',8);
 
-    if (connect(sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1)
-        rutinaDeError("connect");
+    /*if (connect(sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1)
+        rutinaDeError("connect");*/
+
+    while ( connect (sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1 && GetLastError() != WSAEISCONN )
+        if ( GetLastError() != WSAEINTR )
+		{
+            fprintf(stderr, "Error en connect: error num %d", GetLastError());
+			closesocket(sockfd);
+			return -1;
+    	}
 
     return sockfd;
 }
