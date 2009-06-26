@@ -11,8 +11,6 @@
 typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
 
-enum tipoRecurso_t {RECURSO_WEB, RECURSO_ARCHIVOS, RECURSO_AMBOS};
-
 typedef struct {
     in_addr_t ip;		/*ip local*/
     in_port_t puerto;		/*puerto*/

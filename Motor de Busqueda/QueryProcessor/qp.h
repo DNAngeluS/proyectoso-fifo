@@ -24,6 +24,7 @@
 
 enum getType_t {FORMULARIO, BROWSER};
 enum searchType_t {WEB, IMG, OTROS};
+enum tipoRecurso_t {RECURSO_WEB, RECURSO_ARCHIVOS, RECURSO_AMBOS};
 
 typedef int SOCKET;
 typedef struct sockaddr_in SOCKADDR_IN;

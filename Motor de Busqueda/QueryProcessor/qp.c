@@ -160,7 +160,6 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
 	msgGet getInfo;
 	char descriptorID[DESCRIPTORID_LEN];
 	int mode = 0x00;
-        int tipoRecurso;
 	void *resultados = NULL;
 	unsigned long len = 0;
 	PLDAP_RESULT_SET resultSet = NULL;
@@ -168,11 +167,6 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
 
         memset(&getInfo, '\0', sizeof(getInfo));
         memset(descriptorID, '\0', sizeof(descriptorID));
-
-        if (config.tipoRecurso == 0)
-            tipoRecurso = IRC_REQUEST_HTML;
-        else if (config.tipoRecurso == 1)
-            tipoRecurso = IRC_REQUEST_ARCHIVOS;
 
 	/*Recibe las palabras a buscar*/
 	if (ircRequest_recv (sockCliente, (void *) &getInfo, descriptorID, &mode) < 0)
@@ -194,19 +188,29 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
             return 2;
         }
 
-         /*Si no hay concordancia con los tipos de recursos que se enviaron y que se atienden*/
-	if ( (config.tipoRecurso == 1 && mode != IRC_REQUEST_ARCHIVOS) ||
-		(config.tipoRecurso == 0 && (mode != IRC_REQUEST_HTML || mode != IRC_REQUEST_CACHE)) )
+        if (mode != IRC_REQUEST_UNICOQP)
         {
-           /*Envia el IRC con codigo de error*/
-            if (ircResponse_send(sockCliente, descriptorID, NULL, 0, IRC_RESPONSE_ERROR) < 0)
+             /*Si no hay concordancia con los tipos de recursos que se enviaron y que se atienden*/
+            if ( (config.tipoRecurso == 1 && mode != IRC_REQUEST_ARCHIVOS) ||
+                    (config.tipoRecurso == 0 && (mode != IRC_REQUEST_HTML || mode != IRC_REQUEST_CACHE)) )
             {
-              perror("ircResponse_send");
-              return -1;
+               /*Envia el IRC con codigo de error*/
+                if (ircResponse_send(sockCliente, descriptorID, NULL, 0, IRC_RESPONSE_ERROR) < 0)
+                {
+                  perror("ircResponse_send");
+                  return -1;
+                }
+                return 1;
             }
-            return 1;
         }
-
+        else
+        {
+            if (getInfo.searchType == WEB)
+                mode = IRC_REQUEST_HTML;
+            else
+                mode = IRC_REQUEST_ARCHIVOS;
+        }
+        
 	/*Realiza la busqueda*/
 	if ((resultSet = consultarLDAP(ldap, getInfo.queryString)) == NULL)
 	{
