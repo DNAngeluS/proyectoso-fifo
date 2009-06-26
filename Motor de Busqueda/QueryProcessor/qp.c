@@ -8,13 +8,14 @@
 #include "qp.h"
 #include "config.h"
 #include "irc.h"
-#include "LdapWrapper.h"
 #include "mldap.h"
 #include "http.h"
 
 void rutinaDeError(char *string);
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
+SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr);
 int atenderConsulta(SOCKET sockfd, ldapObj ldap, int cantidadConexiones);
+int conectarQueryManager (in_addr_t nDireccionIP, in_port_t nPort);
 
 configuracion config;
 
@@ -35,10 +36,16 @@ int main()
     if (leerArchivoConfiguracion(&config) < 0)
       rutinaDeError("Lectura Archivo de configuracion");
 
-    if(establecerConexionLDAP(&ldap, config) < 0)
+    /*Se realiza la conexion a la base ldap*/
+    if (establecerConexionLDAP(&ldap, config) < 0)
       rutinaDeError("No se pudo establecer la conexion LDAP.");	
     printf("Conexion establecida con LDAP\n");
-    
+
+    /*Se realiza handshake con el QM, enviando el tipo de recurso*/
+    if (conectarQueryManager(config.ipQM, config.puertoQM) < 0)
+        rutinaDeError("Conectar Query Manager");
+
+    /*Se establece la conexion de escucha*/
     if ((sockQP = establecerConexionEscucha(INADDR_ANY, config.puerto)) < 0)
       rutinaDeError("Establecer conexion de escucha");
     printf("QUERY PROCESSOR. Conexion establecida.\n");
@@ -133,7 +140,7 @@ int main()
 
     /*Cierra conexiones de Sockets*/
     for (cli = 0; cli < fdMax+1; ++cli) /*cerrar descriptores*/
-		close(cli);    
+        close(cli);
 
     /*Cierra conexiones LDAP*/
     ldap.sessionOp->endSession(ldap.session);
@@ -212,7 +219,7 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
         }
         
 	/*Realiza la busqueda*/
-	if ((resultSet = consultarLDAP(ldap, getInfo.queryString)) == NULL)
+	if ((resultSet = consultarLDAP(&ldap, getInfo.queryString)) == NULL)
 	{
             perror("consultarLDAP");
             return -1;
@@ -251,6 +258,67 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
 	free(resultados);
 	
 	return 0;
+}
+
+int conectarQueryManager (in_addr_t nDireccionIP, in_port_t nPort)
+{
+    SOCKET sockQM;
+    SOCKADDR_IN their_addr;
+    char buffer[BUF_SIZE];
+    char descID[DESCRIPTORID_LEN];
+    int mode = 0x00;
+
+    memset(buffer, '\0', sizeof(buffer));
+
+    sockQM= establecerConexionServidor(nDireccionIP, nPort, &their_addr);
+
+    if (sockQM == INVALID_SOCKET)
+        return -1;
+
+    sprintf(buffer, "%d", config.tipoRecurso);
+
+    if (ircRequest_send(sockQM, buffer, sizeof(buffer), descID, IRC_HANDSHAKE_QP) < 0)
+    {
+        perror("IRC request send");
+        close(sockQM);
+        return -1;
+    }
+    if (ircResponse_recv(sockQM, NULL, descID, 0, &mode) < 0)
+    {
+        perror("IRC response recv");
+        close(sockQM);
+        return -1;
+    }
+
+    close(sockQM);
+
+    return 0;
+}
+
+SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr)
+{
+    SOCKET sockfd;
+
+    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+        rutinaDeError("socket");
+
+    their_addr->sin_family = AF_INET;
+    their_addr->sin_port = nPort;
+    their_addr->sin_addr.s_addr = nDireccionIP;
+    memset(&(their_addr->sin_zero),'\0',8);
+
+    /*if (connect(sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1)
+        rutinaDeError("connect");*/
+
+    while ( connect (sockfd, (SOCKADDR *)their_addr, sizeof(SOCKADDR)) == -1 && errno != EISCONN )
+        if ( errno != EINTR )
+        {
+            perror("connect");
+            close(sockfd);
+            return -1;
+    	}
+
+    return sockfd;
 }
 
 /*      

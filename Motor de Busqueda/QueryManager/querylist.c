@@ -48,7 +48,7 @@ int EliminarQuery (ptrListaQuery *ptr, SOCKET socket)
 {
     ptrListaQuery ptrAnt, ptrAct, tempPtr;
 
-    if (socket == ptr->info.socket)
+    if (socket == (*ptr)->info.socket)
     {
         tempPtr = *ptr;
         *ptr = (*ptr)->sgte;
@@ -65,10 +65,10 @@ int EliminarQuery (ptrListaQuery *ptr, SOCKET socket)
             ptrAct = ptrAct->sgte;
         }
 
-        if (ptrActual != NULL)
+        if (ptrAct != NULL)
         {
-            tempPtr = ptrActual;
-            ptrAnterior->ptrSgte = ptrActual->ptrSgte;
+            tempPtr = ptrAct;
+            ptrAnt->sgte = ptrAct->sgte;
             free (tempPtr);
         }
     }

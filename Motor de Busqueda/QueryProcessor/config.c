@@ -68,6 +68,12 @@ int asignarDatos (configuracion *config, char *key, char *value)
     else if (strcmp(key, "PUERTO") == 0)
         config->puerto = htons(atoi(value));
 
+    else if (strcmp(key, "IP_QUERYMANAGER") == 0)
+        config->ipQM = inet_addr(value);
+
+    else if (strcmp(key, "PUERTO_QUERYMANAGER") == 0)
+        config->puertoQM = htons(atoi(value));
+
     else if (strcmp(key, "IP_PUERTO_LDAP") == 0)
         strcpy(config->ipPortLDAP, value);
     

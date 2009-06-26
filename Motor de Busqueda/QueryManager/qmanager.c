@@ -14,7 +14,7 @@ void rutinaDeError (char* error);
 int atenderFrontEnd (SOCKET sockCliente, ptrListaQuery listaHtml, ptrListaQuery listaArchivos);
 SOCKET establecerConexionEscucha (in_addr_t nDireccionIP, in_port_t nPort);
 SOCKET establecerConexionServidor (in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr);
-int conectarFrontEnd(config.ipFrontEnd, config.puertoFrontEnd);
+int conectarFrontEnd (in_addr_t nDireccionIP, in_port_t nPort);
 
 configuracion config;
 
@@ -44,13 +44,13 @@ int main(int argc, char** argv)
     if ((sockQM = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
        rutinaDeError("Establecer conexion de escucha");
 
-    /*Acepta la conexion entrante del primer QP, condicionante para estar operativo*/
-    sockPrimerQP = accept(sockQM, (SOCKADDR *) &dirPrimerQP, &nAddrSize);
-    if (sockPrimerQP == INVALID_SOCKET)
+    do
     {
-        perror("No se pudo conectar al QP");
-        continue;
-    }
+        /*Acepta la conexion entrante del primer QP, condicionante para estar operativo*/
+        sockPrimerQP = accept(sockQM, (SOCKADDR *) &dirPrimerQP, &nAddrSize);
+        if (sockPrimerQP == INVALID_SOCKET)
+            perror("No se pudo conectar al QP");
+    } while (sockPrimerQP == INVALID_SOCKET);
 
     /*Se agregan los sockets abiertos y se asigna el maximo actual*/
     FD_ZERO (&fdMaestro);
@@ -112,23 +112,26 @@ int main(int argc, char** argv)
                         FD_SET (sockCliente, &fdMaestro);
                         if (sockCliente > fdMax)
                                 fdMax = sockCliente;
-                        cantidadConexiones++;
 
                         printf ("Conexion aceptada de %s.\n", inet_ntoa(dirCliente.sin_addr));
                     }
-                    else if (cli == stdin)
+                    else if (cli == 0) /*stdin*/
                     {
                         /*ATENDER INPUT CONSOLA*/
                     }
                     else
                     /*Cliente detectado -> Si es QP colgar de lista, si es Front-End satisfacer pedido*/
                     {
-                        
+                        char buffer[BUF_SIZE];
                         char descID[DESCRIPTORID_LEN];
                         int control;
+                        int mode = 0x00;
+
+                        memset(buffer, '\0', sizeof(buffer));
+                        memset(descID, '\0', sizeof(descID));
 
                         /*Recibir HandShake*/
-                        if ((control = ircRequest_recv (cli, buffer, descID, &mode)) < 0)
+                        if ((control = ircRequest_recv (cli, (void **)&buffer, descID, &mode)) < 0)
                             printf("Error al recibir mensaje IRC");
                         else if (control == 1)
                         /*Se a desconectado un cliente -> se controla si es un QP de alguna lista: en ese caso se elimina*/
@@ -171,12 +174,12 @@ int main(int argc, char** argv)
 
                                 if (info.tipoRecurso == RECURSO_WEB)
                                 {
-                                    if ((control = AgregarQuery (listaHtml, info)) < 0)
+                                    if ((control = AgregarQuery (&listaHtml, info)) < 0)
                                         printf("Error al agregar Query Processor a lista Htm.l\n\n");
                                 }
                                 else
                                 {
-                                    if ((control = AgregarQuery (listaArchivos, info)) < 0)
+                                    if ((control = AgregarQuery (&listaArchivos, info)) < 0)
                                         printf("Error al agregar Query Processor a lista Archivos.\n\n");
                                 }
                                 
@@ -199,7 +202,6 @@ int main(int argc, char** argv)
                             if (cli == fdMax)
                                 while (FD_ISSET(fdMax, &fdMaestro) == 0)
                                     fdMax--;
-                            cantidadConexiones--;
                         }
                     }
                 }
@@ -207,7 +209,9 @@ int main(int argc, char** argv)
         }
     }
 
-    close(sockQM);
+    /*Cierra conexiones de Sockets*/
+    for (cli = 0; cli < fdMax+1; ++cli) /*cerrar descriptores*/
+        close(cli);
 
     return (EXIT_SUCCESS);
 }
@@ -216,6 +220,7 @@ int main(int argc, char** argv)
 int atenderFrontEnd(SOCKET sockCliente, ptrListaQuery listaHtml, ptrListaQuery listaArchivos)
 {
     SOCKET sockQP;
+    char descriptorID[DESCRIPTORID_LEN];
     void *datos = NULL, *datosQP = NULL;
     unsigned long respuestaLen = 0;
     int mode = 0x00, modeQP = IRC_RESPONSE_ERROR;
@@ -223,7 +228,7 @@ int atenderFrontEnd(SOCKET sockCliente, ptrListaQuery listaHtml, ptrListaQuery l
     int control;
 
     /*Recibe las palabras a buscar del Front-End*/
-    if ((control =ircRequest_recv (sockCliente, &datos, descriptorID, &mode)) < 0 || control == 1)
+    if ((control = ircRequest_recv (sockCliente, &datos, descriptorID, &mode)) < 0 || control == 1)
     {
         perror("ircRequest_recv");
         return -1;
@@ -316,14 +321,16 @@ int atenderFrontEnd(SOCKET sockCliente, ptrListaQuery listaHtml, ptrListaQuery l
     free(datos);
 }
 
-int conectarFrontEnd(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr)
+int conectarFrontEnd(in_addr_t nDireccionIP, in_port_t nPort)
 {
     SOCKET sockFrontEnd;
+    SOCKADDR_IN their_addr;
     char buffer[BUF_SIZE];
+    char descID[DESCRIPTORID_LEN];
 
     memset(buffer, '\0', sizeof(buffer));
 
-    sockFrontEnd = establecerConexionServidor(nDireccionIP, nPort);
+    sockFrontEnd = establecerConexionServidor(nDireccionIP, nPort, &their_addr);
 
     if (sockFrontEnd == INVALID_SOCKET)
         return -1;
@@ -331,7 +338,11 @@ int conectarFrontEnd(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their
     sprintf(buffer, "%s:%d", config.ipL, config.puertoL);
 
     if (ircRequest_send(sockFrontEnd, buffer, sizeof(buffer), descID, IRC_HANDSHAKE_QM) < 0)
+    {
+        perror("IRC request send");
+        close(sockFrontEnd);
         return -1;
+    }
 
     close(sockFrontEnd);
 
@@ -353,12 +364,12 @@ SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKA
     /*if (connect(sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1)
         rutinaDeError("connect");*/
 
-    while ( connect (sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1 && GetLastError() != WSAEISCONN )
-        if ( GetLastError() != WSAEINTR )
-		{
-            fprintf(stderr, "Error en connect: error num %d", GetLastError());
-			closesocket(sockfd);
-			return -1;
+    while ( connect (sockfd, (SOCKADDR *)their_addr, sizeof(SOCKADDR)) == -1 && errno != EISCONN )
+        if ( errno != EINTR )
+        {
+            perror("connect");
+            close(sockfd);
+            return -1;
     	}
 
     return sockfd;

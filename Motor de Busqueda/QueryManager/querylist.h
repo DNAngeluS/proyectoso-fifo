@@ -8,10 +8,7 @@
 #ifndef _QUERYLIST_H
 #define	_QUERYLIST_H
 
-#ifndef _QMANAGER_H
-    #define SOCKET int
-    #define SOCKADDR_IN struct sockaddr_in
-#endif
+#include "qmanager.h"
 
 struct query {
     SOCKET socket;
@@ -23,7 +20,7 @@ struct query {
 
 typedef struct nodoListaQuery {
     struct query info;
-    struct nodoQuery *sgte;
+    struct nodoListaQuery *sgte;
 } NodoListaQuery;
 
 typedef NodoListaQuery *ptrListaQuery;

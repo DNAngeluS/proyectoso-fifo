@@ -11,24 +11,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <thread.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/timeb.h>
-#include <sys/wait.h>
 #include <fcntl.h>
-#include <sys/select.h>
 #include <sys/file.h>
+#include <sys/filio.h>
 #include <netinet/in.h>
 #include <errno.h>
 #include <ctype.h>
-#include <unistd.h>
-#include <signal.h>
-#include <pthread.h>
-#include <setjmp.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
 
 enum tipoRecurso_t {RECURSO_WEB, RECURSO_ARCHIVOS, RECURSO_AMBOS};
 

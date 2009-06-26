@@ -55,13 +55,14 @@ int main(int argc, char** argv) {
        rutinaDeError("Socket invalido");
 
     /*Hasta que llegue el handshake del QM*/
-    while ()
+    while (1)
     {
         SOCKET sockCliente;
         SOCKADDR_IN dirCliente;
         int nAddrSize = sizeof(dirCliente);
         char buffer[BUF_SIZE];
         char descID[DESCRIPTORID_LEN];
+        int mode = IRC_HANDSHAKE_QM;
 
         printf("Esperando conexion del Query Manager para estar operativo.\n");
 
@@ -69,7 +70,7 @@ int main(int argc, char** argv) {
         sockCliente = accept(sockCliente, (SOCKADDR *) &dirCliente, &nAddrSize);
 
         /*Si el socket es invalido, ignora y vuelve a empezar*/
-        if (sockCliente == INVALID_SOCKET || (ircRequest_recv (sockCliente, buffer, descID, IRC_HANDSHAKE_QM) < 0))
+        if (sockCliente == INVALID_SOCKET || (ircRequest_recv (sockCliente, buffer, descID, &mode) < 0))
         {
             printf("No se recibio el handshake correctamente. Se cierra conexion.\n\n");
             if (sockCliente != INVALID_SOCKET)
@@ -80,6 +81,7 @@ int main(int argc, char** argv) {
         /*Guarda en la estructura de configuracion global el ip y puerto del Query Manager*/
         config.ipQM = inet_addr(strtok(buffer, ":"));
         config.puertoQM = htons(atoi(strtok(NULL, "")));
+        break;
     }
 
     printf("FRONT-END. Conexion establecida.\n");
@@ -296,24 +298,14 @@ void *rutinaAtencionCache (void *args)
     SOCKET sockCliente = arg->socket;
     msgGet getThread = arg->getInfo, getInfo;
     SOCKADDR_IN dirCliente = arg->dir;
-    SOCKET sockQP;
-    SOCKADDR_IN dirQP;
+    SOCKET sockQM;
+    SOCKADDR_IN dirQM;
     hostsCodigo *respuesta = NULL;
     int mode = 0x00;
 
     memset(&getInfo, '\0', sizeof(msgGet));
     getInfo.protocolo = getThread.protocolo;
 
-    /*Se establece conexion con el Query Procesor*/
-    if ((sockQP = establecerConexionServidor(config.ipQP, config.puertoQP, &dirQP)) == INVALID_SOCKET)
-    {
-        perror("Establecer conexion QP");
-        close(sockCliente);
-        close(sockQP);
-        thr_exit(NULL);
-    }
-
-    printf("Se establecio conexion con el QP satisfactoriamente.");
     printf ("Se comienza a atender Request Cache de %s.\n\n", inet_ntoa(dirCliente.sin_addr));
 
     /*Se obtiene el uuid a buscar*/
@@ -326,20 +318,31 @@ void *rutinaAtencionCache (void *args)
             printf("Error al enviar HTTP Not Found.\n\n");
 
         close(sockCliente);
-        close(sockQP);
         thr_exit(NULL);
     }
 
     printf("UUID a buscar: %s.\n", getInfo.palabras);
 
+    /*Se establece conexion con el Query Procesor*/
+    if ((sockQM = establecerConexionServidor(config.ipQM, config.puertoQM, &dirQM)) == INVALID_SOCKET)
+    {
+        perror("Establecer conexion QM");
+        close(sockCliente);
+        thr_exit(NULL);
+    }
+    printf("Se establecio conexion con el QM satisfactoriamente.");
+
     /*Se solicita la busqueda al Query Processor y se recibe las respuestas*/
-    if (solicitarBusquedaCache(sockQP, getInfo, &respuesta, &mode) < 0)
+    if (solicitarBusquedaCache(sockQM, getInfo, &respuesta, &mode) < 0)
     {
         perror("Solicitar busqueda");
         close(sockCliente);
-        close(sockQP);
+        close(sockQM);
         thr_exit(NULL);
     }
+
+    /*Se cierra conexion con el Query Manager*/
+    close(sockQM);
 
     if (mode == IRC_RESPONSE_CACHE)
     {
@@ -364,7 +367,6 @@ void *rutinaAtencionCache (void *args)
 
     /*Se cierra conexion con Cliente y con QP*/
     close(sockCliente);
-    close(sockQP);
     thr_exit(NULL);
 }
 
@@ -380,8 +382,8 @@ void *rutinaAtencionCliente (void *args)
     SOCKET sockCliente = arg->socket;
     msgGet getThread = arg->getInfo, getInfo;
     SOCKADDR_IN dirCliente = arg->dir;
-    SOCKET sockQP;
-    SOCKADDR_IN dirQP;
+    SOCKET sockQM;
+    SOCKADDR_IN dirQM;
     int mode = 0x00;
 
     void *respuesta = NULL;
@@ -411,7 +413,7 @@ void *rutinaAtencionCliente (void *args)
          printf("palabras buscadas: %s\ntipo: %d\n", getInfo.palabras, getInfo.searchType);
 
     /*Se establece conexion con el Query Procesor*/
-    if ((sockQP = establecerConexionServidor(config.ipQP, config.puertoQP, &dirQP)) == INVALID_SOCKET)
+    if ((sockQM = establecerConexionServidor(config.ipQM, config.puertoQM, &dirQM)) == INVALID_SOCKET)
     {
         perror("Establecer conexion QP");
         close(sockCliente);
@@ -425,13 +427,16 @@ void *rutinaAtencionCliente (void *args)
     if (getInfo.searchType == OTROS)    respuesta = (so_URL_Archivos *)  malloc (sizeof(so_URL_Archivos));
 
     /*Se solicita la busqueda al Query Processor y se recibe las respuestas*/
-    if (solicitarBusqueda(sockQP, getInfo, &respuesta, &respuestaLen, &mode) < 0)
+    if (solicitarBusqueda(sockQM, getInfo, &respuesta, &respuestaLen, &mode) < 0)
     {
         perror("Solicitar busqueda");
         close(sockCliente);
-        close(sockQP);
+        close(sockQM);
         thr_exit(NULL);
     }
+
+    /*Se cierra conexion con el Query Manager*/
+    close(sockQM);
 
     if (mode == IRC_RESPONSE_HTML || mode == IRC_RESPONSE_ARCHIVOS)
     {
@@ -452,9 +457,8 @@ void *rutinaAtencionCliente (void *args)
             printf("Error al enviar HTTP Internal Service Error.\n\n");
     }
 
-    /*Se cierra conexion con Cliente y con QP*/
+    /*Se cierra conexion con Cliente*/
     close(sockCliente);
-    close(sockQP);
     thr_exit(NULL);
 }
 
@@ -953,12 +957,12 @@ SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKA
     /*if (connect(sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1)
         rutinaDeError("connect");*/
 
-    while ( connect (sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1 && GetLastError() != WSAEISCONN )
-        if ( GetLastError() != WSAEINTR )
-		{
-            fprintf(stderr, "Error en connect: error num %d", GetLastError());
-			closesocket(sockfd);
-			return -1;
+    while ( connect (sockfd, (SOCKADDR *)their_addr, sizeof(SOCKADDR)) == -1 && errno != EISCONN )
+        if ( errno != EINTR )
+        {
+            perror("connect");
+            close(sockfd);
+            return -1;
     	}
 
     return sockfd;
