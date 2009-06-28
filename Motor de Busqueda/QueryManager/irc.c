@@ -159,8 +159,6 @@ int ircRequest_recv (SOCKET sock, void **bloque, char *descriptorID, int *mode)
         printf("Error en irc request recv header\n");
         return -1;
     }
-    if (bytesRecibidos == 0)
-        return 1;
 
     memcpy(descriptorID, header.descriptorID, DESCRIPTORID_LEN);
     if (*mode == 0x00)
@@ -181,8 +179,6 @@ int ircRequest_recv (SOCKET sock, void **bloque, char *descriptorID, int *mode)
             printf("Error en irc request recv header\n");
             return -1;
         }
-        if (bytesRecibidos == 0)
-            return 1;
     }
 
     return 0;
@@ -258,13 +254,21 @@ int ircResponse_recv (SOCKET sock, void **bloque, char *descriptorID,
         len = header.payloadLen;
         *respuestaLen = header.payloadLen;
 
-        *bloque = realloc(*bloque, len);
-
-        if (RecibirNBloque(sock, *bloque, len) != len)
+        if (respuestaLen != 0)
         {
-            printf("Error en irc request recv header\n");
-            return -1;
+            if (*bloque != NULL)
+            {
+                *bloque = realloc(*bloque, len);
+
+                if (RecibirNBloque(sock, *bloque, len) != len)
+                {
+                    printf("Error en irc request recv header\n");
+                    return -1;
+                }
+            }
         }
+        else
+            *bloque = NULL;
 
         return 0;
     }

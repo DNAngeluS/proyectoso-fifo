@@ -48,11 +48,12 @@ int main(int argc, char** argv) {
     /*Lectura de Archivo de Configuracion*/
     if (leerArchivoConfiguracion(&config) != 0)
        rutinaDeError("Lectura Archivo de configuracion");
-
+    printf("Archivo de configuracion leido correctamente.\n");
 
     /*Se establece conexion a puerto de escucha*/
     if ((sockFrontEnd = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
        rutinaDeError("Socket invalido");
+    printf("Conexion de escucha establecida.\n");
 
     /*Hasta que llegue el handshake del QM*/
     while (1)
@@ -67,7 +68,7 @@ int main(int argc, char** argv) {
         printf("Esperando conexion del Query Manager para estar operativo.\n");
 
         /*Conecto nuevo cliente, posiblemente el QM*/
-        sockCliente = accept(sockCliente, (SOCKADDR *) &dirCliente, &nAddrSize);
+        sockCliente = accept(sockFrontEnd, (SOCKADDR *) &dirCliente, &nAddrSize);
 
         /*Si el socket es invalido, ignora y vuelve a empezar*/
         if (sockCliente == INVALID_SOCKET || (ircRequest_recv (sockCliente, buffer, descID, &mode) < 0))
@@ -81,6 +82,8 @@ int main(int argc, char** argv) {
         /*Guarda en la estructura de configuracion global el ip y puerto del Query Manager*/
         config.ipQM = inet_addr(strtok(buffer, ":"));
         config.puertoQM = htons(atoi(strtok(NULL, "")));
+
+        close(sockCliente);
         break;
     }
 
@@ -98,7 +101,7 @@ int main(int argc, char** argv) {
         printf("Esperando conexiones entrantes.\n\n");
 
         /*Acepta la conexion entrante*/
-        sockCliente = accept(sockCliente, (SOCKADDR *) &dirCliente, &nAddrSize);
+        sockCliente = accept(sockFrontEnd, (SOCKADDR *) &dirCliente, &nAddrSize);
         
         /*Si el socket es invalido, ignora y vuelve a empezar*/
         if (sockCliente == INVALID_SOCKET)
@@ -188,7 +191,7 @@ Recibe: socket del QP,, msg Get a buscar, estructura de respuestas vacia
  *      y su longitud
 Devuelve: ok? 0: -1. Estructura de respuestas llena.
 */
-int solicitarBusqueda(SOCKET sockQP, msgGet getInfo, void **respuesta, unsigned long *respuestaLen, int *mode)
+int solicitarBusqueda(SOCKET sock, msgGet getInfo, void **respuesta, unsigned long *respuestaLen, int *mode)
 {
     char descriptorID[DESCRIPTORID_LEN];
     int modeSend = 0x00;
@@ -200,7 +203,7 @@ int solicitarBusqueda(SOCKET sockQP, msgGet getInfo, void **respuesta, unsigned 
     if (getInfo.searchType == OTROS)    modeSend = IRC_REQUEST_ARCHIVOS;
 
     /*Enviar consulta a QP*/
-    if (ircRequest_send(sockQP, (void *) &getInfo, sizeof(getInfo), descriptorID, modeSend) < 0)
+    if (ircRequest_send(sock, (void *) &getInfo, sizeof(getInfo), descriptorID, modeSend) < 0)
     {
       printf("Error al enviar consulta a QP.\n\n");
       return -1;
@@ -209,7 +212,7 @@ int solicitarBusqueda(SOCKET sockQP, msgGet getInfo, void **respuesta, unsigned 
     modeSend = 0x00;
 
     /*Recibir consulta de QP*/
-    if (ircResponse_recv(sockQP, respuesta, descriptorID, respuestaLen, &modeSend) < 0)
+    if (ircResponse_recv(sock, respuesta, descriptorID, respuestaLen, &modeSend) < 0)
     {
         printf("Error al enviar consulta a QP.\n\n");
         return -1;

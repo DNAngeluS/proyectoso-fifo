@@ -35,6 +35,7 @@ int main()
     /*Lectura de Archivo de Configuracion*/
     if (leerArchivoConfiguracion(&config) < 0)
       rutinaDeError("Lectura Archivo de configuracion");
+    printf("Archivo de configuracion leido correctamente.\n");
 
     /*Se realiza la conexion a la base ldap*/
     if (establecerConexionLDAP(&ldap, config) < 0)
@@ -89,6 +90,7 @@ int main()
                         SOCKADDR_IN dirCliente;
                         int nAddrSize = sizeof(dirCliente);
                         char descriptorID[DESCRIPTORID_LEN];
+                        int mode = 0x00;
 
                         memset(descriptorID, '\0', DESCRIPTORID_LEN);
                        
@@ -100,13 +102,36 @@ int main()
                             continue;
                         }
 
-                        /*Agrega cliente y actualiza max*/
-                        FD_SET (sockCliente, &fdMaestro);
-                        if (sockCliente > fdMax)
-                                fdMax = sockCliente;
-                        cantidadConexiones++;
+                        /*Si no hay conexiones disponibles*/
+                        if (!(cantidadConexiones < config.cantidadConexiones))
+                            mode = IRC_RESPONSE_NOT_POSIBLE;
+                        else
+                            mode = IRC_RESPONSE_POSIBLE;
 
-                        printf ("Conexion aceptada de %s.\n", inet_ntoa(dirCliente.sin_addr));
+                        /*Envia el IRC con codigo de error*/
+                        if (ircResponse_send(sockCliente, descriptorID, NULL, 0, mode) < 0)
+                        {
+                            perror("ircResponse_send");
+                            close(sockCliente);
+                            continue;
+                        }
+
+                        /*Si no fue posible cierra conexion.*/
+                        if (mode == IRC_RESPONSE_NOT_POSIBLE)
+                        {
+                            printf("Conexion rechazada de %s.\n", inet_ntoa(dirCliente.sin_addr));
+                            close(sockCliente);
+                        }
+                        /*Si fue posible agrega para atender su request*/
+                        else
+                        {
+                            /*Agrega cliente y actualiza max*/
+                            FD_SET (sockCliente, &fdMaestro);
+                            if (sockCliente > fdMax)
+                                    fdMax = sockCliente;
+                            cantidadConexiones++;
+                            printf("Conexion aceptada de %s.\n", inet_ntoa(dirCliente.sin_addr));
+                        }
                     }
                     else
                     /*Cliente detectado -> esta enviando consultas*/
@@ -181,19 +206,6 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
             perror("ircRequest_recv");
             return -1;
 	}
-
-        /*Si no hay conexiones disponibles*/
-        if (!(cantidadConexiones < config.cantidadConexiones))
-        {
-            /*Envia el IRC con codigo de error*/
-            if (ircResponse_send(sockCliente, descriptorID, NULL, 0, IRC_RESPONSE_ERROR) < 0)
-            {
-              perror("ircResponse_send");
-              return -1;
-            }
-
-            return 2;
-        }
 
         if (mode != IRC_REQUEST_UNICOQP)
         {
@@ -275,7 +287,7 @@ int conectarQueryManager (in_addr_t nDireccionIP, in_port_t nPort)
     if (sockQM == INVALID_SOCKET)
         return -1;
 
-    sprintf(buffer, "%d", config.tipoRecurso);
+    sprintf(buffer, "%s:%d-%d", inet_ntoa(*(IN_ADDR *) &config.ip), ntohs(config.puerto), config.tipoRecurso);
 
     if (ircRequest_send(sockQM, buffer, sizeof(buffer), descID, IRC_HANDSHAKE_QP) < 0)
     {
@@ -283,13 +295,14 @@ int conectarQueryManager (in_addr_t nDireccionIP, in_port_t nPort)
         close(sockQM);
         return -1;
     }
+    /*
     if (ircResponse_recv(sockQM, NULL, descID, 0, &mode) < 0)
     {
         perror("IRC response recv");
         close(sockQM);
         return -1;
     }
-
+    */
     close(sockQM);
 
     return 0;

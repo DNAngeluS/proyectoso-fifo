@@ -29,6 +29,7 @@ enum tipoRecurso_t {RECURSO_WEB, RECURSO_ARCHIVOS, RECURSO_AMBOS};
 typedef int SOCKET;
 typedef struct sockaddr_in SOCKADDR_IN;
 typedef struct sockaddr SOCKADDR;
+typedef struct in_addr IN_ADDR;
 typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
 

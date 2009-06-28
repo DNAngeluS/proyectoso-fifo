@@ -19,14 +19,17 @@
 #define IRC_REQUEST_ARCHIVOS 0x11
 #define IRC_REQUEST_CACHE 0x12
 #define IRC_REQUEST_UNICOQP 0x13
+#define IRC_REQUEST_POSIBLE 0x14
 
 /*Respuestas del QP a peticiones de busqueda*/
 #define IRC_RESPONSE_HTML 0x20
 #define IRC_RESPONSE_ARCHIVOS 0x21
 #define IRC_RESPONSE_CACHE 0x22
+#define IRC_RESPONSE_POSIBLE 0x23
+#define IRC_RESPONSE_NOTPOSIBLE 0x24
 
 /*QP no esta disponible para busquedas*/
-#define IRC_RESPONSE_ERROR 0x23
+#define IRC_RESPONSE_ERROR 0x25
 
 /*QP realiza handshake para conectarse al QM, al comienzo*/
 #define IRC_HANDSHAKE_QP 0x90

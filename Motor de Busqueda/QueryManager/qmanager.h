@@ -27,9 +27,6 @@
 
 enum tipoRecurso_t {RECURSO_WEB, RECURSO_ARCHIVOS, RECURSO_AMBOS};
 
-#define SOCKET int
-#define SOCKADDR struct sockaddr
-#define SOCKADDR_IN struct sockaddr_in
 #define INVALID_SOCKET -1
 #define MAX_PATH 256
 #define SOCKET_ERROR -1
@@ -37,6 +34,12 @@ enum tipoRecurso_t {RECURSO_WEB, RECURSO_ARCHIVOS, RECURSO_AMBOS};
 #define MAX_HTMLCODE 4096
 #define MAX_SIZE_PALABRA 50     /*El tamaño maximo de una palabra dentro de crawler_URL*/
 
+typedef int SOCKET;
+typedef struct sockaddr_in SOCKADDR_IN;
+typedef struct sockaddr SOCKADDR;
+typedef struct in_addr IN_ADDR;
+typedef unsigned int in_addr_t;
+typedef unsigned short in_port_t;
 
 #endif	/* _QMANAGER_H */
 

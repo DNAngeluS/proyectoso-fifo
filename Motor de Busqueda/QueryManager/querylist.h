@@ -11,8 +11,8 @@
 #include "qmanager.h"
 
 struct query {
-    SOCKET socket;
-    SOCKADDR_IN direccion;
+    in_addr_t ip;
+    in_port_t puerto;
     int tipoRecurso;
     unsigned int consultasExito;
     unsigned int consultasFracaso;
