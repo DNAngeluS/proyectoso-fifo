@@ -44,6 +44,29 @@ int establecerConexionLDAP(ldapObj *ldap, configuracion config)
 
 	return 0;
 }
+
+void ldapFreeResultSet(PLDAP_RESULT_SET resultSet)
+{
+    PLDAP_ITERATOR iterator = NULL;
+    PLDAP_RECORD_OP recordOp = newLDAPRecordOperations();
+    int i;
+
+    for(i = 0, iterator = resultSet->iterator; iterator->hasNext(resultSet); i++)
+    {
+        PLDAP_RECORD record = iterator->next(resultSet);
+
+        while(recordOp->hasNextField(record))
+        {
+            PLDAP_FIELD field = recordOp->nextField(record);
+            freeLDAPField(field);
+        }
+
+        freeLDAPRecord(record);
+    }
+    freeLDAPIterator(iterator);
+    freeLDAPRecordOperations(recordOp);
+}
+
 /*
 Descripcion: Inserta una entrada ldap URL segun entrada y mode
 Ultima modificacion: Moya Farina, Lucio

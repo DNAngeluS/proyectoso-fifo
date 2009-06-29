@@ -27,6 +27,7 @@ typedef struct {
 
 int establecerConexionLDAP(ldapObj *ldap, configuracion config);
 int ldapObtenerDN(ldapObj *ldap,char *key, int mode, char *dn);
+void ldapFreeResultSet(PLDAP_RESULT_SET resultSet);
 
 int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode);
 int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode);
