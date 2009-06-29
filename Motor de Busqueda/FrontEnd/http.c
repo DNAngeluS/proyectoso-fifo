@@ -223,8 +223,6 @@ int EnviarArchivo(SOCKET sockRemoto, int filefd)
         bEnviadosTot+=bEnviadosBloque;
     }
 
-    printf("Tamaño de archivo: %d, Enviado: %d\n\n", stat_buf.st_size, bEnviadosTot);
-    
     if (stat_buf.st_size != bEnviadosTot)
             error = 1;
     return error==0? bEnviadosTot: -1;

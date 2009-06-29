@@ -28,7 +28,7 @@ typedef NodoListaQuery *ptrListaQuery;
 void imprimeLista (ptrListaQuery ptr);
 int listaVacia (ptrListaQuery ptr);
 int AgregarQuery (ptrListaQuery *ptr, struct query info);
-int EliminarQuery (ptrListaQuery *ptr, SOCKET socket);
+int EliminarQuery (ptrListaQuery *ptr, ptrListaQuery ptrEliminar);
 unsigned cantidadQuerysLista (ptrListaQuery ptr);
 
 #endif	/* _QUERYLIST_H */

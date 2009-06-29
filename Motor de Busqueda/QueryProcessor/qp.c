@@ -33,24 +33,30 @@ int main()
     fdMax = cli = cantidadConexiones = 0;
     
     /*Lectura de Archivo de Configuracion*/
+    printf("Se leera archivo de configuracion. ");
     if (leerArchivoConfiguracion(&config) < 0)
       rutinaDeError("Lectura Archivo de configuracion");
-    printf("Archivo de configuracion leido correctamente.\n");
+    printf("Leido OK.\n");
 
     /*Se realiza la conexion a la base ldap*/
+    printf("Se realizara la conexion a ldap. ");
     if (establecerConexionLDAP(&ldap, config) < 0)
       rutinaDeError("No se pudo establecer la conexion LDAP.");	
-    printf("Conexion establecida con LDAP\n");
+    printf("Conectado OK\n");
 
     /*Se realiza handshake con el QM, enviando el tipo de recurso*/
+    printf("Se realizara el Handshake con Query Manager. ");
     if (conectarQueryManager(config.ipQM, config.puertoQM) < 0)
         rutinaDeError("Conectar Query Manager");
+    printf("Realizado OK.\n");
 
     /*Se establece la conexion de escucha*/
+    printf("Se establecera conexion de escucha. ");
     if ((sockQP = establecerConexionEscucha(INADDR_ANY, config.puerto)) < 0)
       rutinaDeError("Establecer conexion de escucha");
-    printf("QUERY PROCESSOR. Conexion establecida.\n");
-    
+    printf("Conexion establecida OK.\n");
+
+    putchar('\n');
     FD_ZERO (&fdMaestro);
     FD_SET(sockQP, &fdMaestro);
     fdMax = sockQP;
@@ -65,7 +71,7 @@ int main()
         FD_ZERO(&fdLectura);
         memcpy(&fdLectura, &fdMaestro, sizeof(fdMaestro));
 
-        printf("Se comienzan a escuchar pedidos.\n\n");
+        printf("Esperando nuevas peticiones...\n");
         rc = select(fdMax+1, &fdLectura, NULL, NULL, &timeout);
 
         if (rc < 0)
@@ -102,24 +108,42 @@ int main()
                             continue;
                         }
 
-                        /*Si no hay conexiones disponibles*/
-                        if (!(cantidadConexiones < config.cantidadConexiones))
-                            mode = IRC_RESPONSE_NOT_POSIBLE;
-                        else
-                            mode = IRC_RESPONSE_POSIBLE;
+                        printf("Conexion aceptada de %s.\n", inet_ntoa(dirCliente.sin_addr));
 
-                        /*Envia el IRC con codigo de error*/
-                        if (ircResponse_send(sockCliente, descriptorID, NULL, 0, mode) < 0)
+                        /*Recibe el IRC con el permiso de peticion de atender request*/
+                        printf("Se recibira permiso de peticion. ");
+                        if (ircRequest_recv (sockCliente, NULL, descriptorID, &mode) < 0)
                         {
-                            perror("ircResponse_send");
+                            printf("Error.\n\n");
                             close(sockCliente);
                             continue;
                         }
+                        printf("Recibido OK.\n");
+
+                        /*Si se pueden realizar conexiones*/
+                        if (mode == IRC_REQUEST_POSIBLE)
+                        {
+                            /*Si no hay conexiones disponibles*/
+                            if (!(cantidadConexiones < config.cantidadConexiones))
+                                mode = IRC_RESPONSE_NOT_POSIBLE;
+                            else
+                                mode = IRC_RESPONSE_POSIBLE;
+                        }
+
+                        printf("Se respondera permiso de peticion. ");
+                        /*Responde el IRC con codigo de error*/
+                        if (ircResponse_send(sockCliente, descriptorID, NULL, 0, mode) < 0)
+                        {
+                            printf("Error.\n\n");
+                            close(sockCliente);
+                            continue;
+                        }
+                        printf("Respondido OK.\n");
 
                         /*Si no fue posible cierra conexion.*/
                         if (mode == IRC_RESPONSE_NOT_POSIBLE)
                         {
-                            printf("Conexion rechazada de %s.\n", inet_ntoa(dirCliente.sin_addr));
+                            printf("Conexion a sido rechazada.\n\n");
                             close(sockCliente);
                         }
                         /*Si fue posible agrega para atender su request*/
@@ -130,7 +154,7 @@ int main()
                             if (sockCliente > fdMax)
                                     fdMax = sockCliente;
                             cantidadConexiones++;
-                            printf("Conexion aceptada de %s.\n", inet_ntoa(dirCliente.sin_addr));
+                            printf("Conexion a sido aceptada.\n\n");
                         }
                     }
                     else
@@ -138,10 +162,12 @@ int main()
                     {
                         int control;
 
+                        printf("Se atendera peticion del Cliente.\n");
+
                         control = atenderConsulta(cli, ldap, cantidadConexiones);
 
                         if (control == 2)
-                            printf("Se ah llegado al tope conexiones, se rechaza el pedido.");
+                            printf("Se a llegado al tope conexiones, se rechaza el pedido.");
                         else if (control == 1)
                             printf("Se a solicitado un recurso que no atiende este Query Processor.");
                         else if (control == 0)
@@ -201,24 +227,30 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
         memset(descriptorID, '\0', sizeof(descriptorID));
 
 	/*Recibe las palabras a buscar*/
+        printf("Se recibiran las palabras a buscar. ");
 	if (ircRequest_recv (sockCliente, (void *) &getInfo, descriptorID, &mode) < 0)
 	{
-            perror("ircRequest_recv");
+            printf("Error.\n");
             return -1;
 	}
+        printf("Recibidas OK.\n");
 
         if (mode != IRC_REQUEST_UNICOQP)
         {
-             /*Si no hay concordancia con los tipos de recursos que se enviaron y que se atienden*/
+            /*Si no hay concordancia con los tipos de recursos que se enviaron y que se atienden*/
             if ( (config.tipoRecurso == 1 && mode != IRC_REQUEST_ARCHIVOS) ||
                     (config.tipoRecurso == 0 && (mode != IRC_REQUEST_HTML || mode != IRC_REQUEST_CACHE)) )
             {
-               /*Envia el IRC con codigo de error*/
+                printf("El recurso pedido no es atendido por este Query Processor.\n");
+
+                /*Envia el IRC con codigo de error*/
+                printf("Se enviara Internal Service Error. ");
                 if (ircResponse_send(sockCliente, descriptorID, NULL, 0, IRC_RESPONSE_ERROR) < 0)
                 {
-                  perror("ircResponse_send");
-                  return -1;
+                    printf("Error.\n");
+                    return -1;
                 }
+                printf("Enviado OK.\n");
                 return 1;
             }
         }
@@ -231,18 +263,21 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
         }
         
 	/*Realiza la busqueda*/
+        printf("Se realizara la busqueda en ldap. ");
 	if ((resultSet = consultarLDAP(&ldap, getInfo.queryString)) == NULL)
 	{
-            perror("consultarLDAP");
+            printf("Error al consultar ldap.\n");
             return -1;
 	}
+        
 
 	/*Prepara la informacion a enviar por el IRC*/
 	if ((armarPayload(resultSet, &resultados, mode, &cantBloques)) < 0)
 	{
-            perror("armarPayload");
+            printf("Error al armar payload.\n");
             return -1;
 	}
+        printf("Busqueda realizada OK.\n");
 
         /*Indentifica el tipo de busqueda*/
 	if (mode == IRC_REQUEST_HTML)
@@ -250,22 +285,25 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
             len = (sizeof(so_URL_HTML))*cantBloques;
 	    mode = IRC_RESPONSE_HTML;
 	}	
-	if (mode == IRC_REQUEST_ARCHIVOS)
+        else if (mode == IRC_REQUEST_ARCHIVOS)
 	{
             len = (sizeof(so_URL_Archivos))*cantBloques;
 	    mode = IRC_RESPONSE_ARCHIVOS;
 	}
-        if (mode == IRC_REQUEST_CACHE)
+        else if (mode == IRC_REQUEST_CACHE)
 	{
             len = sizeof(hostsCodigo);
 	    mode = IRC_RESPONSE_CACHE;
 	}
+        
 	/*Envia el IRC con los datos encontrados*/
+        printf("Se enviara respuesta. ");
 	if (ircResponse_send(sockCliente, descriptorID, resultados, len, mode) < 0)
 	{
-	  perror("ircResponse_send");
-	  return -1;
+            printf("Error.\n");
+            return -1;
 	}
+        printf("Respuesta enviada OK.\n");
 
 	free(resultados);
 	
@@ -282,27 +320,26 @@ int conectarQueryManager (in_addr_t nDireccionIP, in_port_t nPort)
 
     memset(buffer, '\0', sizeof(buffer));
 
-    sockQM= establecerConexionServidor(nDireccionIP, nPort, &their_addr);
-
+    printf("Conectando Query Manager. ");
+    sockQM = establecerConexionServidor(nDireccionIP, nPort, &their_addr);
     if (sockQM == INVALID_SOCKET)
+    {
+        printf("Error.\n");
         return -1;
+    }
+    printf("OK.\n");
 
     sprintf(buffer, "%s:%d-%d", inet_ntoa(*(IN_ADDR *) &config.ip), ntohs(config.puerto), config.tipoRecurso);
 
+    printf("Realizando Handshake. ");
     if (ircRequest_send(sockQM, buffer, sizeof(buffer), descID, IRC_HANDSHAKE_QP) < 0)
     {
-        perror("IRC request send");
+        printf("Error.\n");
         close(sockQM);
         return -1;
     }
-    /*
-    if (ircResponse_recv(sockQM, NULL, descID, 0, &mode) < 0)
-    {
-        perror("IRC response recv");
-        close(sockQM);
-        return -1;
-    }
-    */
+    printf("OK.\n");
+
     close(sockQM);
 
     return 0;

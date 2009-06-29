@@ -30,7 +30,7 @@
 #define SOCKET_ERROR -1
 #define BUF_SIZE 1024
 #define QUERYSTRING_SIZE 256
-#define MAX_HTML 512
+#define MAX_HTML 256
 #define MAX_HTTP 512
 #define MAX_HTMLCODE 4096
 
@@ -41,6 +41,7 @@ enum searchType_t {WEB, IMG, OTROS};
 typedef int SOCKET;
 typedef struct sockaddr_in SOCKADDR_IN;
 typedef struct sockaddr SOCKADDR;
+typedef struct in_addr IN_ADDR;
 typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
 

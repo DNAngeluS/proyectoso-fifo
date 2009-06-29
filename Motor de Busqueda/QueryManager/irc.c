@@ -133,6 +133,7 @@ int ircRequest_send(SOCKET sock, void *bloque, unsigned long bloqueLen,
             return -1;
         }
     }
+
     return 0;
 }
 
@@ -144,7 +145,7 @@ Recibe: socket, bloque donde recibir vacio, un descriptorID del mensaje,
  *      payload descriptor del mensaje vacio.
 Devuelve: ok? 0: -1. bloque lleno y payload descriptor del mensaje recibido.
 */
-int ircRequest_recv (SOCKET sock, void **bloque, char *descriptorID, int *mode)
+int ircRequest_recv (SOCKET sock, void **bloque, unsigned long *rtaLen, char *descriptorID, int *mode)
 {
     headerIRC header;
     unsigned long len;
@@ -168,6 +169,7 @@ int ircRequest_recv (SOCKET sock, void **bloque, char *descriptorID, int *mode)
             return -1;
 
     len = header.payloadLen;
+    *rtaLen = len;
     if (len != 0)
     {
         if (*bloque == NULL)
@@ -254,17 +256,14 @@ int ircResponse_recv (SOCKET sock, void **bloque, char *descriptorID,
         len = header.payloadLen;
         *respuestaLen = header.payloadLen;
 
-        if (respuestaLen != 0)
+        if (*respuestaLen != 0)
         {
-            if (*bloque != NULL)
-            {
-                *bloque = realloc(*bloque, len);
+            *bloque = malloc(len);
 
-                if (RecibirNBloque(sock, *bloque, len) != len)
-                {
-                    printf("Error en irc request recv header\n");
-                    return -1;
-                }
+            if (RecibirNBloque(sock, *bloque, len) != len)
+            {
+                printf("Error en irc request recv header\n");
+                return -1;
             }
         }
         else

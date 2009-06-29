@@ -26,7 +26,7 @@
 #define IRC_RESPONSE_ARCHIVOS 0x21
 #define IRC_RESPONSE_CACHE 0x22
 #define IRC_RESPONSE_POSIBLE 0x23
-#define IRC_RESPONSE_NOTPOSIBLE 0x24
+#define IRC_RESPONSE_NOT_POSIBLE 0x24
 
 /*QP no esta disponible para busquedas*/
 #define IRC_RESPONSE_ERROR 0x25

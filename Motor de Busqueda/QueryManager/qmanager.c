@@ -11,7 +11,7 @@
 #include "irc.h"
 
 void rutinaDeError (char* error);
-int atenderFrontEnd (SOCKET sockCliente, ptrListaQuery listaHtml, ptrListaQuery listaArchivos);
+int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, char *descriptorID, int mode, ptrListaQuery listaHtml, ptrListaQuery listaArchivos);
 SOCKET establecerConexionEscucha (in_addr_t nDireccionIP, in_port_t nPort);
 SOCKET establecerConexionServidor (in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr);
 int conectarFrontEnd (in_addr_t nDireccionIP, in_port_t nPort);
@@ -37,24 +37,25 @@ int main(int argc, char** argv)
     fdMax = cli = 0;
 
     /*Lectura de Archivo de Configuracion*/
+    printf("Se leera archivo de configuracion. ");
     if (leerArchivoConfiguracion(&config) != 0)
        rutinaDeError("Lectura Archivo de configuracion");
-    printf("Archivo de configuracion leido correctamente.\n");
+    printf("Leido OK.\n");
 
     /*Se establece conexion a puerto de escucha*/
+    printf("Se establecera conexion de escucha. ");
     if ((sockQM = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
-       rutinaDeError("Establecer conexion de escucha");
-    printf("Conexion de escucha establecida.\n");
+       rutinaDeError("Socket invalido");
+    printf("Establecida OK.\n");
 
     do
     {
-        printf("Esperando conexion del primer Query Processor para conectarse "
-                "al Front-end.\n");
+        printf("Esperando primer Query Processor para estar operativo...\n");
 
         /*Acepta la conexion entrante del primer QP, condicionante para estar operativo*/
         sockPrimerQP = accept(sockQM, (SOCKADDR *) &dirPrimerQP, &nAddrSize);
         if (sockPrimerQP == INVALID_SOCKET)
-            perror("No se pudo conectar al QP");
+            printf("No se pudo conectar al QP.\n");
     } while (sockPrimerQP == INVALID_SOCKET);
 
     printf("Query Processor en %s conectado.\n", inet_ntoa(dirPrimerQP.sin_addr));
@@ -69,10 +70,10 @@ int main(int argc, char** argv)
     * Ya se recibio la conexion del primer QP, ya se puede establecer la conexion con el Front-End.
     * Se conecta al Front-End, se le envia la IP y Puerto local, y se cierra conexion.
     */
+    printf("Se establecera conexion con Front-end. ");
     if (conectarFrontEnd(config.ipFrontEnd, config.puertoFrontEnd) < 0)
        rutinaDeError("Conexion a Front-End");
-    printf("Conexion al Front-end satisfactoria. ");
-    printf("Se comienzan a escuchar requests.\n\n");
+    printf("Conexion establecida OK.\n\n");
 
     while (1)
     {
@@ -83,6 +84,8 @@ int main(int argc, char** argv)
 
         FD_ZERO(&fdLectura);
         memcpy(&fdLectura, &fdMaestro, sizeof(fdMaestro));
+
+        printf("Esperando nuevas peticiones...\n");
 
         rc = select(fdMax+1, &fdLectura, NULL, NULL, &timeout);
 
@@ -130,16 +133,17 @@ int main(int argc, char** argv)
                     else
                     /*Cliente detectado -> Si es QP colgar de lista, si es Front-End satisfacer pedido*/
                     {
-                        char buffer[BUF_SIZE];
+                        void *buffer = NULL;
                         char descID[DESCRIPTORID_LEN];
+                        unsigned long rtaLen = 0;
                         int control;
                         int mode = 0x00;
 
-                        memset(buffer, '\0', sizeof(buffer));
+                        /*memset(buffer, '\0', sizeof(buffer));*/
                         memset(descID, '\0', sizeof(descID));
 
                         /*Recibir HandShake*/
-                        if ((control = ircRequest_recv (cli, (void **)&buffer, descID, &mode)) < 0)
+                        if ((control = ircRequest_recv (cli, (void **)&buffer, &rtaLen, descID, &mode)) < 0)
                             printf("Error al recibir mensaje IRC");
                         else
                         {
@@ -149,7 +153,7 @@ int main(int argc, char** argv)
                                 int control;
                                 struct query info;
 
-                                info.ip = inet_addr(strtok(buffer, ":"));
+                                info.ip = inet_addr(strtok((char *)buffer, ":"));
                                 info.puerto = htons(atoi(strtok(NULL, "-")));
                                 info.tipoRecurso = atoi(strtok(NULL, ""));
                                 info.consultasExito = 0;
@@ -172,9 +176,11 @@ int main(int argc, char** argv)
                             else if (mode == IRC_REQUEST_HTML || mode == IRC_REQUEST_ARCHIVOS)
                             /*Si es Front-End atender*/
                             {
-                                if (atenderFrontEnd(cli, listaHtml, listaArchivos) < 0)
+                                if (atenderFrontEnd(cli, buffer, rtaLen, descID, mode, listaHtml, listaArchivos) < 0)
                                     printf("Hubo un error al atender al Front-End. Se descarta conexion.\n\n");
                             }
+
+                            free(buffer);
                             
                             /*Eliminar cliente y actualizar nuevo maximo*/
                             close(cli);
@@ -197,60 +203,52 @@ int main(int argc, char** argv)
 }
 
 
-int atenderFrontEnd(SOCKET sockCliente, ptrListaQuery listaHtml, ptrListaQuery listaArchivos)
+int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, char *descriptorID, int mode, ptrListaQuery listaHtml, ptrListaQuery listaArchivos)
 {
     SOCKET sockQP;
+    char descIDQP[DESCRIPTORID_LEN];
     int modeQP = 0x00;
-    char descriptorID[DESCRIPTORID_LEN];
-    void *datos = NULL;
     unsigned long respuestaLen = 0;
-    int mode = 0x00;
     ptrListaQuery ptrAux = NULL;
-    int control;
     int esUnicoQP;
 
-    /*Recibe las palabras a buscar del Front-End*/
-    if ((control = ircRequest_recv (sockCliente, &datos, descriptorID, &mode)) < 0 || control == 1)
+    esUnicoQP = cantidadQuerysLista(listaHtml) + cantidadQuerysLista(listaArchivos) == 1;
+
+    if (mode == IRC_REQUEST_HTML)
+        mode = IRC_RESPONSE_HTML;
+    else if (mode == IRC_REQUEST_ARCHIVOS)
+        mode = IRC_RESPONSE_ARCHIVOS;
+    else
     {
-        perror("ircRequest_recv");
+        printf("IRC: Mode incompatible. Se descarta request.\n\n");
         return -1;
     }
 
-    esUnicoQP = cantidadQuerysLista(listaHtml) + cantidadQuerysLista(listaArchivos) == 1;
-    
     if (esUnicoQP)
     {
         ptrAux = listaHtml == NULL? listaArchivos: listaHtml;
-        mode = IRC_REQUEST_UNICOQP;
+        modeQP = IRC_REQUEST_UNICOQP;
     }
     else
     {
         modeQP = mode;
+
         if (mode == IRC_REQUEST_HTML)
-        {
             ptrAux = listaHtml;
-            mode = IRC_RESPONSE_HTML;
-        }
         else if (mode == IRC_REQUEST_ARCHIVOS)
-        {
             ptrAux = listaArchivos;
-            mode = IRC_RESPONSE_ARCHIVOS;
-        }
-        else
-        {
-            printf("IRC: Mode incompatible. Se descarta request.\n\n");
-            return -1;
-        }
     }
 
     /*Busco hasta el final o hasta que el primero responda que puede atenderme*/
     while (ptrAux != NULL)
     {
         /*Actualizo las estructuras para la proxima peticion*/
-        char descriptorID[DESCRIPTORID_LEN];
+        char descIDQP[DESCRIPTORID_LEN];
+        void *buff = NULL;
         int modeQPHandshake = IRC_REQUEST_POSIBLE;
-        sockQP = establecerConexionServidor(ptrAux->info.ip, ptrAux->info.puerto);
-        int rtaLen = 0;
+        SOCKADDR_IN their_addr;
+        sockQP = establecerConexionServidor(ptrAux->info.ip, ptrAux->info.puerto, &their_addr);
+        unsigned long rtaLen = 0;
 
         if (sockQP == INVALID_SOCKET)
         {
@@ -258,27 +256,29 @@ int atenderFrontEnd(SOCKET sockCliente, ptrListaQuery listaHtml, ptrListaQuery l
             continue;
         }
 
-        /*Re-Envia las palabras a buscar al QP*/
-        if (ircRequest_send(sockQP, NULL, 0, descriptorID, modeQPHandshake) < 0)
+        /*Envia al QP el permiso de peticion*/
+        if (ircRequest_send(sockQP, NULL, 0, descIDQP, modeQPHandshake) < 0)
         {
             printf("Error al enviar consulta a QP.\n\n");
             close(sockQP);
             continue;
         }
 
-        modeQP = 0x00;
+        modeQPHandshake = 0x00;
 
-        /*Recibir respuesta del QP*/
-        if (ircResponse_recv(sockQP, NULL, descriptorID, &rtaLen, &modeQPHandshake) < 0)
+        /*Recibir respuesta del permiso por parte del QP*/
+        if (ircResponse_recv(sockQP, &buff, descIDQP, &rtaLen, &modeQPHandshake) < 0)
         {
             printf("Error al enviar consulta a QP.\n\n");
             close(sockQP);
             continue;
         }
 
+        /*Si es posible la atencion en ese servidor, continuar pedido*/
         if (modeQPHandshake == IRC_RESPONSE_POSIBLE)
             break;
 
+        /*Sino cerrar conexion y probar con el proximo*/
         close(sockQP);
         ptrAux = ptrAux->sgte;
 
@@ -287,14 +287,17 @@ int atenderFrontEnd(SOCKET sockCliente, ptrListaQuery listaHtml, ptrListaQuery l
     /*Ninguno pudo atenderme*/
     if (ptrAux == NULL)
     {
+        printf("No se encontraron Query Processors disponibles. Se enviara Internal Service Error.\n");
         datos = NULL;
         mode = IRC_RESPONSE_ERROR;
     }
     /*Si alguno pudo atenderme*/
     else
     {
-       /*Re-Envia las palabras a buscar al QP*/
-        if (ircRequest_send(sockQP, datos, sizeof(*datos), descriptorID, modeQP) < 0)
+        printf("Se a conectado a un Query Processor.\nSe enviara peticion. ");
+
+        /*Re-Envia las palabras a buscar al QP*/
+        if (ircRequest_send(sockQP, datos, sizeDatos, descIDQP, modeQP) < 0)
         {
             printf("Error al enviar consulta a QP.\n\n");
             close(sockQP);
@@ -304,10 +307,10 @@ int atenderFrontEnd(SOCKET sockCliente, ptrListaQuery listaHtml, ptrListaQuery l
         /*Libero y limpio estructuras para recibir*/
         free(datos);
         datos = NULL;
-        mode = 0x00;
+        modeQP = 0x00;
 
         /*Recibir respuesta del QP*/
-        if (ircResponse_recv(sockQP, &datos, descriptorID, &respuestaLen, &modeQP) < 0)
+        if (ircResponse_recv(sockQP, &datos, descIDQP, &respuestaLen, &modeQP) < 0)
         {
             printf("Error al enviar consulta a QP.\n\n");
             close(sockQP);
@@ -315,7 +318,11 @@ int atenderFrontEnd(SOCKET sockCliente, ptrListaQuery listaHtml, ptrListaQuery l
         }
 
         close(sockQP);
+
+        printf("Se han obtenido respuestas.\n");
     }
+
+    printf("Se reenviaran respuestas al Front-end. ");
 
     /*Re-Envio la respuesta al Cliente en Front-End*/
     if (ircResponse_send(sockCliente, descriptorID, datos, respuestaLen, mode) < 0)
@@ -326,6 +333,8 @@ int atenderFrontEnd(SOCKET sockCliente, ptrListaQuery listaHtml, ptrListaQuery l
 
     /*Libero estructura*/
     free(datos);
+
+    printf("Respuesta enviadas satisfactoriamente.\n\n");
 
     return 0;    
 }

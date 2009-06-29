@@ -44,11 +44,11 @@ int AgregarQuery (ptrListaQuery *ptr, struct query info)
 };
 
 /*Elimina un Query Processor indicado por su socket*/
-int EliminarQuery (ptrListaQuery *ptr, SOCKET socket)
+int EliminarQuery (ptrListaQuery *ptr, ptrListaQuery ptrEliminar)
 {
     ptrListaQuery ptrAnt, ptrAct, tempPtr;
 
-    if (socket == (*ptr)->info.socket)
+    if (ptrEliminar == *ptr)
     {
         tempPtr = *ptr;
         *ptr = (*ptr)->sgte;
@@ -59,7 +59,7 @@ int EliminarQuery (ptrListaQuery *ptr, SOCKET socket)
         ptrAnt = *ptr;
         ptrAct = (*ptr)->sgte;
 
-        while (ptrAct != NULL && ptrAct->info.socket != socket)
+        while (ptrAct != NULL && ptrAct != ptrEliminar)
         {
             ptrAnt = ptrAct;
             ptrAct = ptrAct->sgte;
