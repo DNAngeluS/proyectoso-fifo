@@ -15,12 +15,14 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
 SOCKET establecerConexionEscucha (in_addr_t nDireccionIP, in_port_t nPort);
 SOCKET establecerConexionServidor (in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr);
 int conectarFrontEnd (in_addr_t nDireccionIP, in_port_t nPort);
+int chequeoDeVida (in_addr_t ip, in_port_t puerto);
 
 configuracion config;
 
 int main(int argc, char** argv)
 {
     SOCKET sockQM;
+    int mensajeEsperando = 0;
 
     SOCKET sockPrimerQP;
     SOCKADDR_IN dirPrimerQP;
@@ -79,24 +81,58 @@ int main(int argc, char** argv)
     {
         int rc, desc_ready;
 
-        timeout.tv_sec = 60*3;
+        timeout.tv_sec = 20;
         timeout.tv_usec = 0;
 
         FD_ZERO(&fdLectura);
         memcpy(&fdLectura, &fdMaestro, sizeof(fdMaestro));
 
-        printf("Esperando nuevas peticiones...\n");
+        if (!mensajeEsperando)
+        {
+            mensajeEsperando = 1;
+            printf("Esperando nuevas peticiones...\n");
+        }
 
         rc = select(fdMax+1, &fdLectura, NULL, NULL, &timeout);
 
         if (rc < 0)
             rutinaDeError("select");
-        if (rc == 0)
+        else if (rc == 0)
         {
-        /*SELECT TIMEOUT*/
+            /*SELECT TIMEOUT*/
+            ptrListaQuery ptrAux = listaHtml;
+
+            /*Busco hasta el final o hasta que el primero responda que puede atenderme*/
+            while (ptrAux != NULL)
+            {
+                if (chequeoDeVida(ptrAux->info.ip, ptrAux->info.puerto) < 0)
+                {
+                    EliminarQuery(&listaHtml, ptrAux);
+                    printf("Query Processor sin vida se a eliminado de la lista.\n\n");
+                    mensajeEsperando = 0;
+                }
+
+                ptrAux = ptrAux->sgte;
+            }
+
+            ptrAux = listaArchivos;
+
+            /*Busco hasta el final o hasta que el primero responda que puede atenderme*/
+            while (ptrAux != NULL)
+            {
+                if (chequeoDeVida(ptrAux->info.ip, ptrAux->info.puerto) < 0)
+                {
+                    EliminarQuery(&listaArchivos, ptrAux);
+                    printf("Query Processor sin vida se a eliminado de la lista.\n\n");
+                    mensajeEsperando = 0;
+                }
+
+                ptrAux = ptrAux->sgte;
+            }
         }
-        if (rc > 0)
+        else if (rc > 0)
         {
+            mensajeEsperando = 0;
             desc_ready = rc;
             for (cli = 0; cli < fdMax+1 && desc_ready > 0; cli++)
             {
@@ -143,15 +179,19 @@ int main(int argc, char** argv)
                         memset(descID, '\0', sizeof(descID));
 
                         /*Recibir HandShake*/
+                        printf("Se recibira Handshake. ");
                         if ((control = ircRequest_recv (cli, (void **)&buffer, &rtaLen, descID, &mode)) < 0)
-                            printf("Error al recibir mensaje IRC");
+                            printf("Error.\n\n");
                         else
                         {
+                            printf("Recibido OK.\n");
                             if (mode == IRC_HANDSHAKE_QP)
                             /*Si es QP -> colgar de lista segun recurso atendido (payload)*/
                             {
                                 int control;
                                 struct query info;
+
+                                printf("Se atendera conexion de un nuevo Query Processor.\n");
 
                                 info.ip = inet_addr(strtok((char *)buffer, ":"));
                                 info.puerto = htons(atoi(strtok(NULL, "-")));
@@ -159,25 +199,29 @@ int main(int argc, char** argv)
                                 info.consultasExito = 0;
                                 info.consultasFracaso = 0;
 
+                                printf("Se agregara a lista. ");
                                 if (info.tipoRecurso == RECURSO_WEB)
                                 {
                                     if ((control = AgregarQuery (&listaHtml, info)) < 0)
-                                        printf("Error al agregar Query Processor a lista Htm.l\n\n");
+                                        printf("Error al agregar a lista Htm.l\n\n");
                                 }
                                 else
                                 {
                                     if ((control = AgregarQuery (&listaArchivos, info)) < 0)
-                                        printf("Error al agregar Query Processor a lista Archivos.\n\n");
+                                        printf("Error al agregar a lista Archivos.\n\n");
                                 }
                                 
                                 if (control == 0)
-                                    printf("Query Processor a sido agregado a una lista.\n\n");
+                                    printf("Agregado a lista OK.\n\n");
                             }
                             else if (mode == IRC_REQUEST_HTML || mode == IRC_REQUEST_ARCHIVOS)
                             /*Si es Front-End atender*/
                             {
+                                printf("Se atendera peticion del Front-end.\n");
                                 if (atenderFrontEnd(cli, buffer, rtaLen, descID, mode, listaHtml, listaArchivos) < 0)
                                     printf("Hubo un error al atender al Front-End. Se descarta conexion.\n\n");
+                                else
+                                    printf("Peticion del Front-end atendida OK.\n\n");
                             }
 
                             free(buffer);
@@ -339,6 +383,45 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
     return 0;    
 }
 
+int chequeoDeVida(in_addr_t ip, in_port_t puerto)
+{
+    /*Actualizo las estructuras para la proxima peticion*/
+    char descIDQP[DESCRIPTORID_LEN];
+    void *buff = NULL;
+    int modeQPHandshake = IRC_REQUEST_IS_ALIVE;
+    SOCKADDR_IN their_addr;
+    int sockQP = establecerConexionServidor(ip, puerto, &their_addr);
+    unsigned long rtaLen = 0;
+
+    if (sockQP == INVALID_SOCKET)
+    {
+        printf("Error al conectar a QP.\n\n");
+        close(sockQP);
+        return -1;
+    }
+
+    /*Envia al QP el permiso de peticion*/
+    if (ircRequest_send(sockQP, NULL, 0, descIDQP, modeQPHandshake) < 0)
+    {
+        printf("Error al enviar consulta a QP.\n\n");
+        close(sockQP);
+        return -1;
+    }
+
+    modeQPHandshake = 0x00;
+
+    /*Recibir respuesta del permiso por parte del QP*/
+    if (ircResponse_recv(sockQP, &buff, descIDQP, &rtaLen, &modeQPHandshake) < 0)
+    {
+        printf("Error al enviar consulta a QP.\n\n");
+        close(sockQP);
+        return -1;
+    }
+
+    close(sockQP);
+    return 0;
+}
+
 int conectarFrontEnd(in_addr_t nDireccionIP, in_port_t nPort)
 {
     SOCKET sockFrontEnd;
@@ -372,7 +455,7 @@ SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKA
     SOCKET sockfd;
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-        rutinaDeError("socket");
+        return -1;
 
     their_addr->sin_family = AF_INET;
     their_addr->sin_port = nPort;
@@ -385,7 +468,6 @@ SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKA
     while ( connect (sockfd, (SOCKADDR *)their_addr, sizeof(SOCKADDR)) == -1 && errno != EISCONN )
         if ( errno != EINTR )
         {
-            perror("connect");
             close(sockfd);
             return -1;
     	}

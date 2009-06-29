@@ -111,7 +111,7 @@ int main()
                         printf("Conexion aceptada de %s.\n", inet_ntoa(dirCliente.sin_addr));
 
                         /*Recibe el IRC con el permiso de peticion de atender request*/
-                        printf("Se recibira permiso de peticion. ");
+                        printf("Se recibira Handshake. ");
                         if (ircRequest_recv (sockCliente, NULL, descriptorID, &mode) < 0)
                         {
                             printf("Error.\n\n");
@@ -123,38 +123,58 @@ int main()
                         /*Si se pueden realizar conexiones*/
                         if (mode == IRC_REQUEST_POSIBLE)
                         {
+                            printf("Se ha recibido un permiso de peticion.\n");
+
                             /*Si no hay conexiones disponibles*/
                             if (!(cantidadConexiones < config.cantidadConexiones))
                                 mode = IRC_RESPONSE_NOT_POSIBLE;
                             else
-                                mode = IRC_RESPONSE_POSIBLE;
-                        }
+                                mode = IRC_RESPONSE_POSIBLE;                        
 
-                        printf("Se respondera permiso de peticion. ");
-                        /*Responde el IRC con codigo de error*/
-                        if (ircResponse_send(sockCliente, descriptorID, NULL, 0, mode) < 0)
-                        {
-                            printf("Error.\n\n");
-                            close(sockCliente);
-                            continue;
-                        }
-                        printf("Respondido OK.\n");
+                            /*Responde el IRC con codigo de error*/
+                            printf("Se respondera permiso de peticion. ");
+                            if (ircResponse_send(sockCliente, descriptorID, NULL, 0, mode) < 0)
+                            {
+                                printf("Error.\n\n");
+                                close(sockCliente);
+                                continue;
+                            }
+                            printf("Respondido OK.\n");
 
-                        /*Si no fue posible cierra conexion.*/
-                        if (mode == IRC_RESPONSE_NOT_POSIBLE)
-                        {
-                            printf("Conexion a sido rechazada.\n\n");
-                            close(sockCliente);
+                            /*Si no fue posible cierra conexion.*/
+                            if (mode == IRC_RESPONSE_NOT_POSIBLE)
+                            {
+                                printf("Conexion a sido rechazada.\n\n");
+                                close(sockCliente);
+                            }
+                            /*Si fue posible agrega para atender su request*/
+                            else
+                            {
+                                /*Agrega cliente y actualiza max*/
+                                FD_SET (sockCliente, &fdMaestro);
+                                if (sockCliente > fdMax)
+                                        fdMax = sockCliente;
+                                cantidadConexiones++;
+                                printf("Conexion a sido aceptada.\n\n");
+                            }
                         }
-                        /*Si fue posible agrega para atender su request*/
-                        else
+                        else if(mode == IRC_REQUEST_IS_ALIVE)
                         {
-                            /*Agrega cliente y actualiza max*/
-                            FD_SET (sockCliente, &fdMaestro);
-                            if (sockCliente > fdMax)
-                                    fdMax = sockCliente;
-                            cantidadConexiones++;
-                            printf("Conexion a sido aceptada.\n\n");
+                            printf("Se a recibido una confirmacion de vida.\n");
+
+                            mode = IRC_RESPONSE_IS_ALIVE;
+
+                            /*Se respondera que se sigue conectado*/
+                            printf("Se respondera confirmacion de vida. ");
+                            if (ircResponse_send(sockCliente, descriptorID, NULL, 0, mode) < 0)
+                            {
+                                printf("Error.\n\n");
+                                close(sockCliente);
+                                continue;
+                            }
+                            printf("Respondido OK.\n");
+
+                            close(sockCliente);
                         }
                     }
                     else

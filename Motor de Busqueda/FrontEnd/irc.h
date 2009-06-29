@@ -20,6 +20,7 @@
 #define IRC_REQUEST_CACHE 0x12
 #define IRC_REQUEST_UNICOQP 0x13
 #define IRC_REQUEST_POSIBLE 0x14
+#define IRC_REQUEST_IS_ALIVE 0x15
 
 /*Respuestas del QP a peticiones de busqueda*/
 #define IRC_RESPONSE_HTML 0x20
@@ -27,6 +28,7 @@
 #define IRC_RESPONSE_CACHE 0x22
 #define IRC_RESPONSE_POSIBLE 0x23
 #define IRC_RESPONSE_NOT_POSIBLE 0x24
+#define IRC_RESPONSE_IS_ALIVE 0x25
 
 /*QP no esta disponible para busquedas*/
 #define IRC_RESPONSE_ERROR 0x25
