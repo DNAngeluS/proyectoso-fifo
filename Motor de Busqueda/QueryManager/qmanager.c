@@ -296,6 +296,12 @@ int main(int argc, char** argv)
     for (cli = 0; cli < fdMax+1; ++cli) /*cerrar descriptores*/
         close(cli);
 
+    /*Libera la memoria de la lista de Query Processors*/
+    while (listaHtml != NULL)
+        EliminarQuery(&listaHtml, listaHtml);
+    while (listaArchivos != NULL)
+        EliminarQuery(&listaArchivos, listaArchivos);
+
     return (EXIT_SUCCESS);
 }
 
@@ -393,9 +399,10 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
     /*Si alguno pudo atenderme*/
     else
     {
-        printf("Se a conectado a un Query Processor.\nSe enviara peticion. ");
+        printf("Se a conectado a un Query Processor.\n");
 
         /*Re-Envia las palabras a buscar al QP*/
+        printf("Se enviara peticion. ");
         if (ircRequest_send(sockQP, datos, sizeDatos, descIDQP, modeQP) < 0)
         {
             printf("Error al enviar consulta a QP.\n");
@@ -411,7 +418,7 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
         /*Recibir respuesta del QP*/
         if (ircResponse_recv(sockQP, &datos, descIDQP, &respuestaLen, &modeQP) < 0)
         {
-            printf("Error al enviar consulta a QP.\n");
+            printf("Error al recibir consulta del QP.\n");
             close(sockQP);
             return -1;
         }
@@ -426,14 +433,19 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
     /*Re-Envio la respuesta al Cliente en Front-End*/
     if (ircResponse_send(sockCliente, descriptorID, datos, respuestaLen, mode) < 0)
     {
-      perror("ircResponse_send");
+      printf("Error.\n");
       return -1;
     }
 
+    if (respuestaLen != 0)
+        ptrAux->info.consultasExito++;
+    else
+        ptrAux->info.consultasFracaso++;
+    
     /*Libero estructura*/
     free(datos);
 
-    printf("Respuesta enviadas satisfactoriamente.\n");
+    printf("Respuesta enviada satisfactoriamente.\n");
 
     return 0;    
 }

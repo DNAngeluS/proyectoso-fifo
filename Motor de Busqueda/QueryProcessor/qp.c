@@ -289,14 +289,15 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
             printf("Error al consultar ldap.\n");
             return -1;
 	}
-        
 
 	/*Prepara la informacion a enviar por el IRC*/
 	if ((armarPayload(resultSet, &resultados, mode, &cantBloques)) < 0)
 	{
             printf("Error al armar payload.\n");
+            ldapFreeResultSet(resultSet);
             return -1;
 	}
+
         printf("Busqueda realizada OK.\n");
 
         /*Indentifica el tipo de busqueda*/
