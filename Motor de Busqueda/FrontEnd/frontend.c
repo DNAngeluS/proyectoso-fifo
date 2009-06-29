@@ -542,7 +542,7 @@ int generarHtmlWEB(int htmlFile, so_URL_HTML *respuesta, unsigned long respuesta
                     "Link: "
                     "<a href=\"%s\">%s</a><br/>"
                     "En cache: "
-                    "<a href=\"http://%s:%d/cache=%s\">http://%s:%d/cache=%s</a><br/>"
+                    "<a href=\"http://%s:%d/resultados.html?cache=%s\">http://%s:%d/cache=%s</a><br/>"
                     "<br/>",
                     i+1, respuesta[i].titulo, respuesta[i].descripcion,
                     respuesta[i].URL, respuesta[i].URL,
