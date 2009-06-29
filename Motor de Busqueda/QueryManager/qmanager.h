@@ -34,6 +34,10 @@ enum tipoRecurso_t {RECURSO_WEB, RECURSO_ARCHIVOS, RECURSO_AMBOS};
 #define MAX_HTMLCODE 4096
 #define MAX_SIZE_PALABRA 50     /*El tamaño maximo de una palabra dentro de crawler_URL*/
 
+/*Definiciones para el manejo de los mensajes de consola*/
+#define STR_MSG_HELP "USO:\n\t-help: Desplega modo de uso\n\t-qpstatus: Desplega estado de los Query Processors\n\n"
+#define STR_MSG_INVALID_INPUT "Error: Comando invalido. Escriba -help para informacion de comandos\n\n"
+
 typedef int SOCKET;
 typedef struct sockaddr_in SOCKADDR_IN;
 typedef struct sockaddr SOCKADDR;

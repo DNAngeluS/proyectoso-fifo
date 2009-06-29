@@ -373,8 +373,6 @@ int httpOk_send(SOCKET sockfd, msgGet getInfo)
     if (EnviarBloque(sockfd, strlen(buffer), buffer) == -1)
         error = 1;
 
-    printf("Se ha enviado HTTP 200 OK\n");
-
     return error? -1: 0;
 }
 

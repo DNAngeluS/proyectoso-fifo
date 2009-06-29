@@ -124,15 +124,17 @@ int main(int argc, char** argv) {
 
         getType = obtenerGetType(getInfo.palabras);
 
+        printf("Se atendera cliente.\n");
         if (getType == BROWSER)
         /*Si el GET corresponde a un browser pidiendo formulario*/
         {
-            printf("Se envia Formulario Html. ");
+            int control;
+
             /*Envia el formulario html para empezar a atender.*/
-            if (EnviarFormularioHtml (sockCliente, getInfo) < 0)
-                printf("\nNo se ha podido atender cliente de %s. Se cierra conexion.\n\n", inet_ntoa(dirCliente.sin_addr));
-            else
-                printf("Enviado OK.\n");
+            printf("Se envia Formulario Html.\n");
+            control = EnviarFormularioHtml (sockCliente, getInfo);
+            printf("Atencion de cliente finalizada%s.\n\n", control < 0? " con Error": "");
+            
             close(sockCliente);
         }
         else if (getType == FORMULARIO)
@@ -176,19 +178,14 @@ int solicitarBusquedaCache(SOCKET sock, msgGet getInfo, hostsCodigo **respuesta,
 
     /*Enviar consulta cache a QM*/
     if (ircRequest_send(sock, (void *) &getInfo, sizeof(getInfo), descriptorID, modeSend) < 0)
-    {
-      printf("Error al enviar consulta Cache a QM.\n\n");
       return -1;
-    }
 
     *mode = 0x00;
 
     /*Recibir respuesta cache de QM*/
     if (ircResponse_recv(sock, (void *)respuesta, descriptorID, &respuestaLen, mode) < 0)
-    {
-        printf("Error al enviar consulta a QM.\n\n");
         return -1;
-    }
+    
     return 0;
 }
 
@@ -320,37 +317,47 @@ void *rutinaAtencionCache (void *args)
     printf ("Se comienza a atender Request Cache de %s.\n", inet_ntoa(dirCliente.sin_addr));
 
     /*Se obtiene el uuid a buscar*/
+    printf("Obteniendo UUID. ");
     if (obtenerUUID(getThread, &getInfo) < 0)
     {
-        perror("obtenerQueryString: error de tipo");
+        printf("Error de tipo.\n");
 
         /*Si hubo un error, envia Http Not Found y cierra conexion*/
+        printf("Se enviara Http Not Found. ");
         if (httpNotFound_send(sockCliente, getInfo) < 0)
-            printf("Error al enviar HTTP Not Found.\n\n");
+            printf("Error.\n");
+        else
+            printf("Enviado OK.\n");
 
+        printf("Atencion de cliente finalizada.\n\n");
         close(sockCliente);
         thr_exit(NULL);
     }
+    else
+        printf("Obtenido OK.\n\tUUID a buscar: %s\n", getInfo.palabras);
 
-    printf("UUID a buscar: %s.\n", getInfo.palabras);
-
-    /*Se establece conexion con el Query Procesor*/
+    /*Se establece conexion con el Query Manager*/
+    printf("Se establecera conexion con Query Manager. ");
     if ((sockQM = establecerConexionServidor(config.ipQM, config.puertoQM, &dirQM)) == INVALID_SOCKET)
     {
-        perror("Establecer conexion QM");
+        printf("Error.\n");
+        printf("Atencion de cliente finalizada.\n\n");
         close(sockCliente);
         thr_exit(NULL);
     }
-    printf("Se establecio conexion con el QM satisfactoriamente.");
+    printf("Establecida OK.\n");
 
-    /*Se solicita la busqueda al Query Processor y se recibe las respuestas*/
+    /*Se solicita la busqueda al Query Manager y se recibe las respuestas*/
+    printf("Se enviara peticion al Query Manager. ");
     if (solicitarBusquedaCache(sockQM, getInfo, &respuesta, &mode) < 0)
     {
-        perror("Solicitar busqueda");
+        printf("Error.\n");
+        printf("Atencion de cliente finalizada.\n\n");
         close(sockCliente);
         close(sockQM);
         thr_exit(NULL);
     }
+    printf("Respuesta obtenida.\n");
 
     /*Se cierra conexion con el Query Manager*/
     close(sockQM);
@@ -358,23 +365,37 @@ void *rutinaAtencionCache (void *args)
     if (mode == IRC_RESPONSE_CACHE)
     {
         /*Se envia el Html de respuesta al Cliente*/
+        printf("Se enviara respuesta al cliente. ");
         if (EnviarRespuestaHtmlCache(sockCliente, respuesta->html, getInfo) < 0)
         {
-            perror("Enviar respuesta html Cache");
+            printf("Error.\n");
 
             /*Si hubo un error, envia Http Not Found y cierra conexion*/
+            printf("Se enviara Http Not Found. ");
             if (httpNotFound_send(sockCliente, getInfo) < 0)
-                printf("Error al enviar HTTP Not Found.\n\n");
+                printf("Error.\n");
+            else
+                printf("Enviado OK.\n");
         }
+        else
+            printf("Respuesta enviada OK.\n");
     }
     else if (mode == IRC_RESPONSE_ERROR)
     {
+        printf("No se a aceptado peticion.\n");
+
+        /*Se envia al cliente Http Internal Service Error*/
+        printf("Se enviara Http Internal Service Error. ");
         if (httpInternalServiceError_send(sockCliente, getInfo) < 0)
-            printf("Error al enviar HTTP Internal Service Error.\n\n");
+            printf("Error.\n");
+        else
+            printf("Enviado OK.\n");
     }
 
     /*Libero las respuestas ya utlizadas*/
     free(respuesta);
+
+    printf("Atencion de cliente finalizada.\n\n");
 
     /*Se cierra conexion con Cliente y con QP*/
     close(sockCliente);
@@ -417,39 +438,41 @@ void *rutinaAtencionCliente (void *args)
         printf("Se enviara Http Not Found. ");
         /*Si hubo un error, envia Http Not Found y cierra conexion*/
         if (httpNotFound_send(sockCliente, getInfo) < 0)
-            printf("\nError al enviar HTTP Not Found.\n\n");
+            printf("\nError al enviar HTTP Not Found.\n");
         else
-            printf("Enviado OK.\n\n");
+            printf("Enviado OK.\n");
 
+        printf("Atencion de cliente finalizada.\n\n");
         close(sockCliente);
         thr_exit(NULL);
     }
     else
          printf("Obtenido OK.\n\tPalabras buscadas: %s\n\tTipo: %d\n", getInfo.palabras, getInfo.searchType);
 
+    /*Se establece conexion con el Query Manager*/
     printf("Se establecera conexion con Query Manager. ");
-
-    /*Se establece conexion con el Query Procesor*/
     if ((sockQM = establecerConexionServidor(config.ipQM, config.puertoQM, &dirQM)) == INVALID_SOCKET)
     {
-        printf("Error.\n\n");
+        printf("Error.\n");
+        printf("Atencion de cliente finalizada.\n\n");
         close(sockCliente);
         thr_exit(NULL);
     }
-    printf("Conexion establecida satisfactoriamente.\n");
+    printf("Establecida OK.\n");
 
     /*Reserva un bloque de memoria para poder recibir las respuestas*/
     if (getInfo.searchType == WEB)      respuesta = (so_URL_HTML *)      malloc (sizeof(so_URL_HTML));
     if (getInfo.searchType == IMG)      respuesta = (so_URL_Archivos *)  malloc (sizeof(so_URL_Archivos));
     if (getInfo.searchType == OTROS)    respuesta = (so_URL_Archivos *)  malloc (sizeof(so_URL_Archivos));
 
-    printf("Se enviara peticion al Query Manager. ");
     /*Se solicita la busqueda al Query Manager y se recibe las respuestas*/
+    printf("Se enviara peticion al Query Manager. ");
     if (solicitarBusqueda(sockQM, getInfo, &respuesta, &respuestaLen, &mode) < 0)
     {
-        printf("Error.\n\n");
+        printf("Error.\n");
         close(sockCliente);
         close(sockQM);
+        printf("Atencion de cliente finalizada.\n\n");
         thr_exit(NULL);
     }
     printf("Respuesta obtenida.\n");
@@ -459,9 +482,8 @@ void *rutinaAtencionCliente (void *args)
 
     if (mode == IRC_RESPONSE_HTML || mode == IRC_RESPONSE_ARCHIVOS)
     {
-        printf("Se enviara respuesta al cliente. ");
-
         /*Se envia el Html de respuesta al Cliente*/
+        printf("Se enviara respuesta al cliente. ");
         if (EnviarRespuestaHtml(sockCliente, getInfo, respuesta,
                                 respuestaLen, tiempoInicio) < 0)
         {
@@ -470,23 +492,26 @@ void *rutinaAtencionCliente (void *args)
             printf("Se enviara Http Not Found. ");
             /*Si hubo un error, envia Http Not Found y cierra conexion*/
             if (httpNotFound_send(sockCliente, getInfo) < 0)
-                printf("Error.\n\n");
+                printf("Error.\n");
             else
-                printf("Enviado OK.\n\n");
+                printf("Enviado OK.\n");
         }
         else
-            printf("Respuesta enviada.\n");
+            printf("Respuesta enviada OK.\n");
     }
     else if (mode == IRC_RESPONSE_ERROR)
     {
         printf("No se a aceptado peticion.\n");
-        
+
+        /*Se envia al cliente Http Internal Service Error*/
         printf("Se enviara Http Internal Service Error. ");
         if (httpInternalServiceError_send(sockCliente, getInfo) < 0)
-            printf("Error al enviar HTTP Internal Service Error.\n\n");
+            printf("Error.\n");
         else
-            printf("Enviado OK.\n\n");
+            printf("Enviado OK.\n");
     }
+
+    printf("Atencion de cliente finalizada.\n\n");
 
     /*Se cierra conexion con Cliente*/
     close(sockCliente);
@@ -516,11 +541,12 @@ int generarHtmlWEB(int htmlFile, so_URL_HTML *respuesta, unsigned long respuesta
                     "Descripcion: %s<br/>"
                     "Link: "
                     "<a href=\"%s\">%s</a><br/>"
-					"En cache: "
-                    "<a href=\"%s\">http://%s:%d/cache=%s</a><br/>"
+                    "En cache: "
+                    "<a href=\"http://%s:%d/cache=%s\">http://%s:%d/cache=%s</a><br/>"
                     "<br/>",
                     i+1, respuesta[i].titulo, respuesta[i].descripcion,
                     respuesta[i].URL, respuesta[i].URL,
+                    inet_ntoa(*(IN_ADDR *) &config.ipL), ntohs(config.puertoL),
                     respuesta[i].UUID, inet_ntoa(*(IN_ADDR *) &config.ipL),
                     ntohs(config.puertoL), respuesta[i].UUID);
 
@@ -858,20 +884,21 @@ int EnviarFormularioHtml(SOCKET sockCliente, msgGet getInfo)
 
     if ((strcmp(getInfo.palabras, "/index.hmtl") == 0) || (strcmp(getInfo.palabras, "imgs/soogle.jpg") == 0) )
     {
-        printf("Se esperaba recibir \"/SOogle.html\". Se envia HTTP Not Found.\n");
+        printf("Se esperaba recibir \"/SOogle.html\".\n");
+        printf("Se enviara Http Not Found. ");
         if (httpNotFound_send(sockCliente, getInfo) < 0)
         {
-            printf("Error al enviar HTTP Not Found.\n\n");
+            printf("Error.\n");
             return -1;
         }
+        else
+            printf("Enviado OK.\n");
         return -1;
     }
     else
     {
         char *filename = getInfo.palabras;
-        printf("GTTP GET ok. Se envia %s.\n", getInfo.palabras);
-
-
+        
         if ((fdFile = open(++filename, O_RDONLY, 0)) < 0)
         {
             perror("open");
@@ -884,18 +911,24 @@ int EnviarFormularioHtml(SOCKET sockCliente, msgGet getInfo)
         }
         else
         {
+            printf("Se enviara Http 200 Ok. ");
             if (httpOk_send(sockCliente, getInfo) < 0)
             {
-                printf("Error al enviar HTTP OK.\n\n");
+                printf("Error.\n");
                 return -1;
             }
+            else
+                printf("Enviado OK.\n");
 
+            printf("Se enviara archivo. ");
             if (EnviarArchivo(sockCliente, fdFile) != getFileSize(fdFile))
             {
-                printf("Error al enviar Archivo.\n\n");
+                printf("Error.\n");
                 close(fdFile);
                 return -1;
             }
+            else
+                printf("Enviado OK.\n");
             close(fdFile);
         }
     }
