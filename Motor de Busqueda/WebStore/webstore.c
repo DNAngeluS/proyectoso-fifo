@@ -233,7 +233,7 @@ int atenderCrawler(SOCKET sockCrawler, ldapObj ldap)
     unsigned long paqueteLen = 0;
     int mode = 0x00;
 
-    memset(paquete, '\0',  sizeof(paquete));
+    memset(&paquete, '\0',  sizeof(paquete));
 
     if (ircPaquete_recv(sockCrawler, &paquete, descID, &mode) < 0)
     {
