@@ -413,35 +413,45 @@ char *getFilename(const char *path)
 
 int getKeywords (const char *filename, char **palabras)
 {
-    char nombre[MAX_PATH], *word, *ptr, *lim;
-    int i=0;
-    
-    char *vp = NULL;
-    
-    if ( (vp = HeapAlloc(GetProcessHeap(), 0, sizeof(char))) == NULL)
-       return -1;
-    
-    lstrcpy(nombre, filename);
-    lim = strchr(nombre, '\0');
-    
-    for(ptr = word = nombre; ptr != lim; ptr++)
-	{		
-       if (*ptr == '_' || *ptr == '.')
-       {
+
+	char nombre[MAX_PATH], *word, *ptr, *lim;
+	int i=0;
+	int vpLen = 0;
+	char *vp = NULL;
+
+	if ( (vp = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(char))) == NULL)
+		return -1;
+
+	vpLen = 1;
+	lstrcpy(nombre, filename);
+
+	lim = strchr(nombre, '\0');
+
+	for(ptr = word = nombre; ptr != lim; ptr++)
+	{
+		if (*ptr == '_' || *ptr == '.')
+		{
 			char keyword[PALABRA_SIZE];
+			int len = 0;
+			int newvpLen = 0;
 
 			*ptr = '\0';
-			wsprintf(keyword, "%s,", word);
 
-			if ((vp = HeapReAlloc(GetProcessHeap(), 0, vp, strlen(vp) + strlen(keyword)+1)) == NULL)
+			len = wsprintf(keyword,
+			"%s,", word);
+
+			newvpLen = vpLen + (len+1)*	sizeof(char);
+
+			if ((vp = HeapReAlloc(GetProcessHeap(), 0, vp, newvpLen)) == NULL)
 				return -1;
 
+			vpLen = newvpLen;
 			lstrcat(vp, keyword);
 			word = ptr+1;
-       }
-    }
+		}
+	}
 
-    *palabras = vp;
-        
-    return 0;
+	*palabras = vp;
+
+	return 0;
 }

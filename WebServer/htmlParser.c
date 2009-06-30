@@ -207,47 +207,19 @@ Devuelve: ok? 0: -1. completo el array de palabras y la cantidad de palabras en 
 */
 int xmlGetKeywords (const char *keywords, char **palabra, int *palabrasLen)
 {
-    char nombre[MAX_PATH], *word, *ptr, *lim;
-	char lastKeyword[PALABRA_SIZE];
-    int i=0;
-    
-    char *vp = NULL;
-    
-	if ( (vp = HeapAlloc(GetProcessHeap(), 0, sizeof(char))) == NULL)
-       return -1;
-    
-    lstrcpy(nombre, keywords);
-    lim = strchr(nombre, '\0');
-    
-    for(ptr = word = nombre; ptr != lim; ptr++)
-	{		
-       if (*ptr == ',')
-       {
-			char keyword[PALABRA_SIZE];
-			
-			*ptr = '\0';
-			wsprintf(keyword, "%s,", word);
+	char *vp = NULL;
 
-			if ((vp = HeapReAlloc(GetProcessHeap(), 0, vp, strlen(vp) + strlen(keyword)+1)) == NULL)
-				return -1;
+	if ( (vp = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, lstrlen(keywords) + 2)) == NULL)
+		return -1;
 
-			lstrcat(vp, keyword);
-			word = ptr+1;
-       }
-    }
-			
-	*ptr = '\0';
-	wsprintf(lastKeyword, "%s,", word);
+	lstrcpy(vp, keywords);
+	lstrcat(vp,	",");
 
-	if ((vp = HeapReAlloc(GetProcessHeap(), 0, vp, strlen(vp) + strlen(lastKeyword)+1)) == NULL)
-				return -1;
+	*palabrasLen = lstrlen(vp);
+	*palabra = vp;
 
-	lstrcat(vp, lastKeyword);
+	return 0;
 
-    *palabrasLen = lstrlen(vp);
-    *palabra = vp;
-        
-    return 0;
 }
 /*
 Descripcion: Copia el contenido del html completo en la estructura.

@@ -279,7 +279,7 @@ int hashLoad()
     CloseHandle(archivoHash);
     if (temp == FALSE) 
     {
-            printf("No se pudo leer el archivo de configuracion: "
+            printf("No se pudo leer el archivo hash: "
                                     "(error %d)\r\n", GetLastError());
             return -1;
     }
