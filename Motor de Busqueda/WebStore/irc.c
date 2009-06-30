@@ -46,7 +46,8 @@ int ircPaquete_recv (SOCKET sock, crawler_URL *paquete, char *descriptorID, int 
 	len = header.payloadLen - sizeof(crawler_URL);
 	if (len != 0)
 	{
-		paquete->palabras = malloc(len);
+		if ((paquete->palabras = malloc(len)) == NULL)
+			return -1;
 		if (RecibirNBloque(sock, (void *)paquete->palabras, len) != len)
 			{
 				printf("Error en irc request recv header\n");
