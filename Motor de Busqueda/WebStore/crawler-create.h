@@ -38,7 +38,7 @@ typedef unsigned short in_port_t;
 #define SOCKADDR struct sockaddr
 #define SOCKADDR_IN struct sockaddr_in
 #define INVALID_SOCKET -1
-#define MAX_PATH 256
+#define MAX_PATH 260
 #define SOCKET_ERROR -1
 #define BUF_SIZE 1024
 

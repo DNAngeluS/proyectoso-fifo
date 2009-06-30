@@ -26,7 +26,7 @@
 #include <ctype.h>
 
 #define INVALID_SOCKET -1
-#define MAX_PATH 256
+#define MAX_PATH 260
 #define SOCKET_ERROR -1
 #define BUF_SIZE 1024
 #define QUERYSTRING_SIZE 256

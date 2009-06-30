@@ -28,7 +28,7 @@
 enum tipoRecurso_t {RECURSO_WEB, RECURSO_ARCHIVOS, RECURSO_AMBOS};
 
 #define INVALID_SOCKET -1
-#define MAX_PATH 256
+#define MAX_PATH 260
 #define SOCKET_ERROR -1
 #define BUF_SIZE 1024
 #define MAX_HTMLCODE 4096
