@@ -258,8 +258,8 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
         if (mode != IRC_REQUEST_UNICOQP)
         {
             /*Si no hay concordancia con los tipos de recursos que se enviaron y que se atienden*/
-            if ( (config.tipoRecurso == 1 && mode != IRC_REQUEST_ARCHIVOS) ||
-                    (config.tipoRecurso == 0 && (mode != IRC_REQUEST_HTML || mode != IRC_REQUEST_CACHE)) )
+            if ( (config.tipoRecurso == RECURSO_ARCHIVOS && mode != IRC_REQUEST_ARCHIVOS) ||
+                    (config.tipoRecurso == RECURSO_WEB && !(mode == IRC_REQUEST_HTML || mode == IRC_REQUEST_CACHE)) )
             {
                 printf("El recurso pedido no es atendido por este Query Processor.\n");
 

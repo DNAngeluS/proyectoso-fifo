@@ -437,43 +437,43 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
         close(sockQP);
 
         printf("Se han obtenido respuestas.\n");
-    }
 
-    /*Actualizo valores estadisticos*/
-    if (respuestaLen != 0)
-        ptrAux->info.consultasExito++;
-    else
-        ptrAux->info.consultasFracaso++;
+        /*Actualizo valores estadisticos*/
+        if (respuestaLen != 0)
+            ptrAux->info.consultasExito++;
+        else
+            ptrAux->info.consultasFracaso++;
 
-     /*Computo en ranking de recursos los recursos encontrados*/
-    if (mode == IRC_RESPONSE_HTML || mode == IRC_RESPONSE_ARCHIVOS)
-    {
-        int cantidadRespuestas = 0, i;
-        int control = 0;
-
-        if (mode == IRC_RESPONSE_HTML)
-            cantidadRespuestas = respuestaLen / sizeof(so_URL_HTML);
-        else  if (mode == IRC_RESPONSE_ARCHIVOS)
-            cantidadRespuestas = respuestaLen / sizeof(so_URL_Archivos);
-
-        printf("Se computaran los recursos en el ranking. ");
-        for (i = 0; i < cantidadRespuestas; i++)
+         /*Computo en ranking de recursos los recursos encontrados*/
+        if (mode == IRC_RESPONSE_HTML || mode == IRC_RESPONSE_ARCHIVOS)
         {
-            char palabras[MAX_PATH];
-            memset(palabras, '\0', sizeof(palabras));
+            int cantidadRespuestas = 0, i;
+            int control = 0;
 
             if (mode == IRC_RESPONSE_HTML)
-                strcpy(palabras, ((so_URL_HTML *) datos)[i].URL);
+                cantidadRespuestas = respuestaLen / sizeof(so_URL_HTML);
             else  if (mode == IRC_RESPONSE_ARCHIVOS)
-                strcpy(palabras, ((so_URL_Archivos *) datos)[i].URL);
+                cantidadRespuestas = respuestaLen / sizeof(so_URL_Archivos);
 
-            if (incrementarRanking(listaRecursos, palabras) < 0)
-                control = 1;
+            printf("Se computaran los recursos en el ranking. ");
+            for (i = 0; i < cantidadRespuestas; i++)
+            {
+                char palabras[MAX_PATH];
+                memset(palabras, '\0', sizeof(palabras));
+
+                if (mode == IRC_RESPONSE_HTML)
+                    strcpy(palabras, ((so_URL_HTML *) datos)[i].URL);
+                else  if (mode == IRC_RESPONSE_ARCHIVOS)
+                    strcpy(palabras, ((so_URL_Archivos *) datos)[i].URL);
+
+                if (incrementarRanking(listaRecursos, palabras) < 0)
+                    control = 1;
+            }
+            if (control)
+                printf("Error: no hay memoria.\n");
+            else
+                printf("Computado OK.\n");
         }
-        if (control)
-            printf("Error: no hay memoria.\n");
-        else
-            printf("Computado OK.\n");
     }
 
     /*Re-Envio la respuesta al Cliente en Front-End*/

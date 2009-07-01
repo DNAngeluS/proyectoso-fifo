@@ -135,13 +135,16 @@ int incrementarRanking(ptrListaRanking *lista, char *name)
             ptrAux = ptrAux->sgte;
         }
 
-        /*Se mete en el medio*/
-        ptr->sgte = ptrAux;
-
         if (ptrAux == *lista)
+        {
             *lista = ptr;
+        }
         else
+        {
+            /*Se mete en el medio*/
+            ptr->sgte = ptrAux;
             ptrAux = ptr;
+        }
     }
 
     return 0;
