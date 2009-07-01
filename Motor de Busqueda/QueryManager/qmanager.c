@@ -187,7 +187,7 @@ int main(int argc, char** argv)
                         {
                             int contador = 0;
                             imprimeLista(listaHtml, &contador);
-                            imrpimeLista(listaArchivos, &contador);
+                            imprimeLista(listaArchivos, &contador);
                             putchar('\n');
                         }
 
@@ -264,7 +264,8 @@ int main(int argc, char** argv)
                             {
                                 int control;
                                 printf("Se atendera Front-end.\n");
-                                control = atenderFrontEnd(cli, buffer, rtaLen, descID, mode, listaHtml, listaArchivos);
+                                control = atenderFrontEnd(cli, buffer, rtaLen, descID, mode, 
+                                                        listaHtml, listaArchivos, &listaPalabras, &listaRecursos);
                                 printf("Atencion del Front-end finalizada%s.\n\n", control < 0? " con Error": "");
                             }
 
@@ -343,8 +344,9 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
     /*Computo en ranking de palabras el querystring buscado*/
     {
         char palabras[MAX_PATH];
+        memset(palabras, '\0', sizeof(palabras));
 
-        strcpy(palabras, ((msgGet *) datos)->palabra);
+        strcpy(palabras, ((msgGet *) datos)->palabras);
 
         printf("Se computara el querystring en el ranking. ");
         if (incrementarRanking(listaPalabras, palabras) < 0)
@@ -420,7 +422,7 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
         }
 
         /*Libero y limpio estructuras para recibir*/
-        free(datos);
+        /*free(datos);*/
         datos = NULL;
         modeQP = 0x00;
 
@@ -443,31 +445,35 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
     else
         ptrAux->info.consultasFracaso++;
 
+     /*Computo en ranking de recursos los recursos encontrados*/
     if (mode == IRC_RESPONSE_HTML || mode == IRC_RESPONSE_ARCHIVOS)
     {
-        int cantidadRespuestas = 0;
+        int cantidadRespuestas = 0, i;
+        int control = 0;
 
         if (mode == IRC_RESPONSE_HTML)
             cantidadRespuestas = respuestaLen / sizeof(so_URL_HTML);
         else  if (mode == IRC_RESPONSE_ARCHIVOS)
-            cantidadRespuestas = respuestaLen / sizeof(so_URL_ARCHIVOS);
+            cantidadRespuestas = respuestaLen / sizeof(so_URL_Archivos);
 
-        /*Computo en ranking de recursos los recursos encontrados*/
+        printf("Se computaran los recursos en el ranking. ");
         for (i = 0; i < cantidadRespuestas; i++)
         {
             char palabras[MAX_PATH];
+            memset(palabras, '\0', sizeof(palabras));
 
             if (mode == IRC_RESPONSE_HTML)
-                strcpy(palabras, ((so_URL_HTML *) datos)->URL);
+                strcpy(palabras, ((so_URL_HTML *) datos)[i].URL);
             else  if (mode == IRC_RESPONSE_ARCHIVOS)
-                strcpy(palabras, ((so_URL_ARCHIVOS *) datos)->URL);
+                strcpy(palabras, ((so_URL_Archivos *) datos)[i].URL);
 
-            printf("Se computara el querystring en el ranking. ");
             if (incrementarRanking(listaRecursos, palabras) < 0)
-                printf("Error: no hay memoria.\n");
-            else
-                printf("Computado OK.\n");
+                control = 1;
         }
+        if (control)
+            printf("Error: no hay memoria.\n");
+        else
+            printf("Computado OK.\n");
     }
 
     /*Re-Envio la respuesta al Cliente en Front-End*/
