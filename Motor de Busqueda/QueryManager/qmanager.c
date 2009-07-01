@@ -9,9 +9,11 @@
 #include "config.h"
 #include "querylist.h"
 #include "irc.h"
+#include "rankinglist.h"
 
 void rutinaDeError (char* error);
-int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, char *descriptorID, int mode, ptrListaQuery listaHtml, ptrListaQuery listaArchivos);
+int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, char *descriptorID, int mode,
+                                    ptrListaQuery listaHtml, ptrListaQuery listaArchivos, ptrListaRanking *listaPalabras, ptrListaRanking *listaRecursos);
 SOCKET establecerConexionEscucha (in_addr_t nDireccionIP, in_port_t nPort);
 SOCKET establecerConexionServidor (in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr);
 int conectarFrontEnd (in_addr_t nDireccionIP, in_port_t nPort);
@@ -30,6 +32,8 @@ int main(int argc, char** argv)
     
     ptrListaQuery listaHtml = NULL;
     ptrListaQuery listaArchivos = NULL;
+    ptrListaRanking listaPalabras = NULL;
+    ptrListaRanking listaRecursos = NULL;
 
     fd_set fdMaestro;
     fd_set fdLectura;
@@ -181,34 +185,21 @@ int main(int argc, char** argv)
 
                         if(strcmp(input, "-qpstatus") == 0)
                         {
-                            ptrListaQuery ptrAux;
-                            int i, j;
+                            int contador = 0;
+                            imprimeLista(listaHtml, &contador);
+                            imrpimeLista(listaArchivos, &contador);
+                            putchar('\n');
+                        }
 
-                            printf("Query Processors:\n");
-                            for(i = 0, j = 0, ptrAux = listaHtml; ptrAux != NULL; i++)
-                            {
-                                char recurso[20];
+                        else if(strcmp(input, "-ranking-palabras") == 0)
+                        {
+                            imprimeListaRanking(listaPalabras);
+                            putchar('\n');
+                        }
 
-                                memset(recurso,'\0', sizeof(recurso));
-
-                                if (ptrAux->info.tipoRecurso == RECURSO_WEB)
-                                    strcpy(recurso, "Web");
-                                else if (ptrAux->info.tipoRecurso == RECURSO_ARCHIVOS)
-                                    strcpy(recurso, "Archivos");
-
-                                printf("%d-\tIP: %s\n\tPuerto: %d\n\tRecurso: %s\n"
-                                        "\tConsultas exitosas: %d\n\tConsultas sin exito: %d\n",
-                                        i, inet_ntoa(*(IN_ADDR *) &ptrAux->info.ip),
-                                        ntohs(ptrAux->info.puerto), recurso,
-                                        ptrAux->info.consultasExito, ptrAux->info.consultasFracaso);
-                                
-                                ptrAux = ptrAux->sgte;
-                                if (ptrAux == NULL && j == 0)
-                                {
-                                    ptrAux = listaArchivos;
-                                    j = 1;
-                                }
-                            }
+                        else if(strcmp(input, "-ranking-recursos") == 0)
+                        {
+                            imprimeListaRanking(listaRecursos);
                             putchar('\n');
                         }
 
@@ -301,12 +292,17 @@ int main(int argc, char** argv)
         EliminarQuery(&listaHtml, listaHtml);
     while (listaArchivos != NULL)
         EliminarQuery(&listaArchivos, listaArchivos);
+    while (listaPalabras != NULL)
+        EliminarRanking(&listaPalabras, listaPalabras);
+    while (listaRecursos != NULL)
+        EliminarRanking(&listaRecursos, listaRecursos);
 
     return (EXIT_SUCCESS);
 }
 
 
-int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, char *descriptorID, int mode, ptrListaQuery listaHtml, ptrListaQuery listaArchivos)
+int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, char *descriptorID, int mode,
+                                    ptrListaQuery listaHtml, ptrListaQuery listaArchivos, ptrListaRanking *listaPalabras, ptrListaRanking *listaRecursos)
 {
     SOCKET sockQP;
     char descIDQP[DESCRIPTORID_LEN];
@@ -342,6 +338,19 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
     {
         printf("IRC: Mode incompatible. Se descarta request.\n");
         return -1;
+    }
+
+    /*Computo en ranking de palabras el querystring buscado*/
+    {
+        char palabras[MAX_PATH];
+
+        strcpy(palabras, ((msgGet *) datos)->palabra);
+
+        printf("Se computara el querystring en el ranking. ");
+        if (incrementarRanking(listaPalabras, palabras) < 0)
+            printf("Error: no hay memoria.\n");
+        else
+            printf("Computado OK.\n");
     }
 
     /*Busco hasta el final o hasta que el primero responda que puede atenderme*/
@@ -428,20 +437,47 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
         printf("Se han obtenido respuestas.\n");
     }
 
-    printf("Se reenviaran respuestas al Front-end. ");
+    /*Actualizo valores estadisticos*/
+    if (respuestaLen != 0)
+        ptrAux->info.consultasExito++;
+    else
+        ptrAux->info.consultasFracaso++;
+
+    if (mode == IRC_RESPONSE_HTML || mode == IRC_RESPONSE_ARCHIVOS)
+    {
+        int cantidadRespuestas = 0;
+
+        if (mode == IRC_RESPONSE_HTML)
+            cantidadRespuestas = respuestaLen / sizeof(so_URL_HTML);
+        else  if (mode == IRC_RESPONSE_ARCHIVOS)
+            cantidadRespuestas = respuestaLen / sizeof(so_URL_ARCHIVOS);
+
+        /*Computo en ranking de recursos los recursos encontrados*/
+        for (i = 0; i < cantidadRespuestas; i++)
+        {
+            char palabras[MAX_PATH];
+
+            if (mode == IRC_RESPONSE_HTML)
+                strcpy(palabras, ((so_URL_HTML *) datos)->URL);
+            else  if (mode == IRC_RESPONSE_ARCHIVOS)
+                strcpy(palabras, ((so_URL_ARCHIVOS *) datos)->URL);
+
+            printf("Se computara el querystring en el ranking. ");
+            if (incrementarRanking(listaRecursos, palabras) < 0)
+                printf("Error: no hay memoria.\n");
+            else
+                printf("Computado OK.\n");
+        }
+    }
 
     /*Re-Envio la respuesta al Cliente en Front-End*/
+    printf("Se reenviaran respuestas al Front-end. ");
     if (ircResponse_send(sockCliente, descriptorID, datos, respuestaLen, mode) < 0)
     {
       printf("Error.\n");
       return -1;
     }
 
-    if (respuestaLen != 0)
-        ptrAux->info.consultasExito++;
-    else
-        ptrAux->info.consultasFracaso++;
-    
     /*Libero estructura*/
     free(datos);
 

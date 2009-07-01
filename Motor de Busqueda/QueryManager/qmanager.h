@@ -33,6 +33,8 @@ enum tipoRecurso_t {RECURSO_WEB, RECURSO_ARCHIVOS, RECURSO_AMBOS};
 #define BUF_SIZE 1024
 #define MAX_HTMLCODE 4096
 #define MAX_SIZE_PALABRA 50     /*El tamaño maximo de una palabra dentro de crawler_URL*/
+#define MAX_FORMATO 5
+#define MAX_UUID 35
 
 /*Definiciones para el manejo de los mensajes de consola*/
 #define STR_MSG_HELP "USO:\n\t-help: Desplega modo de uso\n\t-qpstatus: Desplega estado de los Query Processors\n\n"
@@ -44,6 +46,30 @@ typedef struct sockaddr SOCKADDR;
 typedef struct in_addr IN_ADDR;
 typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
+
+typedef struct {
+    char palabras[MAX_PATH];
+    int protocolo;
+    int searchType;
+    char queryString[QUERYSTRING_SIZE];
+} msgGet;
+
+typedef struct {
+    char URL            [MAX_PATH];
+    char UUID           [MAX_UUID];
+    char palabras       [MAX_PATH];
+    char titulo         [MAX_PATH];
+    char descripcion    [MAX_PATH];
+} so_URL_HTML;
+
+typedef struct {
+    char URL [MAX_PATH];
+    char nombre [MAX_PATH];
+    char palabras [MAX_PATH];
+    char tipo [2];
+    char formato [MAX_FORMATO];
+    char length [20];
+} so_URL_Archivos;
 
 #endif	/* _QMANAGER_H */
 

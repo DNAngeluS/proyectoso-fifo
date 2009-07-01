@@ -43,7 +43,7 @@ int AgregarQuery (ptrListaQuery *ptr, struct query info)
     return 0;
 };
 
-/*Elimina un Query Processor indicado por su socket*/
+/*Elimina un Query Processor indicado por el puntero que lo apunta*/
 int EliminarQuery (ptrListaQuery *ptr, ptrListaQuery ptrEliminar)
 {
     ptrListaQuery ptrAnt, ptrAct, tempPtr;
@@ -87,3 +87,27 @@ unsigned cantidadQuerysLista (ptrListaQuery ptr)
     return cantidad;
 }
 
+void imprimeLista (ptrListaQuery ptr, int *i)
+{
+    ptrListaQuery ptrAux;
+
+    printf("Query Processors:\n");
+    for(ptrAux = listaHtml; ptrAux != NULL; *i++, ptrAux = ptrAux->sgte)
+    {
+        char recurso[20];
+
+        memset(recurso,'\0', sizeof(recurso));
+
+        if (ptrAux->info.tipoRecurso == RECURSO_WEB)
+            strcpy(recurso, "Web");
+        else if (ptrAux->info.tipoRecurso == RECURSO_ARCHIVOS)
+            strcpy(recurso, "Archivos");
+
+        printf("%d-\tIP: %s\n\tPuerto: %d\n\tRecurso: %s\n"
+                "\tConsultas exitosas: %d\n\tConsultas sin exito: %d\n",
+                *i+1, inet_ntoa(*(IN_ADDR *) &ptrAux->info.ip),
+                ntohs(ptrAux->info.puerto), recurso,
+                ptrAux->info.consultasExito, ptrAux->info.consultasFracaso);
+
+    }
+}

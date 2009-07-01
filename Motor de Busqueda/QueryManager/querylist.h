@@ -25,7 +25,7 @@ typedef struct nodoListaQuery {
 
 typedef NodoListaQuery *ptrListaQuery;
 
-void imprimeLista (ptrListaQuery ptr);
+void imprimeLista (ptrListaQuery ptr, int *contador);
 int listaVacia (ptrListaQuery ptr);
 int AgregarQuery (ptrListaQuery *ptr, struct query info);
 int EliminarQuery (ptrListaQuery *ptr, ptrListaQuery ptrEliminar);
