@@ -34,21 +34,26 @@ int main()
     fd_set fdLectura;
     struct timeval timeout;
     int fdMax, cli;
-
-    int saltoDeInterrupcion=0;
+	int mensajeEsperando = 0;
+    int saltoDeInterrupcion = 0;
     
     /*Lectura de Archivo de Configuracion*/
+    printf("Se leera archivo de configuracion. ");
     if (leerArchivoConfiguracion(&config) != 0)
-        rutinaDeError("Lectura Archivo de configuracion");
+       rutinaDeError("Lectura Archivo de configuracion");
+    printf("Leido OK.\n");
 
     /*Establecer conexion LDAP*/
+	printf("Se establecera conexion con ldap. ");
     if (establecerConexionLDAP(&ldap, config) < 0)
-      rutinaDeError("No se pudo establecer la conexion LDAP.");
-    printf("Conexion establecida con LDAP\n");
+      rutinaDeError("Conexion ldap");
+    printf("Conexion establecida OK.\n");
 
     /*Se establece conexion a puerto de escucha*/
+	printf("Se establecera conexion de escucha. ");
     if ((sockWebStore = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
         rutinaDeError("Socket invalido");
+	printf("Conexion establecida OK.\n");
 
     saltoDeInterrupcion += setjmp(entorno);
     if (saltoDeInterrupcion > 0)
@@ -57,10 +62,7 @@ int main()
         sigRecibida = 0;
     }
 
-    printf("WEB STORE. Conexion establecida.\n");
-
-
-    /*Se asigna un handler a las señales, si no se bloqueo su captura antes*/
+	/*Se asigna un handler a las señales, si no se bloqueo su captura antes*/
     if (signal(SIGCHLD, signalHandler) == SIG_ERR)
         rutinaDeError("signal");
     if (signal(SIGUSR1, signalHandler) == SIG_ERR)
@@ -72,7 +74,7 @@ int main()
     sigemptyset (&new_action.sa_mask);
     sigaddset (&new_action.sa_mask, SIGUSR1);
 
-    printf("Esperando SIGUSR1... pid(%d)\n", getpid());
+    printf("--(padre)Esperando SIGUSR1... pid(%d)--\n", getpid());
 
     sigprocmask (SIG_BLOCK, &new_action.sa_mask, &old_action.sa_mask);
     /*Se espera por el SIGUSR1 para comenzar y de aqui en mas no se atendera mas*/
@@ -93,9 +95,10 @@ int main()
         sprintf(puerto, "%d", config.puertoWebServer);
         sprintf(tiempoNuevaConsulta, "%d", config.tiempoNuevaConsulta);
 
+		printf("Se creara el proceso Crawler-Create. ");
         if ((childID = fork()) < 0)
         {
-            rutinaDeError("fork. Creacion de proceso crawler-create");
+            rutinaDeError("Creacion de proceso crawler-create");
         }
         else if (childID == 0)
         /*Este es el hijo*/
@@ -110,7 +113,7 @@ int main()
         else if (childID > 0)
         /*Este es el padre*/
         {
-            printf("Se a creado proceso crawler-create ID: %d.\n\n", childID);
+            printf("Proceso creado OK.\n", childID);
         }
     }
 
@@ -132,7 +135,12 @@ int main()
         FD_ZERO(&fdLectura);
         memcpy(&fdLectura, &fdMaestro, sizeof(fdMaestro));
 
-        printf("Se comienzan a escuchar posibles Crawlers.\n\n");
+        if (!mensajeEsperando)
+        {
+            mensajeEsperando = 1;
+            printf("Esperando datos de Crawlers...\n");
+        }
+
         rc = select(fdMax+1, &fdLectura, NULL, NULL, &timeout);
 
         if (rc < 0)
@@ -144,7 +152,8 @@ int main()
         {
             if (childID != 0)
                 kill(childID, SIGUSR1);
-            printf("Se a enviado señal SIGURS1 a proceso hijo: %d\n", childID);
+            printf("Señal SIGURS1 enviada a Crawler-Create.\n");
+			mensajeEsperando = 0;
 
             /*pause();*/
         }
@@ -153,6 +162,7 @@ int main()
         /*Se detectaron sockets con actividad*/
         {
             desc_ready = rc;
+			mensajeEsperando = 0;
             
             /*Se recorren todos los posibles sockets buscando los que tuvieron actividad*/
             for (cli = 0; cli < fdMax+1 && desc_ready > 0; cli++)
@@ -181,12 +191,13 @@ int main()
                         if (sockCrawler > fdMax)
                                 fdMax = sockCrawler;
 
-                        printf ("Conexion aceptada de %s.\n", inet_ntoa(dirCrawler.sin_addr));
+                        printf("Crawler conectado desde %s.\n", inet_ntoa(dirCrawler.sin_addr));
                     }
                     else
                     /*Crawler detectado -> esta enviando consultas*/
                     {
                         /*Atiende al Crawler*/
+						printf("Se atendera nuevo Crawler.\n");
                         if (atenderCrawler(cli, ldap) < 0)
                             printf("Hubo un error al atender Crawler.");
                         else
@@ -235,11 +246,15 @@ int atenderCrawler(SOCKET sockCrawler, ldapObj ldap)
     
     memset(&paquete, '\0', sizeof(paquete));
 
+	/*Se recibira el paquete URL del Crawler*/
+	printf("Se recibira un paquete del Crawler. ");
     if (ircPaquete_recv(sockCrawler, &paquete, descID, &mode) < 0)
     {
-        perror("ircRequest_recv");
+        printf("Error.\n");
         return -1;
     }
+	else
+		printf("Recibido Ok.\n");
 
     if (paquete.palabras == NULL)
 	{
@@ -247,9 +262,9 @@ int atenderCrawler(SOCKET sockCrawler, ldapObj ldap)
 		return 0;
 	}
 
+	/*Se modificara o dara de alta el URL entrante*/
     if (mode == IRC_CRAWLER_ALTA_HTML || mode == IRC_CRAWLER_ALTA_ARCHIVOS)
        atenderAltaURL(&ldap, &paquete, mode);
-
     else if (mode == IRC_CRAWLER_MODIFICACION_HTML || mode == IRC_CRAWLER_MODIFICACION_ARCHIVOS)
        atenderModificarURL(&ldap, &paquete, mode);
 

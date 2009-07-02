@@ -82,15 +82,15 @@ int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode)
     int control = 0;
 
     control = ldapObtenerDN(ldap, entrada->URL, mode, dn);
-    if(control == 0)
+    if (control == 0)
     {
-      printf("ldapAltaURL: Imposible crear, ya existe la entrada %s\n", entrada->URL);
-      return -1;
+		printf("ldapAltaURL: Imposible crear, ya existe la entrada %s\n", entrada->URL);
+		return -1;
     }
-    if(control==-1)
+    else if (control == -1)
     {
-      printf("ldapAltaURL: Error en el la verificacion de existencia\n");
-      return -1;
+		printf("ldapAltaURL: Error en el la verificacion de existencia\n");
+		return -1;
     }
 
     memset(dn, '\0', DN_LEN);

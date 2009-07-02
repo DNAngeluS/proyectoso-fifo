@@ -47,8 +47,14 @@ int main(int argc, char **argv)
     sigaddset (&new_action.sa_mask, SIGUSR1);
 
     /*Se envia pedido de creacion de Crawler al primer WebServer conocido*/
+	printf("Se enviara instanciacion de Crawler al Web Server Conocido. ");
     if (EnviarCrawler(config.ipWebServer, config.puertoWebServer) < 0)
+	{
+		printf("Error: la aplicacion no puede seguir.\n");
         rutinaDeError("Enviando primer Crawler");
+	}
+	else
+		printf("Enviado OK.\n");
 
     /*Se actualiza el timestamp del host al que se le envio el Crawler*/
     sprintf(ipPuertoConocido, "%s:%d", inet_ntoa(*(struct in_addr *) &(config.ipWebServer)), ntohs(config.puertoWebServer));
@@ -61,7 +67,7 @@ int main(int argc, char **argv)
         int maxHosts = 0;
         webServerHosts *hosts = NULL;
 
-        printf("Esperando SIGUSR1... pid(%d)\n", getpid());
+        printf("--(hijo)Esperando SIGUSR1... pid(%d)--\n", getpid());
 
         sigprocmask (SIG_BLOCK, &new_action.sa_mask, &old_action.sa_mask);
         /*Se espera por el SIGUSR1 para comenzar y de aqui en mas no se atendera mas*/
@@ -73,15 +79,20 @@ int main(int argc, char **argv)
         sigRecibida=0;
 
         /*Se consulta el dir de expiracion y obtiene la tabla actualizada*/
+		printf("Se obtendran los hosts del Directorio de Hosts. ");
         if (ldapObtenerHosts(&ldap, &hosts, &maxHosts) < 0)
-            rutinaDeError("consulta hosts expiracion");
+		{
+			printf("Error.\n");
+            continue;
+		}
+        printf("Ok.\n");
 
-        printf("Se consulto directorio de hosts satisfactoriamente.\n");
         printf("Se dispararan Crawlers a hosts desactualizados\n");
-        
+      
         while (i < maxHosts)
         /*Para cada hosts en la tabla*/
         {
+			int mode = 0x00;
             long tiempoRestante;
             actualTime = time(NULL);
             tiempoRestante = (actualTime - hosts[i].uts);
@@ -90,26 +101,35 @@ int main(int argc, char **argv)
             /*Si el tiempo que paso desde la ultima migracion es mayor al configurado*/
             {
                 /*Envia pedido de creacion de Crawler*/
-                if (EnviarCrawler(hosts[i].hostIP, hosts[i].hostPort) < 0)
-                {
-                    fprintf(stderr, "Error: Instanciacion de un Crawler a %s:%d\n",
-                            inet_ntoa(*(struct in_addr *) &(hosts[i].hostIP)), ntohs(hosts[i].hostPort));
-                }
+				printf("Se enviara instanciacion de Crawler a %s:%d. ", inet_ntoa(*(struct in_addr *) &(hosts[i].hostIP)), ntohs(hosts[i].hostPort)););
+                if (EnviarCrawler(hosts[i].hostIP, hosts[i].hostPort, &mode) < 0)
+                    printf("Error.\n");
                 else
                 {
-                    char ipPuerto[MAX_PATH];
+					printf("Enviado OK. ");
 
-                    sprintf(ipPuerto, "%s:%d", inet_ntoa(*(struct in_addr *) &(hosts[i].hostIP)), ntohs(hosts[i].hostPort));
+					/*Si pudo migrar*/
+					if (mode == IRC_CRAWLER_OK)
+					{
+						char ipPuerto[MAX_PATH];
 
-                    printf("Se envio peticion de Crawler a %s.\n", inet_ntoa(*(struct in_addr *) &(hosts[i].hostIP)));
-                    printf("Se actualizara su Unix Timestamp\n\n");
-
-                    /*Se actualiza el timestamp del host al que se le envio el Crawler*/
-                    if (ldapActualizarHost(&ldap, ipPuerto, time(NULL), MODIFICACION) < 0)
-                        rutinaDeError("consulta hosts expiracion");
+						printf("Crawler a migrado safisfactoriamente.\n");
+						sprintf(ipPuerto, "%s:%d", inet_ntoa(*(struct in_addr *) &(hosts[i].hostIP)), ntohs(hosts[i].hostPort));
+						
+						/*Se actualiza el timestamp del host al que se le envio el Crawler*/
+						printf("Se actualizara su Unix Timestamp. ");
+						if (ldapActualizarHost(&ldap, ipPuerto, time(NULL), MODIFICACION) < 0)
+							printf("Error.\n");
+						else
+							printf("Actualizado OK.\n");
+					}
+					else if (mode == IRC_CRAWLER_FAIL)
+					{
+						printf("Crawler a sido rechazado.\n");
+					}
                 }
             }
-            else printf("Aun quedan %ld segundos para enviar Crawler a %s\n\n",
+            else printf("Aun quedan %ld segundos para enviar Crawler a %s\n",
                                         config.tiempoMigracionCrawler - tiempoRestante,
                                         inet_ntoa(*(struct in_addr *) &(hosts[i].hostIP)));
             i++;
@@ -126,18 +146,17 @@ int main(int argc, char **argv)
 }
 
 
-int EnviarCrawler(in_addr_t nDireccion, in_port_t nPort)
+int EnviarCrawler(in_addr_t nDireccion, in_port_t nPort, int *mode)
 {
     SOCKET sockWebServer;
     SOCKADDR_IN dirServidorWeb;
     char descriptorID[DESCRIPTORID_LEN];
     char buf[BUF_SIZE];
-    int mode = 0x00;
+    *mode = 0x00;
 
     /*Se levanta conexion con el Web Server*/
     if ((sockWebServer = establecerConexionServidorWeb(nDireccion, nPort, &dirServidorWeb)) < 0)
         return -1;
-    printf("Se establecio conexion con WebServer en %s.\n", inet_ntoa(dirServidorWeb.sin_addr));
 
     /*Se envia mensaje de instanciacion de un Crawler*/
     if (ircRequest_send(sockWebServer, NULL, 0, descriptorID, IRC_CRAWLER_CONNECT) < 0)
@@ -145,18 +164,12 @@ int EnviarCrawler(in_addr_t nDireccion, in_port_t nPort)
         close(sockWebServer);
         return -1;
     }
-    printf("Crawler disparado a %s.\n\n", inet_ntoa(dirServidorWeb.sin_addr));
 
-    if (ircRequest_recv (sockWebServer, buf, descriptorID, &mode) < 0)
-       return -1;
-
-    if (mode == IRC_CRAWLER_OK)
-       printf("Crawler a migrado safisfactoriamente a %s.\n\n", inet_ntoa(dirServidorWeb.sin_addr));
-    else if (mode == IRC_CRAWLER_FAIL)
-       printf("Crawler a sido rechazado de %s.\n\n", inet_ntoa(dirServidorWeb.sin_addr));
-    else
-       printf("Error en mensaje IRC, se descarta.\n\n");
-
+    if (ircRequest_recv (sockWebServer, buf, descriptorID, mode) < 0)
+	{
+		close(sockWebServer);
+		return -1;
+	}
     close(sockWebServer);
     
     return 0;
