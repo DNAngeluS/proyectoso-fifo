@@ -163,15 +163,15 @@ int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode)
     strcpy(keywords, entrada->palabras);
     
     control = ldapObtenerDN(ldap, entrada->URL, mode, dn);
-    if(control == 0)
+    if (control == 0)
     {
-      printf("ldapModificarURL: Imposible modificar, no se encontro la entrada %s\n", entrada->URL);
-      return -1;
+		printf("ldapModificarURL: Imposible modificar, no se encontro la entrada %s\n", entrada->URL);
+		return -1;
     }
-    if(control==-1)    
+    if (control==-1)    
     {
-      printf("ldapModificarURL: Error en el la verificacion de existencia\n");
-      return -1;
+		printf("ldapModificarURL: Error en el la verificacion de existencia\n");
+		return -1;
     }
     
 
@@ -181,8 +181,8 @@ int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode)
     word = strtok(keywords, ",");
     for (; word+1 == NULL;)
     {
-         ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1,  word));
-        word = strtok(NULL, ",");
+		ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1,  word));
+		word = strtok(NULL, ",");
     }
 
 
@@ -335,9 +335,6 @@ int ldapActualizarHost(ldapObj *ldap, const char *ipPuerto, time_t nuevoUts, int
     sprintf(ts, "%ld", nuevoUts);
 
     entry->dn = dn;
-
-    printf("%s\n", entry->dn);
-    printf("%s\n", ts);
 
     if (mode == MODIFICACION)
     {

@@ -6,7 +6,7 @@ void rutinaDeError(char *error);
 void signalHandler(int sig);
 
 int establecerConexionServidorWeb(in_addr_t nDireccion, in_port_t nPort, SOCKADDR_IN *dir);
-int EnviarCrawler(in_addr_t nDireccion, in_port_t nPort);
+int EnviarCrawler(in_addr_t nDireccion, in_port_t nPort, int *mode);
 
 volatile sig_atomic_t sigRecibida = 0;
 
@@ -17,8 +17,9 @@ int main(int argc, char **argv)
     time_t actualTime;
     ldapObj ldap;
     char ipPuertoConocido[MAX_PATH];
+	int modeConocido = 0x00;
 
-    sleep(5);
+    /*sleep(5);*/
 
     if (argc != 6)
         rutinaDeError("Argumentos invalidos");
@@ -48,7 +49,7 @@ int main(int argc, char **argv)
 
     /*Se envia pedido de creacion de Crawler al primer WebServer conocido*/
 	printf("Se enviara instanciacion de Crawler al Web Server Conocido. ");
-    if (EnviarCrawler(config.ipWebServer, config.puertoWebServer) < 0)
+    if (EnviarCrawler(config.ipWebServer, config.puertoWebServer, &modeConocido) < 0)
 	{
 		printf("Error: la aplicacion no puede seguir.\n");
         rutinaDeError("Enviando primer Crawler");
@@ -101,7 +102,7 @@ int main(int argc, char **argv)
             /*Si el tiempo que paso desde la ultima migracion es mayor al configurado*/
             {
                 /*Envia pedido de creacion de Crawler*/
-				printf("Se enviara instanciacion de Crawler a %s:%d. ", inet_ntoa(*(struct in_addr *) &(hosts[i].hostIP)), ntohs(hosts[i].hostPort)););
+				printf("Se enviara instanciacion de Crawler a %s:%d. ", inet_ntoa(*(struct in_addr *) &(hosts[i].hostIP)), ntohs(hosts[i].hostPort));
                 if (EnviarCrawler(hosts[i].hostIP, hosts[i].hostPort, &mode) < 0)
                     printf("Error.\n");
                 else
@@ -153,6 +154,8 @@ int EnviarCrawler(in_addr_t nDireccion, in_port_t nPort, int *mode)
     char descriptorID[DESCRIPTORID_LEN];
     char buf[BUF_SIZE];
     *mode = 0x00;
+
+	memset(buf, '\0', sizeof(buf));
 
     /*Se levanta conexion con el Web Server*/
     if ((sockWebServer = establecerConexionServidorWeb(nDireccion, nPort, &dirServidorWeb)) < 0)
