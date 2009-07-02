@@ -79,6 +79,19 @@ int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode)
     char dn[DN_LEN];
     char keywords[strlen(entrada->palabras)+1];
     char *word;
+    int control = 0;
+
+    control = ldapObtenerDN(ldap, entrada->URL, mode, dn);
+    if(control == 0)
+    {
+      printf("ldapAltaURL: Imposible crear, ya existe la entrada %s\n", entrada->URL);
+      return -1;
+    }
+    if(control==-1)
+    {
+      printf("ldapAltaURL: Error en el la verificacion de existencia\n");
+      return -1;
+    }
 
     memset(dn, '\0', DN_LEN);
     strcpy(keywords, entrada->palabras);
@@ -150,13 +163,16 @@ int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode)
     strcpy(keywords, entrada->palabras);
     
     control = ldapObtenerDN(ldap, entrada->URL, mode, dn);
-    if(!control)
+    if(control == 0)
     {
       printf("ldapModificarURL: Imposible modificar, no se encontro la entrada %s\n", entrada->URL);
       return -1;
     }
     if(control==-1)    
+    {
+      printf("ldapModificarURL: Error en el la verificacion de existencia\n");
       return -1;
+    }
     
 
     entry->dn = dn;
@@ -208,16 +224,19 @@ int ldapObtenerHosts(ldapObj *ldap, webServerHosts **hosts, int *maxHosts)
     PLDAP_RECORD_OP recordOp = newLDAPRecordOperations();
     int i, allocLen = sizeof(webServerHosts);
 
-    if ((*maxHosts = resultSet->count) == 0)
+    if ((*maxHosts = resultSet->count) <= 1)
     {
         *hosts = NULL;
         *maxHosts = 0;
         return 0;
     }
 
+    (*maxHosts)--;
+
     if ((*hosts = malloc(allocLen)) == NULL)
     {
         printf("No hay memoria suficiente para armar la estructura de Hosts\n");
+        ldapFreeResultSet(resultSet);
         return -1;
     }
 
@@ -228,6 +247,7 @@ int ldapObtenerHosts(ldapObj *ldap, webServerHosts **hosts, int *maxHosts)
         if ((*hosts = realloc(*hosts, allocLen*(i+1))) == NULL)
         {
             printf("No hay memoria suficiente para armar la estructura de Hosts\n");
+            ldapFreeResultSet(resultSet);
             return -1;
         }
 
@@ -283,7 +303,7 @@ int ldapActualizarHost(ldapObj *ldap, const char *ipPuerto, time_t nuevoUts, int
     PLDAP_ENTRY entry = ldap->entryOp->createEntry();
     char dn[DN_LEN];
     char ts[UTS_LEN];
-    int existe;
+    int existe = 0;
     time_t ahora;
     
     if (!(mode == ALTA || mode == MODIFICACION))
@@ -349,7 +369,8 @@ int ldapObtenerDN(ldapObj *ldap,char *key, int mode, char *dn)
     memset(filtro, '\0', MAX_PATH);
     memset(directorio, '\0', MAX_PATH);
 
-    if (mode == IRC_CRAWLER_MODIFICACION_HTML || mode == IRC_CRAWLER_MODIFICACION_ARCHIVOS)
+    if (mode == IRC_CRAWLER_MODIFICACION_HTML || mode == IRC_CRAWLER_MODIFICACION_ARCHIVOS
+            || mode == IRC_CRAWLER_ALTA_HTML || mode == IRC_CRAWLER_ALTA_ARCHIVOS)
     {
         strcpy(filtro,"(labeledURL=");
         strcpy(directorio, "ou=so,dc=utn,dc=edu");
@@ -362,13 +383,16 @@ int ldapObtenerDN(ldapObj *ldap,char *key, int mode, char *dn)
     else
     {
         printf("ldapObtenerDN: Error, modo inexistente");
+        ldapFreeResultSet(resultSet);
         return -1;
     }
 
     strcat(filtro, key);
     strcat(filtro, ")");
 
-    if ((resultSet = ldap->sessionOp->searchEntry(ldap->session, directorio, filtro) ) == NULL )
+    resultSet = ldap->sessionOp->searchEntry(ldap->session, directorio, filtro);
+
+    if (resultSet->count <= 1)
         return 0;
 
     PLDAP_ITERATOR iterator = resultSet->iterator;
@@ -391,6 +415,7 @@ int ldapComprobarExistencia(ldapObj *ldap, const char *clave, int mode)
 {
     PLDAP_RESULT_SET resultSet = NULL;
     char busqueda[MAX_PATH];
+    int existe = 0;
 
     memset(busqueda, '\0', MAX_PATH);
     if (mode == IRC_CRAWLER_ALTA_HTML ||
@@ -417,8 +442,17 @@ int ldapComprobarExistencia(ldapObj *ldap, const char *clave, int mode)
         return -1;
     }
     if (resultSet == NULL)
+    {
+        ldapFreeResultSet(resultSet);
         return -1;
-    return resultSet->count > 1 ?  1: 0;
+    }
+    
+    if (resultSet->count > 1)
+        existe = 1;
+    
+    ldapFreeResultSet(resultSet);
+
+    return existe;
 }
 
 void GenerarUUID(char *cadenaOUT)

@@ -12,17 +12,19 @@ volatile sig_atomic_t sigRecibida = 0;
 
 int main(int argc, char **argv)
 {
-    struct sigaction old_action;
+    struct sigaction new_action, old_action;
     configuracion config;
     time_t actualTime;
     ldapObj ldap;
+    char ipPuertoConocido[MAX_PATH];
 
-   /* sleep(10);*/
+    sleep(5);
 
     if (argc != 6)
         rutinaDeError("Argumentos invalidos");
 
     memset(&config, '\0', sizeof(configuracion));
+    memset(ipPuertoConocido, '\0', sizeof(ipPuertoConocido));
 
     /*Inicializar estructura config con valores pasado por argv*/
     config.ipWebServer = atoi(argv[1]);
@@ -40,9 +42,18 @@ int main(int argc, char **argv)
     if (signal(SIGUSR1, signalHandler) == SIG_ERR)
         rutinaDeError("signal");
 
+    /*Se inicialian controladores para bloquear hasta recibir SIGUSR1*/
+    sigemptyset (&new_action.sa_mask);
+    sigaddset (&new_action.sa_mask, SIGUSR1);
+
     /*Se envia pedido de creacion de Crawler al primer WebServer conocido*/
     if (EnviarCrawler(config.ipWebServer, config.puertoWebServer) < 0)
         rutinaDeError("Enviando primer Crawler");
+
+    /*Se actualiza el timestamp del host al que se le envio el Crawler*/
+    sprintf(ipPuertoConocido, "%s:%d", inet_ntoa(*(struct in_addr *) &(config.ipWebServer)), ntohs(config.puertoWebServer));
+    ldapActualizarHost(&ldap, ipPuertoConocido, time(NULL), ALTA);
+
 
     while (1)
     {
@@ -52,9 +63,11 @@ int main(int argc, char **argv)
 
         printf("Esperando SIGUSR1... pid(%d)\n", getpid());
 
-        /*Se espera por el SIGUSR1 para comenzar*/
+        sigprocmask (SIG_BLOCK, &new_action.sa_mask, &old_action.sa_mask);
+        /*Se espera por el SIGUSR1 para comenzar y de aqui en mas no se atendera mas*/
         while (!sigRecibida)
             sigsuspend (&old_action.sa_mask);
+        sigprocmask (SIG_UNBLOCK, &new_action.sa_mask, &old_action.sa_mask);
 
         /*Se devuelve el valor a la variable, para esperar una nueva señal*/
         sigRecibida=0;
@@ -86,7 +99,7 @@ int main(int argc, char **argv)
                 {
                     char ipPuerto[MAX_PATH];
 
-                    sprintf(ipPuerto, "%s:%d", inet_ntoa(*(struct in_addr *) (hosts[i].hostIP)), ntohs(hosts[i].hostPort));
+                    sprintf(ipPuerto, "%s:%d", inet_ntoa(*(struct in_addr *) &(hosts[i].hostIP)), ntohs(hosts[i].hostPort));
 
                     printf("Se envio peticion de Crawler a %s.\n", inet_ntoa(*(struct in_addr *) &(hosts[i].hostIP)));
                     printf("Se actualizara su Unix Timestamp\n\n");

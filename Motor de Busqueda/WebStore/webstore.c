@@ -231,9 +231,9 @@ int atenderCrawler(SOCKET sockCrawler, ldapObj ldap)
     crawler_URL paquete;
     char descID[DESCRIPTORID_LEN];
     unsigned long paqueteLen = 0;
-    int mode = 0x00;
-
-    memset(&paquete, '\0',  sizeof(paquete));
+    int mode=0x00;
+    
+    memset(&paquete, '\0', sizeof(paquete));
 
     if (ircPaquete_recv(sockCrawler, &paquete, descID, &mode) < 0)
     {
