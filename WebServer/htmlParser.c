@@ -51,7 +51,7 @@ Devuelve: ok? 0: -1. campo URL completo.
 */
 int xmlAddUrl(const char *filename, char *url)
 {
-	wsprintf(url, "%s%s:%d/%s", "http://", inet_ntoa(*(IN_ADDR *)&config.ip), ntohs(config.puerto), filename );
+	wsprintf(url, "%s%s:%d/%s", "http://", inet_ntoa(*(IN_ADDR *)&config.ip), ntohs(config.puertoCrawler), filename );
 
 	return 0;
 }

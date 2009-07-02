@@ -27,7 +27,7 @@
 
 enum codop_t {RUNNING, FINISH, OUTOFSERVICE};
 enum estado_t {ESPERA, ATENDIENDOSE, ATENDIDO};
-enum proceso_t {ELIMINA_NO_PUBLICO, ATIENDE_NUEVO_O_MODIFICADO, ARCHIVO_NO_SUFRIO_CAMBIOS};
+enum proceso_t {ELIMINA_NO_PUBLICO, ATIENDE_NUEVO, ATIENDE_MODIFICADO, ARCHIVO_NO_SUFRIO_CAMBIOS};
 
 typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
