@@ -1,0 +1,36 @@
+# Sistemas Operativos
+#
+# Grupo Fifo
+#
+# Integrantes:
+#	Lucio Moya Farina
+#	Mariano Scheinkman
+#
+# Manual de Uso y configuracion del Windows Web Server
+
+1) Instalar las librerias libxml en el directorio de librerias del Visual Studio. En caso de estar en otro directorio configurarlo en el proyecto.
+
+2) Configurar el archivo config.cfg segun las caracteristicas de su servidor. El mismo se encuentra en la carpeta "webserver" dentro del proyecto.
+Se configuran los siguientes items:
+
+   - IP del Web Server: A este ip se conectaran los Crawlers y clientes browsers.
+
+   - Puerto de Clientes del Web Server: Este puerto se usara para escuchar clientes browsers.
+
+   - Puerto de Crawlers del Web Server: Este puerto se usara para escuchar Crawlers.
+
+   - Directorios para Archivos: Directorio con el repositorio de archivos disponibles.
+
+   - Directorio del Log/Reporte de ejecucion: Directorio donde se salvara este archivo.
+
+   - Directorio de la Tabla Hash: Directorio donde se guardara y tratara de obtener la Tabla Hash.
+
+   - IP y Puerto del Web Store: Direccion de escucha del Web Store a donde enviaran la infromacion de sus archivos.
+
+   - Tiempo de espera maxima: El tiempo maximo que se tendra a un cliente browser esperando por un archivo.
+
+   - Tiempo de espera del Crawler: El tiempo maximo que se esperara para volver a instanciar un nuevo Crawler.
+
+3) Compilar el projecto.
+
+4) Una vez en la consola utilize el comando -help para conocer sus funciones.
