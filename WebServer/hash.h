@@ -5,11 +5,13 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 
+#include "config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <windows.h>
 #include <Wincrypt.h>
+
 
 #define HASHSIZE 101
 #define BUF_SIZE 1024

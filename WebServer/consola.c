@@ -6,6 +6,7 @@ extern ptrListaThread listaThread;
 extern struct hashManager hashman;
 extern int codop;
 extern configuracion config;
+extern int crawPresence;
 
 void rutinaAtencionConsola (LPVOID args)
 {
@@ -21,6 +22,17 @@ void rutinaAtencionConsola (LPVOID args)
 /**------	Validaciones a la hora de ingresar comandos	------**/
 
 		gets_s(consolaStdin, MAX_INPUT_CONSOLA);
+		
+		/*Si esta el Crawler demorar todo ingreso de comandos*/
+		if (crawPresence == 1)
+		{
+			struct timeval timeout = {2, 0};
+			
+			do 
+				select(0, 0, 0, 0, &timeout);
+			while (crawPresence == 1);
+		}
+
 		if (*consolaStdin == '-')
 		{
 			input = consolaStdin;

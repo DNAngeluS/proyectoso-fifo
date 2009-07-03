@@ -1,7 +1,7 @@
 #include "crawler.h"
 
 static int forAllFiles(char *directorio, int (*funcion) (WIN32_FIND_DATA));
-static int generarPaqueteArchivos(const char *filename, crawler_URL *paquete);
+static int generarPaqueteArchivos(const char *filename, DWORD size, crawler_URL *paquete);
 static int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata);
 static int comprobarCondicionesMigracion(unsigned esperaCrawler);
 
@@ -21,22 +21,22 @@ static int comprobarCondicionesMigracion(unsigned esperaCrawler)
 
 void rutinaAtencionCrawler (LPVOID args)
 {
-	int pvez = (crawPresence == -1);
-	int archivosProcesados = 0, error = 0;
-	char logMsg[BUF_SIZE];
+    int pvez = (crawPresence == -1);
+    int archivosProcesados = 0, error = 0;
+    char logMsg[BUF_SIZE];
     int logMsgSize, bytesWritten, i;
     SYSTEMTIME time;
     DWORD idProcess;
-	DWORD idThread;
-	DWORD inicio = GetTickCount();
+    DWORD idThread;
+    DWORD inicio = GetTickCount();
 
     idProcess = GetProcessId(GetCurrentProcess());
-	idThread = GetCurrentThreadId();
+    idThread = GetCurrentThreadId();
 
     GetLocalTime(&time);
-	logMsgSize = sprintf_s(logMsg, BUF_SIZE, "%d/%d/%d %02d:%02d:%02d Web Crawler %d-%d: Ingreso al sistema.\r\n\r\n",
+    logMsgSize = sprintf_s(logMsg, BUF_SIZE, "%d/%d/%d %02d:%02d:%02d Web Crawler %d-%d: Ingreso al sistema.\r\n\r\n",
                                         time.wDay, time.wMonth, time.wYear,
-										time.wHour, time.wMinute, time.wSecond, idProcess, idThread);
+                                        time.wHour, time.wMinute, time.wSecond, idProcess, idThread);
 
     /* Para escribir el archivo log exigimos mutual exception */
     WaitForSingleObject(logMutex, INFINITE);
@@ -103,6 +103,8 @@ static int forAllFiles(char *directorio, int (*funcion) (WIN32_FIND_DATA))
 		return -1;
 	}
 
+	SetCurrentDirectory(directorio);
+
 	/*Agrega \* al nombre del directorio*/
 	lstrcpy(szDir, directorio);
 	lstrcat(szDir, "\\*");
@@ -131,6 +133,7 @@ static int forAllFiles(char *directorio, int (*funcion) (WIN32_FIND_DATA))
 			wsprintf(newDir, "%s\\%s", directorio, ffd.cFileName);
 			if ((archivosProcesados += forAllFiles(newDir, funcion)) < 0)
 				return -1;
+			SetCurrentDirectory("..");
 		}
 		else
 		{
@@ -164,6 +167,11 @@ static int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 	crawler_URL paquete;
 	int mode = 0x00;
 	int tipoProceso = ARCHIVO_NO_SUFRIO_CAMBIOS;
+	int palabrasSize = 0;
+
+	memset(&paquete, '\0', sizeof(paquete));
+	memset(type, '\0', sizeof(type));
+	memset(md5, '\0', sizeof(md5));
 
 	hashMD5(filename, config.directorioFiles, md5);
 
@@ -213,12 +221,17 @@ static int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 				tipoProceso = ATIENDE_MODIFICADO;
 			}
 
-			if (generarPaqueteArchivos(filename, &paquete) < 0)
+			if (generarPaqueteArchivos(filename, filedata.nFileSizeLow, &paquete) < 0)
 				return -1;
 		}
 
+		if (paquete.palabras == NULL)
+			palabrasSize = 0;
+		else
+			palabrasSize = lstrlen(paquete.palabras)+1;
+
 		/*Se envia el paquete al Web Store*/
-		if (enviarPaquete(config.ipWebStore, config.puertoWebStore, &paquete, mode, (int) (strlen(paquete.palabras)+1)) < 0)
+		if (enviarPaquete(config.ipWebStore, config.puertoWebStore, &paquete, mode, palabrasSize) < 0)
 			printf("Error en el envio de Paquete al Web Store para %s.\r\n\r\n", filename);
 		
 		if (hashInstall(filename, md5) < 0)
@@ -234,10 +247,11 @@ static int rutinaTrabajoCrawler(WIN32_FIND_DATA filedata)
 }
 
 
-static int generarPaqueteArchivos(const char *filename, crawler_URL *paquete)
+static int generarPaqueteArchivos(const char *filename, DWORD size, crawler_URL *paquete)
 {   
-    int ntype;
-	DWORD size;
+    int ntype, control = 0;
+	char *dirBegin = NULL;
+	char dirLocal[MAX_PATH];
     char type[5];
 	char filedir[MAX_PATH];	
 
@@ -250,14 +264,25 @@ static int generarPaqueteArchivos(const char *filename, crawler_URL *paquete)
 	else
 		lstrcpy(paquete->tipo, "2");
 
-	wsprintf(filedir, "%s\\%s", config.directorioFiles, filename);
-	size = getFileSize(filedir);
+	GetCurrentDirectory(sizeof(dirLocal), dirLocal);
+	if (strcmp(dirLocal, config.directorioFiles) != 0)
+	{
+		control = 1;	
+		dirBegin = dirLocal;
+		dirBegin += lstrlen(config.directorioFiles);
+		dirBegin++;
+		wsprintf(filedir, "%s/", dirBegin);
+	}
+	else
+		control = 0;
+	
 	if (size < 0) return -1;
 	wsprintf(paquete->length, "%ld", size);
 
 	if (getKeywords(filename, &paquete->palabras) < 0)
 		return -1;
-	wsprintf(paquete->URL, "http://%s:%d/%s", inet_ntoa(*(IN_ADDR *)&config.ip), ntohs(config.puertoCrawler), filename);
+	wsprintf(paquete->URL, "http://%s:%d/%s%s", inet_ntoa(*(IN_ADDR *)&config.ip), ntohs(config.puertoCrawler), 
+				control? filedir: "",  filename);
 
     printf("Size: %s\r\n", paquete->length);
 	printf("Type: %s\r\n", paquete->tipo);

@@ -1,6 +1,7 @@
 #include "hash.h"
 
 extern struct hashManager hashman;
+extern configuracion config;
 static char *miStrdup(char *s);
 
 unsigned hash(char *s)
@@ -107,11 +108,24 @@ int hashMD5(char *filename, char *dir, char *md5sum)
     DWORD cbHash = 0;
     CHAR rgbDigits[] = "0123456789abcdef";
 	char fileAndDir[MAX_PATH];
+	char dirLocal[MAX_PATH];
+	char *dirBegin = NULL;
+
+	GetCurrentDirectory(sizeof(dirLocal), dirLocal);
+	/*if (strcmp(dirLocal, config.directorioFiles) != 0)
+	{
+		control = 1;	
+		dirBegin = dirLocal;
+		dirBegin += lstrlen(config.directorioFiles);
+		wsprintf(filedir, "%s\\", dirBegin);
+	}
+	else
+		control = 0;*/
 
 	memset(md5sum,'\0', sizeof(*md5sum));
 	memset(fileAndDir, '\0', sizeof(fileAndDir));
 
-	wsprintf(fileAndDir, "%s\\%s", dir, filename);
+	wsprintf(fileAndDir, "%s\\%s", dirLocal, filename);
 
     hFile = CreateFile(fileAndDir,
         GENERIC_READ,
@@ -213,8 +227,8 @@ int hashSave()
 	char line[MAX_PATH];
 	DWORD lim;
 	int i;
-	
-    archivoHash = CreateFileA("hash.txt", GENERIC_WRITE, 0, NULL,
+
+    archivoHash = CreateFileA(config.directorioHash, GENERIC_WRITE, 0, NULL,
                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
     if (archivoHash == INVALID_HANDLE_VALUE) 
@@ -259,7 +273,7 @@ int hashLoad()
 	memset(hashman.flag, VACIO, sizeof(hashman.flag));
 	hashman.ocupados = 0;
 
-    archivoHash = CreateFileA("hash.txt", GENERIC_READ, 0, NULL,
+    archivoHash = CreateFileA(config.directorioHash, GENERIC_READ, 0, NULL,
                              OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
     if (archivoHash == INVALID_HANDLE_VALUE) 

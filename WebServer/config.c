@@ -100,6 +100,9 @@ int asignarDatos (configuracion *config, char *key, char *value)
 	else if (!strcmp(key, "PATH_DOWNLOADS"))
 		strcpy_s(config->directorioFiles, MAX_PATH, value);
 
+	else if (!strcmp(key, "PATH_HASH"))
+		strcpy_s(config->directorioHash, MAX_PATH, value);
+
 	else if (!strcmp(key, "MAX_CLIENTES_CONCURRENTES"))
 		config->cantidadClientes = (unsigned) atoi(value);
 

@@ -15,6 +15,7 @@ typedef unsigned short in_port_t;
 typedef struct {
     char directorioFiles[MAX_PATH];		/*directorio de archivos*/
     HANDLE archivoLog;					/*nombre del archivo log*/
+	char directorioHash[MAX_PATH];			/*directorio del archivo hash*/
     in_addr_t ip;						/*ip local*/
 	in_port_t puerto;					/*puerto local*/
 	in_addr_t ipWebStore;				/*ip del Web Store*/
