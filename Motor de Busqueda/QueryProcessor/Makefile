@@ -31,7 +31,7 @@ CC = exec /opt/csw/gcc4/bin/gcc
 CFLAGS =-ansi -g# -Wall
 
 #Dependencias
-OBJS = LdapWrapper.o config.o http.o irc.o mldap.o qp.o
+OBJS = LdapWrapper.o config.o http.o irc.o mldap.o qp.o log.o
 
 qp: $(OBJS)
 	$(CC) $(CFLAGS) $(LIBS) -o qp $(OBJS)
