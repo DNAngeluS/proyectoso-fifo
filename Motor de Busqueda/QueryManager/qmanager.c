@@ -285,7 +285,7 @@ int main(int argc, char** argv)
                             {
                                 int control;
                                 WriteLog(log, "Query Manager", getpid(), thr_self(), "Se atendera Front-end", "INFOFIN");
-                                control = atenderFrontEnd(cli, buffer, rtaLen, descID, mode, listaHtml, listaArchivos);
+                                control = atenderFrontEnd(cli, buffer, rtaLen, descID, mode, listaHtml, listaArchivos, listaPalabras, listaRecursos);
                                 sprintf(text, "Atencion del Front-end finalizada%s", control < 0? " con Error": "");
                                 WriteLog(log, "Query Manager", getpid(), thr_self(), text, control<0? "ERROR": "INFOFIN");
                             }
