@@ -493,12 +493,14 @@ int obtenerQueryString(msgGet getThread, msgGet *getInfo)
     char *palabra, *tipo, *ptr;
     char busqueda[MAX_PATH];
     char queryString[QUERYSTRING_SIZE];
+	char filtroTipoBusqueda[] = "(!(labeledURL=*.html))";
 
-    memset(busqueda, '\0', MAX_PATH);
-    memset(queryString, '\0', QUERYSTRING_SIZE);
+    memset(busqueda, '\0', sizeof(busqueda));
+    memset(queryString, '\0', sizeof(queryString));
+	memset(filtroTipoBusqueda, '\0', sizeof(filtroTipoBusqueda));
 
     strcpy(busqueda, getThread.palabras);
-    
+
     ptr = strstr(busqueda, "buscar=");
     tipo = strstr(busqueda, "&tipo=");
 
@@ -508,7 +510,10 @@ int obtenerQueryString(msgGet getThread, msgGet *getInfo)
     palabra = ptr + strlen("buscar=");
 
     if (!strcmp(tipo, "web"))
+	{
         getInfo->searchType = WEB;
+		strcpy(filtroTipoBusqueda, "(labeledURL=*.html)");
+	}
     else if (!strcmp(tipo, "img"))
         getInfo->searchType = IMG;
     else if (!strcmp(tipo, "otros"))
@@ -523,8 +528,8 @@ int obtenerQueryString(msgGet getThread, msgGet *getInfo)
     formatQueryString(palabra, queryString);
     strcpy(getInfo->palabras, eliminarEspaciosEnBlanco(palabra));
     
-
-    strcpy(getInfo->queryString, queryString);
+	
+    sprintf(getInfo->queryString, "(&%s(%s))", queryString);
 
     return 0;
 }
