@@ -124,8 +124,10 @@ int incrementarRanking(ptrListaRanking *lista, char *name)
     else
     {
         /*Se incrementa la busqueda y puentea*/
+		ptrAnt->sgte = ptr->sgte;
+		ptr->sgte = NULL;
         ptr->info.busquedas++;
-        ptrAnt->sgte = ptr->sgte;
+        
 
         /*Se busca su nueva posicion para reordenarse*/
         ptrAnt = *lista;
@@ -142,8 +144,7 @@ int incrementarRanking(ptrListaRanking *lista, char *name)
         else
         {
             /*Se mete en el medio*/
-            ptr->sgte = ptrAux;
-            ptrAux = ptr;
+            ptrAnt->sgte = ptr;
         }
     }
 
