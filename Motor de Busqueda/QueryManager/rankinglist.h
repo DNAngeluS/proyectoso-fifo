@@ -28,7 +28,7 @@ int listaVaciaRanking (ptrListaRanking ptr);
 int AgregarRanking (ptrListaRanking *ptr, struct ranking info);
 int EliminarRanking (ptrListaRanking *ptr, ptrListaRanking ptrEliminar);
 unsigned cantidadRankingsLista (ptrListaRanking ptr);
-int incrementarRanking(ptrListaRanking *lista, char *name);
+void incrementarRanking(ptrListaRanking *lista, char *name);
 
 #endif	/* _RANKINGLIST_H */
 

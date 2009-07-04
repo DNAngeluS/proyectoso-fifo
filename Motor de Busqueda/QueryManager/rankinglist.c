@@ -18,7 +18,7 @@ int AgregarRanking (ptrListaRanking *ptr, struct ranking info)
 {
     ptrListaRanking nuevo, actual, anterior;
 
-    if ((nuevo = (NodoListaRanking *) malloc(sizeof(NodoListaRanking))) == NULL)
+    if ((nuevo = malloc(sizeof(NodoListaRanking))) == NULL)
     {
         printf("No hay memoria disponible para agrega Ranking.\n\n");
         return -1;
@@ -114,7 +114,7 @@ int incrementarRanking(ptrListaRanking *lista, char *name)
         
         memset(&info, '\0', sizeof(info));
         strcpy(info.name, name);
-        info.busquedas = 1;
+        info.busquedas = 0;
         
         if (AgregarRanking(lista, info) < 0)
             return -1;
@@ -124,10 +124,8 @@ int incrementarRanking(ptrListaRanking *lista, char *name)
     else
     {
         /*Se incrementa la busqueda y puentea*/
-		ptrAnt->sgte = ptr->sgte;
-		ptr->sgte = NULL;
         ptr->info.busquedas++;
-        
+        ptrAnt->sgte = ptr->sgte;
 
         /*Se busca su nueva posicion para reordenarse*/
         ptrAnt = *lista;
@@ -137,18 +135,13 @@ int incrementarRanking(ptrListaRanking *lista, char *name)
             ptrAux = ptrAux->sgte;
         }
 
-		if (ptrAux->sgte != NULL)
-			ptr->sgte = ptrAux;
+        /*Se mete en el medio*/
+        ptr->sgte = ptrAux;
+
         if (ptrAux == *lista)
-        {
             *lista = ptr;
-        }
         else
-        {
-            /*Se mete en el medio*/
-			
-            ptrAnt->sgte = ptr;
-        }
+            ptrAux = ptr;
     }
 
     return 0;
@@ -157,19 +150,13 @@ int incrementarRanking(ptrListaRanking *lista, char *name)
 void imprimeListaRanking (ptrListaRanking lista)
 {
     ptrListaRanking ptrAux = NULL;
-    int i;
-    int cant;
+    int cant = cantidadRankingsLista(lista);
     
     printf("Ranking:\n");
 
-    if (lista == NULL)
-        printf("No hay resultados.\n");
-    else
-    {
-        cant = cantidadRankingsLista(lista);
-        for (ptrAux = lista, i=0; i < cant; i++, ptrAux = ptrAux->sgte)
-                printf("%d-\t%s\n\tCantidad: %ld\n", i+1, ptrAux->info.name, ptrAux->info.busquedas);
-    }
+    for (ptrAux = lista, i=0; i < cant; i++, ptrAux = ptrAux->sgte)
+            printf("%d-\t%s\n\tCantidad: %ld\n", i+1, ptrAux->info.name, ptrAux->info.busquedas);
+    putchar('\n');
 }
 
 

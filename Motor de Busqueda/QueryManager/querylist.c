@@ -11,7 +11,7 @@ int AgregarQuery (ptrListaQuery *ptr, struct query info)
 {
     ptrListaQuery nuevo, actual, anterior;
 
-    if ((nuevo = (NodoListaQuery *) malloc(sizeof(NodoListaQuery))) == NULL)
+    if ((nuevo = malloc(sizeof(NodoListaQuery))) == NULL)
     {
         printf("No hay memoria disponible para agrega Query Processor.\n\n");
         return -1;
@@ -92,7 +92,7 @@ void imprimeLista (ptrListaQuery ptr, int *i)
     ptrListaQuery ptrAux;
 
     printf("Query Processors:\n");
-    for(ptrAux = ptr; ptrAux != NULL; *i++, ptrAux = ptrAux->sgte)
+    for(ptrAux = listaHtml; ptrAux != NULL; *i++, ptrAux = ptrAux->sgte)
     {
         char recurso[20];
 
