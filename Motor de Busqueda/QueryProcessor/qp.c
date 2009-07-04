@@ -278,6 +278,8 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
         {
             if (getInfo.searchType == WEB)
                 mode = IRC_REQUEST_HTML;
+            else if (getInfo.searchType == CACHE)
+                mode = IRC_REQUEST_CACHE;
             else
                 mode = IRC_REQUEST_ARCHIVOS;
         }

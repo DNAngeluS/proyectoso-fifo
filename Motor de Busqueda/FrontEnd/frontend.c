@@ -347,6 +347,7 @@ void *rutinaAtencionCache (void *args)
     }
     printf("Establecida OK.\n");
 
+    getInfo.searchType = SEARCH_CACHE;
     /*Se solicita la busqueda al Query Manager y se recibe las respuestas*/
     printf("Se enviara peticion al Query Manager. ");
     if (solicitarBusquedaCache(sockQM, getInfo, &respuesta, &mode) < 0)
