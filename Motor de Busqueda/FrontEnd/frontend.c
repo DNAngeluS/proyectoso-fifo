@@ -9,9 +9,9 @@
 #include "config.h"
 #include "irc.h"
 #include "http.h"
+#include "log.h"
 
-
-void rutinaDeError(char *string);
+void rutinaDeError(char *string, int log);
 void itoa_SearchType(int searchType, char *tipo);
 
 SOCKET establecerConexionEscucha    (in_addr_t nDireccionIP, in_port_t nPort);
@@ -37,6 +37,7 @@ int solicitarBusqueda               (SOCKET sockQP, msgGet getInfo, void **respu
 int solicitarBusquedaCache          (SOCKET sockQP, msgGet getInfo, hostsCodigo **respuesta, int *mode);
 
 configuracion config;
+mutex_t logMutex;
 
 /*
  * 
@@ -44,18 +45,40 @@ configuracion config;
 int main(int argc, char** argv) {
 
     SOCKET sockFrontEnd;
+    int log;
+    mode_t modeOpen = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+
+    /*Se inicializa el mutex*/
+    mutex_init(&logMutex, USYNC_THREAD, NULL);
+
+    /*Se crea el archivo log*/
+    if ((log = open("log.txt", O_TRUNC | O_WRONLY, modeOpen)) < 0)
+        rutinaDeError("Crear archivo Log", log);
     
+    /*Mutua exclusion*/
+    mutex_lock(&logMutex);
+    WriteLog(log, "Front-end", getpid(), 0, "Inicio de ejecucion", "INFO");
+    mutex_unlock(&logMutex);
+
     /*Lectura de Archivo de Configuracion*/
-    printf("Se leera archivo de configuracion. ");
+    mutex_lock(&logMutex);
+    WriteLog(log, "Front-end", getpid(), 0, "Se leera archivo de configuracion", "INFO");
+    mutex_unlock(&logMutex);
     if (leerArchivoConfiguracion(&config) != 0)
-       rutinaDeError("Lectura Archivo de configuracion");
-    printf("Leido OK.\n");
+       rutinaDeError("Lectura Archivo de configuracion", log);
+    mutex_lock(&logMutex);
+    WriteLog(log, "Front-end", getpid(), 0, "Leido OK", "INFOFIN");
+    mutex_unlock(&logMutex);
 
     /*Se establece conexion a puerto de escucha*/
-    printf("Se establecera conexion de escucha. ");
+    mutex_lock(&logMutex);
+    WriteLog(log, "Front-end", getpid(), 0, "Se establecera conexion de escucha", "INFO");
+    mutex_unlock(&logMutex);
     if ((sockFrontEnd = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
-       rutinaDeError("Socket invalido");
-    printf("Establecida OK.\n");
+       rutinaDeError("Socket invalido", log);
+    mutex_lock(&logMutex);
+    WriteLog(log, "Front-end", getpid(), 0, "Establecida OK", "INFOFIN");
+    mutex_unlock(&logMutex);
 
     /*Hasta que llegue el handshake del QM*/
     while (1)
@@ -67,22 +90,29 @@ int main(int argc, char** argv) {
         char descID[DESCRIPTORID_LEN];
         int mode = IRC_HANDSHAKE_QM;
 
-        printf("Esperando Query Manager para estar operativo...\n");
+        mutex_lock(&logMutex);
+        WriteLog(log, "Front-end", getpid(), 0, "Esperando Query Manager para estar operativo...", "INFOFIN");
+        mutex_unlock(&logMutex);
 
         /*Conecto nuevo cliente, posiblemente el QM*/
         sockCliente = accept(sockFrontEnd, (SOCKADDR *) &dirCliente, &nAddrSize);
 
-        printf("Conexion establecida. Realizando Handshake. ");
+        mutex_lock(&logMutex);
+        WriteLog(log, "Front-end", getpid(), 0, "Conexion establecida. Realizando Handshake", "INFO");
+        mutex_unlock(&logMutex);
         /*Si el socket es invalido, ignora y vuelve a empezar*/
         if (sockCliente == INVALID_SOCKET || (ircRequest_recv (sockCliente, buffer, descID, &mode) < 0))
         {
-            printf("Error.\n");
+            mutex_lock(&logMutex);
+            WriteLog(log, "Front-end", getpid(), 0, "Error", "INFOFIN");
+            mutex_unlock(&logMutex);
             if (sockCliente != INVALID_SOCKET)
                 close(sockCliente);
             continue;
         }
-
-        printf("Realizado OK.\n\n");
+        mutex_lock(&logMutex);
+        WriteLog(log, "Front-end", getpid(), 0, "Realizado OK", "INFOFIN");
+        mutex_unlock(&logMutex);
 
         /*Guarda en la estructura de configuracion global el ip y puerto del Query Manager*/
         config.ipQM = inet_addr(strtok(buffer, ":"));
@@ -101,7 +131,9 @@ int main(int argc, char** argv) {
         int getType;
 
         memset(&getInfo, '\0', sizeof(msgGet));
-        printf("Esperando nuevas peticiones...\n");
+        mutex_lock(&logMutex);
+        WriteLog(log, "Front-end", getpid(), 0, "Esperando nuevas peticiones...", "INFOFIN");
+        mutex_unlock(&logMutex);
 
         /*Acepta la conexion entrante*/
         sockCliente = accept(sockFrontEnd, (SOCKADDR *) &dirCliente, &nAddrSize);
@@ -109,29 +141,44 @@ int main(int argc, char** argv) {
         /*Si el socket es invalido, ignora y vuelve a empezar*/
         if (sockCliente == INVALID_SOCKET)
             continue;
+        {
+            char text[60];
+            sprintf(text, "Conexion aceptada de %s", inet_ntoa(dirCliente.sin_addr));
+            mutex_lock(&logMutex);
+            WriteLog(log, "Front-end", getpid(), 0, text, "INFOFIN");
+            mutex_unlock(&logMutex);
+        }
 
-        printf("Conexion aceptada de %s.\n", inet_ntoa(dirCliente.sin_addr));
-
-        printf("Se recibira Http GET del cliente. ");
         /*Se recibe el Http GET del cliente*/
+        mutex_lock(&logMutex);
+        WriteLog(log, "Front-end", getpid(), 0, "Se recibira Http GET del cliente", "INFO");
+        mutex_unlock(&logMutex);
         if (httpGet_recv(sockCliente, &getInfo, &getType) < 0)
         {
-            printf("Error al recibir HTTP GET.\n\n");
+            mutex_lock(&logMutex);
+            WriteLog(log, "Front-end", getpid(), 0, "Error al recibir HTTP GET.\n", "INFOFIN");
+            mutex_unlock(&logMutex);
             close(sockCliente);
             continue;
         }
-        printf("Recibido OK.\n");
+        mutex_lock(&logMutex);
+        WriteLog(log, "Front-end", getpid(), 0, "Recibido OK", "INFOFIN");
+        mutex_unlock(&logMutex);
 
         getType = obtenerGetType(getInfo.palabras);
 
-        printf("Se atendera cliente.\n");
+        mutex_lock(&logMutex);
+        WriteLog(log, "Front-end", getpid(), 0, "Se atendera cliente", "INFOFIN");
+        mutex_unlock(&logMutex);
         if (getType == BROWSER)
         /*Si el GET corresponde a un browser pidiendo formulario*/
         {
             int control;
 
             /*Envia el formulario html para empezar a atender.*/
-            printf("Se envia Formulario Html.\n");
+            mutex_lock(&logMutex);
+            WriteLog(log, "Front-end", getpid(), 0, "Se envia Formulario Html", "INFOFIN");
+            mutex_unlock(&logMutex);
             control = EnviarFormularioHtml (sockCliente, getInfo);
             printf("Atencion de cliente finalizada%s.\n\n", control < 0? " con Error": "");
             
@@ -164,6 +211,10 @@ int main(int argc, char** argv) {
      */
      
     close(sockFrontEnd);
+
+    /*Finalizo el mutex*/
+    mutex_destroy(&logMutex);
+
     return (EXIT_SUCCESS);
 }
 
@@ -237,7 +288,7 @@ int EnviarRespuestaHtmlCache (SOCKET socket, char *htmlCode, msgGet getInfo)
     char tmpFile[MAX_PATH];
 
     mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-
+    
     sprintf(tmpFile, "cache%d.txt", socket);
 
     /*Crea o trunca (si ya existe) el archivo a enviar al Cliente en modo escritura*/
@@ -655,7 +706,7 @@ int generarEncabezadoHtml(int htmlFile, msgGet getInfo,
     {
 	     perror("write: htmlFile");
 	     return -1;
-	 }
+    }
     if (nBytes != strlen(buffer))
     {
         perror("write: no completo escritura");
@@ -944,11 +995,17 @@ Ultima modificacion: Scheinkman, Mariano
 Recibe: Error detectado.
 Devuelve: -
 */
-void rutinaDeError(char* error)
+void rutinaDeError(char* error, int log)
 {
     printf("\r\nError: %s\r\n", error);
     printf("Codigo de Error: %d\r\n\r\n", errno);
     perror(error);
+
+    /*Mutua exclusion*/
+    mutex_lock(&logMutex);
+    WriteLog(log, "Front-end", getpid(), 0, error, "ERROR");
+    mutex_unlock(&logMutex);
+
     exit(EXIT_FAILURE);
 }
 
@@ -973,11 +1030,11 @@ SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort)
 
         /*Impide el error "addres already in use" y setea non blocking el socket*/
         if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(int)) == -1)
-            rutinaDeError("Setsockopt");
+            return -1;
 
         /*if (ioctlsocket(sockfd, FIONBIO, &NonBlock) == SOCKET_ERROR)
         {
-        rutinaDeError("ioctlsocket");
+        return -1;
         }*/
 
         addrServidorWeb.sin_family = AF_INET;
@@ -990,12 +1047,12 @@ SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort)
         {
             /*Pone el puerto a la escucha de conexiones entrantes*/
             if (listen(sockfd, SOMAXCONN) == -1)
-                rutinaDeError("Listen");
+                return -1;
             else
             return sockfd;
         }
         else
-            rutinaDeError("Bind");
+            return -1;
     }
 
     return INVALID_SOCKET;
@@ -1013,7 +1070,7 @@ SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKA
     SOCKET sockfd;
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-        rutinaDeError("socket");
+        return -1;
 
     their_addr->sin_family = AF_INET;
     their_addr->sin_port = nPort;
@@ -1021,7 +1078,7 @@ SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKA
     memset(&(their_addr->sin_zero),'\0',8);
 
     /*if (connect(sockfd, (struct sockaddr *)their_addr, sizeof(struct sockaddr)) == -1)
-        rutinaDeError("connect");*/
+        return -1;*/
 
     while ( connect (sockfd, (SOCKADDR *)their_addr, sizeof(SOCKADDR)) == -1 && errno != EISCONN )
         if ( errno != EINTR )

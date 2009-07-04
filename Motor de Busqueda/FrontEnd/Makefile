@@ -19,7 +19,7 @@ CFLAGS =-ansi -g# -Wall
 LIBS=-R -L $(SOCKLIBS)
 
 #Dependencias
-OBJS = frontend.o irc.o http.o config.o
+OBJS = frontend.o irc.o http.o config.o log.o
 
 frontend: $(OBJS)
 	$(CC) $(CFLAGS) $(LIBS) -o frontend $(OBJS)
