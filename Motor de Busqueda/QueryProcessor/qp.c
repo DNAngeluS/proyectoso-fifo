@@ -244,6 +244,9 @@ int main()
     freeLDAPContextOperations(ldap.ctxOp);
     freeLDAPSessionOperations(ldap.sessionOp);
 
+	/*Finalizo el mutex*/
+    mutex_destroy(&logMutex);
+
     return 0;
 }
 
