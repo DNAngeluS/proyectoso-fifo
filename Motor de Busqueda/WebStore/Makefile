@@ -20,10 +20,12 @@ CC = exec gcc-4.1
 CFLAGS = -g -ansi -D_XOPEN_SOURCE=600 #-W -Wall -Werror -pedantic-errors -O2 -Wformat=2 -Wno-unused -DPOSIX -DPOSIX_SOURCE
 
 #Dependencias
-OBJS = config.o irc.o mldap.o LdapWrapper.o
+OBJS = config.o irc.o mldap.o LdapWrapper.o log.o
 OBJS_WS = webstore.o $(OBJS)
 OBJS_CR = crawler-create.o $(OBJS)
 LIBS=-L $(THREADLIBS) $(LIBDIR) $(LDAPLIB)
+
+all: webstore crawler-create
 
 webstore: $(OBJS_WS)
 	$(CC) $(CFLAGS) $(LIBS) -o webstore  $(OBJS_WS)
