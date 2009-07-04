@@ -22,12 +22,12 @@ int chequeoDeVida (in_addr_t ip, in_port_t puerto);
 
 configuracion config;
 mutex_t logMutex;
+int log;
 
 int main(int argc, char** argv)
 {
     SOCKET sockQM;
     int mensajeEsperando = 0;
-    int log;
 
     SOCKET sockPrimerQP;
     SOCKADDR_IN dirPrimerQP;

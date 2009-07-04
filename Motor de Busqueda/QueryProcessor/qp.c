@@ -20,11 +20,11 @@ int conectarQueryManager (in_addr_t nDireccionIP, in_port_t nPort);
 
 configuracion config;
 mutex_t logMutex;
+int log;
 
 int main()
 {
     SOCKET sockQP;
-    int log;
     ldapObj ldap;
     
     fd_set fdMaestro;
