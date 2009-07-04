@@ -13,3 +13,4 @@
 int WriteLog(int log, char *proceso, pid_t pid, thread_t thread, char *descripcion, char *tipo);
 
 #endif	/* _LOG_H */
+

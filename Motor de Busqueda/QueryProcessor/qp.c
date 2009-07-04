@@ -122,7 +122,7 @@ int main()
                             continue;
                         }
 
-                        sprintf(text, "Conexion aceptada de %s.\n", inet_ntoa(dirCliente.sin_addr));
+                        sprintf(text, "Conexion aceptada de %s", inet_ntoa(dirCliente.sin_addr));
                         WriteLog(log, "Query Processor", getpid(), thr_self(), text, "INFOFIN");
 
                         /*Recibe el IRC con el permiso de peticion de atender request*/
@@ -215,7 +215,7 @@ int main()
                             sprintf(text, "Hubo un error al atender Cliente.");
                         strcat(text, " Se cierra conexion");
 
-                        WriteLog(log, "Query Processor", getpid(), thr_self(), text, "INFOFIN");
+                        WriteLog(log, "Query Processor", getpid(), thr_self(), text, control<0? "ERROR": "INFOFIN");
                         putchar('\n');
                    
                         /*Eliminar cliente y actualizar nuevo maximo*/

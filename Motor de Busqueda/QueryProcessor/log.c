@@ -32,3 +32,4 @@ int WriteLog(int log, char *proceso, pid_t pid, thread_t thread, char *descripci
 
     return error? -1: 0;
 }
+
