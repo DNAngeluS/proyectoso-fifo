@@ -19,8 +19,7 @@ SOCKET establecerConexionServidor         (in_addr_t nDireccionIP, in_port_t nPo
 
 void *rutinaAtencionCliente         (void *sock);
 void *rutinaAtencionCache           (void *args);
-int rutinaCrearThread               (void *(*funcion)(void *), SOCKET sockfd,
-                                        msgGet getInfo, SOCKADDR_IN dir);
+int rutinaCrearThread               (void *(*funcion)(void *), threadArgs *args);
 
 int EnviarFormularioHtml            (SOCKET sockfd, msgGet getInfo);
 int EnviarRespuestaHtml             (SOCKET socket, msgGet getInfo, void *respuesta,
@@ -52,7 +51,7 @@ int main(int argc, char** argv) {
     mutex_init(&logMutex, USYNC_THREAD, NULL);
 
     /*Se crea el archivo log*/
-    if ((log = open("log.txt", O_TRUNC | O_WRONLY, modeOpen)) < 0)
+    if ((log = open("log.txt", O_CREAT | O_TRUNC | O_WRONLY, modeOpen)) < 0)
         rutinaDeError("Crear archivo Log", log);
     
     WriteLog(log, "Front-end", getpid(), thr_self(), "Inicio de ejecucion", "INFO");
@@ -152,7 +151,7 @@ int main(int argc, char** argv) {
             /*Envia el formulario html para empezar a atender.*/
             WriteLog(log, "Front-end", getpid(), thr_self(), "Se envia Formulario Html", "INFOFIN");
             control = EnviarFormularioHtml (sockCliente, getInfo);
-            sprintf(texto, "Atencion de cliente finalizada%s", control < 0? " con Error": "");
+            sprintf(text, "Atencion de cliente finalizada%s", control < 0? " con Error": "");
             WriteLog(log, "Front-end", getpid(), thr_self(), text, control<0? "ERROR": "INFOFIN");
             putchar('\n');
             
@@ -161,8 +160,14 @@ int main(int argc, char** argv) {
         else if (getType == FORMULARIO)
         /*Si el GET corresponde a un formulario pidiendo una busqueda*/
         {
+            threadArgs args;
+
+            args.socket = sockCliente;
+            args.getInfo = getInfo;
+            args.dir = dirCliente;
+
             /*Crea el thread que atendera al nuevo cliente*/
-            if (rutinaCrearThread(rutinaAtencionCliente, sockCliente, getInfo, dirCliente) < 0)
+            if (rutinaCrearThread(rutinaAtencionCliente, &args) < 0)
             {
                 char text[60];
 
@@ -175,8 +180,14 @@ int main(int argc, char** argv) {
         else if (getType == CACHE)
         /*Si el GET corresponde a un cliente pidiendo una pagina Cache*/
         {
+            threadArgs args;
+
+            args.socket = sockCliente;
+            args.getInfo = getInfo;
+            args.dir = dirCliente;
+
             /*Crea el thread que atendera al nuevo cliente*/
-            if (rutinaCrearThread(rutinaAtencionCache, sockCliente, getInfo, dirCliente) < 0)
+            if (rutinaCrearThread(rutinaAtencionCache, &args) < 0)
             {
                 char text[60];
 
@@ -351,26 +362,26 @@ void *rutinaAtencionCache (void *args)
     WriteLog(log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
     
     /*Se obtiene el uuid a buscar*/
-    WriteLog(log, "Obteniendo UUID", getpid(), thr_self(), text, "INFO");
+    WriteLog(log,"Front-end", getpid(), thr_self(), "Obteniendo UUID", "INFO");
     if (obtenerUUID(getThread, &getInfo) < 0)
     {
-        WriteLog(log, "Error de tipo", getpid(), thr_self(), text, "ERROR");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Error de tipo", "ERROR");
 
         /*Si hubo un error, envia Http Not Found y cierra conexion*/
-        WriteLog(log, "Se enviara Http Not Found", getpid(), thr_self(), text, "INFO");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
         if (httpNotFound_send(sockCliente, getInfo) < 0)
-            WriteLog(log, "Error", getpid(), thr_self(), text, "ERROR");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
         else
-            WriteLog(log, "Enviado OK", getpid(), thr_self(), text, "INFOFIN");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
 
-        WriteLog(log, "Atencion de cliente finalizada", getpid(), thr_self(), text, "INFOFIN");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
         putchar('\n');
         close(sockCliente);
         thr_exit(NULL);
     }
     else
     {
-        sprintf(text, "Obtenido OK.\n\tUUID a buscar: %s\n", getInfo.palabras);
+        sprintf(text, "Obtenido OK.\n\tUUID a buscar: %s", getInfo.palabras);
         WriteLog(log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
     }
 
@@ -380,7 +391,7 @@ void *rutinaAtencionCache (void *args)
     {
         WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
         WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
-        puthcar('\n');
+        putchar('\n');
         close(sockCliente);
         thr_exit(NULL);
     }
@@ -394,7 +405,7 @@ void *rutinaAtencionCache (void *args)
     {
         WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
         WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
-        puthcar('\n');
+        putchar('\n');
         close(sockCliente);
         close(sockQM);
         thr_exit(NULL);
@@ -439,7 +450,7 @@ void *rutinaAtencionCache (void *args)
     free(respuesta);
 
     WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
-    puthcar('\n');
+    putchar('\n');
 
     /*Se cierra conexion con Cliente y con QP*/
     close(sockCliente);
@@ -469,7 +480,7 @@ void *rutinaAtencionCliente (void *args)
 
     memset(&getInfo, '\0', sizeof(msgGet));
 
-    sprintf (text, "Se comienza a atender Request Cache de %s", inet_ntoa(dirCliente.sin_addr));
+    sprintf (text, "Se comienza a atender Request de %s", inet_ntoa(dirCliente.sin_addr));
     WriteLog(log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
 
     /*Se obtiene el tiempo de inicio de la busqueda*/
@@ -479,23 +490,23 @@ void *rutinaAtencionCliente (void *args)
     WriteLog(log, "Obteniendo QueryString", getpid(), thr_self(), text, "INFO");
     if (obtenerQueryString(getThread, &getInfo) < 0)
     {
-        WriteLog(log, "Error de tipo", getpid(), thr_self(), text, "ERROR");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Error de tipo", "ERROR");
 
         /*Si hubo un error, envia Http Not Found y cierra conexion*/
-        WriteLog(log, "Se enviara Http Not Found", getpid(), thr_self(), text, "INFO");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
         if (httpNotFound_send(sockCliente, getInfo) < 0)
-            WriteLog(log, "Error", getpid(), thr_self(), text, "ERROR");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
         else
-            WriteLog(log, "Enviado OK", getpid(), thr_self(), text, "INFOFIN");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
 
-        WriteLog(log, "Atencion de cliente finalizada", getpid(), thr_self(), text, "INFOFIN");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
         putchar('\n');
         close(sockCliente);
         thr_exit(NULL);
     }
     else
     {
-         sprintf(text, "Obtenido OK.\n\tPalabras buscadas: %s\n\tTipo: %d\n", getInfo.palabras, getInfo.searchType);
+         sprintf(text, "Obtenido OK.\n\tPalabras buscadas: %s\n\tTipo: %d", getInfo.palabras, getInfo.searchType);
          WriteLog(log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
     }
 
@@ -505,7 +516,7 @@ void *rutinaAtencionCliente (void *args)
     {
         WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
         WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
-        puthcar('\n');
+        putchar('\n');
         close(sockCliente);
         thr_exit(NULL);
     }
@@ -523,7 +534,7 @@ void *rutinaAtencionCliente (void *args)
     {
         WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
         WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
-        puthcar('\n');
+        putchar('\n');
         close(sockCliente);
         close(sockQM);
         thr_exit(NULL);
@@ -564,7 +575,7 @@ void *rutinaAtencionCliente (void *args)
     }
 
     WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
-    puthcar('\n');
+    putchar('\n');
 
     /*Se cierra conexion con Cliente*/
     close(sockCliente);
@@ -899,17 +910,12 @@ Ultima modificacion: Scheinkman, Mariano
 Recibe: La funcion handler del thread, socket, msg Get y direccion del Cliente
 Devuelve: ok? 0: -1
 */
-int rutinaCrearThread(void *(*funcion)(void *), SOCKET sockfd, msgGet getInfo, SOCKADDR_IN dir)
+int rutinaCrearThread(void *(*funcion)(void *), threadArgs *args)
 {
     thread_t thr;
-    threadArgs args;
-
-    args.socket = sockfd;
-    args.getInfo = getInfo;
-    args.dir = dir;
 
     /*Se crea el thread de atencion de cliente*/
-    if (thr_create((void *) NULL, /*PTHREAD_STACK_MIN*/ thr_min_stack() +1024, funcion, (void *) &args, 0, &thr) < 0)
+    if (thr_create((void *) NULL, /*PTHREAD_STACK_MIN*/ thr_min_stack() +1024, funcion, (void *) args, 0, &thr) < 0)
     {
         printf("Error al crear thread: %d", errno);
         return -1;

@@ -647,6 +647,13 @@ void eliminarEspaciosEnBlanco(char *palabra, char *psinblancos)
              continue;
          if (*palabra == '+' && psinblancos[j-1] == '-')
              continue;
+         if (*palabra == '-' && *(palabra+1) == '-')
+             continue;
+         /*if (*palabra == '-' && *(palabra+1) == '+')
+             continue;
+         if (*palabra == '-' && *(palabra-1) == '+')
+             continue;*/
+
          psinblancos[j++] = *palabra;
      }
 
