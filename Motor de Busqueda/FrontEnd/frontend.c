@@ -38,6 +38,7 @@ int solicitarBusquedaCache          (SOCKET sockQP, msgGet getInfo, hostsCodigo 
 
 configuracion config;
 mutex_t logMutex;
+int log;
 
 /*
  * 
@@ -45,7 +46,6 @@ mutex_t logMutex;
 int main(int argc, char** argv) {
 
     SOCKET sockFrontEnd;
-    int log;
     mode_t modeOpen = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
     /*Se inicializa el mutex*/
@@ -55,30 +55,19 @@ int main(int argc, char** argv) {
     if ((log = open("log.txt", O_TRUNC | O_WRONLY, modeOpen)) < 0)
         rutinaDeError("Crear archivo Log", log);
     
-    /*Mutua exclusion*/
-    mutex_lock(&logMutex);
-    WriteLog(log, "Front-end", getpid(), 0, "Inicio de ejecucion", "INFO");
-    mutex_unlock(&logMutex);
+    WriteLog(log, "Front-end", getpid(), thr_self(), "Inicio de ejecucion", "INFO");
 
     /*Lectura de Archivo de Configuracion*/
-    mutex_lock(&logMutex);
-    WriteLog(log, "Front-end", getpid(), 0, "Se leera archivo de configuracion", "INFO");
-    mutex_unlock(&logMutex);
+    WriteLog(log, "Front-end", getpid(), thr_self(), "Se leera archivo de configuracion", "INFO");
     if (leerArchivoConfiguracion(&config) != 0)
        rutinaDeError("Lectura Archivo de configuracion", log);
-    mutex_lock(&logMutex);
-    WriteLog(log, "Front-end", getpid(), 0, "Leido OK", "INFOFIN");
-    mutex_unlock(&logMutex);
+    WriteLog(log, "Front-end", getpid(), thr_self(), "Leido OK", "INFOFIN");
 
     /*Se establece conexion a puerto de escucha*/
-    mutex_lock(&logMutex);
-    WriteLog(log, "Front-end", getpid(), 0, "Se establecera conexion de escucha", "INFO");
-    mutex_unlock(&logMutex);
+    WriteLog(log, "Front-end", getpid(), thr_self(), "Se establecera conexion de escucha", "INFO");
     if ((sockFrontEnd = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
        rutinaDeError("Socket invalido", log);
-    mutex_lock(&logMutex);
-    WriteLog(log, "Front-end", getpid(), 0, "Establecida OK", "INFOFIN");
-    mutex_unlock(&logMutex);
+    WriteLog(log, "Front-end", getpid(), thr_self(), "Establecida OK", "INFOFIN");
 
     /*Hasta que llegue el handshake del QM*/
     while (1)
@@ -90,29 +79,22 @@ int main(int argc, char** argv) {
         char descID[DESCRIPTORID_LEN];
         int mode = IRC_HANDSHAKE_QM;
 
-        mutex_lock(&logMutex);
-        WriteLog(log, "Front-end", getpid(), 0, "Esperando Query Manager para estar operativo...", "INFOFIN");
-        mutex_unlock(&logMutex);
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Esperando Query Manager para estar operativo...", "INFOFIN");
 
         /*Conecto nuevo cliente, posiblemente el QM*/
         sockCliente = accept(sockFrontEnd, (SOCKADDR *) &dirCliente, &nAddrSize);
 
-        mutex_lock(&logMutex);
-        WriteLog(log, "Front-end", getpid(), 0, "Conexion establecida. Realizando Handshake", "INFO");
-        mutex_unlock(&logMutex);
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Conexion establecida. Realizando Handshake", "INFO");
+
         /*Si el socket es invalido, ignora y vuelve a empezar*/
         if (sockCliente == INVALID_SOCKET || (ircRequest_recv (sockCliente, buffer, descID, &mode) < 0))
         {
-            mutex_lock(&logMutex);
-            WriteLog(log, "Front-end", getpid(), 0, "Error", "INFOFIN");
-            mutex_unlock(&logMutex);
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
             if (sockCliente != INVALID_SOCKET)
                 close(sockCliente);
             continue;
         }
-        mutex_lock(&logMutex);
-        WriteLog(log, "Front-end", getpid(), 0, "Realizado OK", "INFOFIN");
-        mutex_unlock(&logMutex);
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Realizado OK", "INFOFIN");
 
         /*Guarda en la estructura de configuracion global el ip y puerto del Query Manager*/
         config.ipQM = inet_addr(strtok(buffer, ":"));
@@ -131,9 +113,9 @@ int main(int argc, char** argv) {
         int getType;
 
         memset(&getInfo, '\0', sizeof(msgGet));
-        mutex_lock(&logMutex);
-        WriteLog(log, "Front-end", getpid(), 0, "Esperando nuevas peticiones...", "INFOFIN");
-        mutex_unlock(&logMutex);
+
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Esperando nuevas peticiones...", "INFOFIN");
+        putchar('\n');
 
         /*Acepta la conexion entrante*/
         sockCliente = accept(sockFrontEnd, (SOCKADDR *) &dirCliente, &nAddrSize);
@@ -144,43 +126,35 @@ int main(int argc, char** argv) {
         {
             char text[60];
             sprintf(text, "Conexion aceptada de %s", inet_ntoa(dirCliente.sin_addr));
-            mutex_lock(&logMutex);
-            WriteLog(log, "Front-end", getpid(), 0, text, "INFOFIN");
-            mutex_unlock(&logMutex);
+            WriteLog(log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
         }
 
         /*Se recibe el Http GET del cliente*/
-        mutex_lock(&logMutex);
-        WriteLog(log, "Front-end", getpid(), 0, "Se recibira Http GET del cliente", "INFO");
-        mutex_unlock(&logMutex);
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Se recibira Http GET del cliente", "INFO");
         if (httpGet_recv(sockCliente, &getInfo, &getType) < 0)
         {
-            mutex_lock(&logMutex);
-            WriteLog(log, "Front-end", getpid(), 0, "Error al recibir HTTP GET.\n", "INFOFIN");
-            mutex_unlock(&logMutex);
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Error al recibir HTTP GET", "ERROR");
+            putchar('\n');
             close(sockCliente);
             continue;
         }
-        mutex_lock(&logMutex);
-        WriteLog(log, "Front-end", getpid(), 0, "Recibido OK", "INFOFIN");
-        mutex_unlock(&logMutex);
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Recibido OK", "INFOFIN");
 
         getType = obtenerGetType(getInfo.palabras);
 
-        mutex_lock(&logMutex);
-        WriteLog(log, "Front-end", getpid(), 0, "Se atendera cliente", "INFOFIN");
-        mutex_unlock(&logMutex);
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Se atendera cliente", "INFOFIN");
         if (getType == BROWSER)
         /*Si el GET corresponde a un browser pidiendo formulario*/
         {
             int control;
+            char text[150];
 
             /*Envia el formulario html para empezar a atender.*/
-            mutex_lock(&logMutex);
-            WriteLog(log, "Front-end", getpid(), 0, "Se envia Formulario Html", "INFOFIN");
-            mutex_unlock(&logMutex);
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Se envia Formulario Html", "INFOFIN");
             control = EnviarFormularioHtml (sockCliente, getInfo);
-            printf("Atencion de cliente finalizada%s.\n\n", control < 0? " con Error": "");
+            sprintf(texto, "Atencion de cliente finalizada%s", control < 0? " con Error": "");
+            WriteLog(log, "Front-end", getpid(), thr_self(), text, control<0? "ERROR": "INFOFIN");
+            putchar('\n');
             
             close(sockCliente);
         }
@@ -190,7 +164,11 @@ int main(int argc, char** argv) {
             /*Crea el thread que atendera al nuevo cliente*/
             if (rutinaCrearThread(rutinaAtencionCliente, sockCliente, getInfo, dirCliente) < 0)
             {
-                printf("No se ha podido atender cliente de %s. Se cierra conexion.\n\n", inet_ntoa(dirCliente.sin_addr));
+                char text[60];
+
+                sprintf(text, "No se ha podido atender cliente de %s. Se cierra conexion", inet_ntoa(dirCliente.sin_addr));
+                WriteLog(log, "Front-end", getpid(), thr_self(), text, "ERROR");
+                putchar('\n');
                 close(sockCliente);
             }
         }
@@ -200,7 +178,10 @@ int main(int argc, char** argv) {
             /*Crea el thread que atendera al nuevo cliente*/
             if (rutinaCrearThread(rutinaAtencionCache, sockCliente, getInfo, dirCliente) < 0)
             {
-                printf("No se ha podido atender cliente de %s. Se cierra conexion.\n\n", inet_ntoa(dirCliente.sin_addr));
+                char text[60];
+
+                printf(text, "No se ha podido atender cliente de %s. Se cierra conexion", inet_ntoa(dirCliente.sin_addr));
+                WriteLog(log, "Front-end", getpid(), thr_self(), text, "ERROR");
                 close(sockCliente);
             }
         }
@@ -361,55 +342,65 @@ void *rutinaAtencionCache (void *args)
     SOCKADDR_IN dirQM;
     hostsCodigo *respuesta = NULL;
     int mode = 0x00;
+    char text[60];
 
     memset(&getInfo, '\0', sizeof(msgGet));
     getInfo.protocolo = getThread.protocolo;
 
-    printf ("Se comienza a atender Request Cache de %s.\n", inet_ntoa(dirCliente.sin_addr));
-
+    sprintf (text, "Se comienza a atender Request Cache de %s", inet_ntoa(dirCliente.sin_addr));
+    WriteLog(log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
+    
     /*Se obtiene el uuid a buscar*/
-    printf("Obteniendo UUID. ");
+    WriteLog(log, "Obteniendo UUID", getpid(), thr_self(), text, "INFO");
     if (obtenerUUID(getThread, &getInfo) < 0)
     {
-        printf("Error de tipo.\n");
+        WriteLog(log, "Error de tipo", getpid(), thr_self(), text, "ERROR");
 
         /*Si hubo un error, envia Http Not Found y cierra conexion*/
-        printf("Se enviara Http Not Found. ");
+        WriteLog(log, "Se enviara Http Not Found", getpid(), thr_self(), text, "INFO");
         if (httpNotFound_send(sockCliente, getInfo) < 0)
-            printf("Error.\n");
+            WriteLog(log, "Error", getpid(), thr_self(), text, "ERROR");
         else
-            printf("Enviado OK.\n");
+            WriteLog(log, "Enviado OK", getpid(), thr_self(), text, "INFOFIN");
 
-        printf("Atencion de cliente finalizada.\n\n");
+        WriteLog(log, "Atencion de cliente finalizada", getpid(), thr_self(), text, "INFOFIN");
+        putchar('\n');
         close(sockCliente);
         thr_exit(NULL);
     }
     else
-        printf("Obtenido OK.\n\tUUID a buscar: %s\n", getInfo.palabras);
+    {
+        sprintf(text, "Obtenido OK.\n\tUUID a buscar: %s\n", getInfo.palabras);
+        WriteLog(log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
+    }
 
     /*Se establece conexion con el Query Manager*/
-    printf("Se establecera conexion con Query Manager. ");
+    WriteLog(log, "Front-end", getpid(), thr_self(), "Se establecera conexion con Query Manager", "INFO");
     if ((sockQM = establecerConexionServidor(config.ipQM, config.puertoQM, &dirQM)) == INVALID_SOCKET)
     {
-        printf("Error.\n");
-        printf("Atencion de cliente finalizada.\n\n");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
+        puthcar('\n');
         close(sockCliente);
         thr_exit(NULL);
     }
-    printf("Establecida OK.\n");
+    else
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Establecida OK", "INFOFIN");
 
     getInfo.searchType = SEARCH_CACHE;
     /*Se solicita la busqueda al Query Manager y se recibe las respuestas*/
-    printf("Se enviara peticion al Query Manager. ");
+    WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara peticion al Query Manager", "INFO");
     if (solicitarBusquedaCache(sockQM, getInfo, &respuesta, &mode) < 0)
     {
-        printf("Error.\n");
-        printf("Atencion de cliente finalizada.\n\n");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
+        puthcar('\n');
         close(sockCliente);
         close(sockQM);
         thr_exit(NULL);
     }
-    printf("Respuesta obtenida.\n");
+    else
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Respuesta obtenida", "INFOFIN");
 
     /*Se cierra conexion con el Query Manager*/
     close(sockQM);
@@ -417,37 +408,38 @@ void *rutinaAtencionCache (void *args)
     if (mode == IRC_RESPONSE_CACHE)
     {
         /*Se envia el Html de respuesta al Cliente*/
-        printf("Se enviara respuesta al cliente. ");
+       WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara respuesta al cliente", "INFO");
         if (EnviarRespuestaHtmlCache(sockCliente, respuesta->html, getInfo) < 0)
         {
-            printf("Error.\n");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
 
             /*Si hubo un error, envia Http Not Found y cierra conexion*/
-            printf("Se enviara Http Not Found. ");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
             if (httpNotFound_send(sockCliente, getInfo) < 0)
-                printf("Error.\n");
+                WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
             else
-                printf("Enviado OK.\n");
+                WriteLog(log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
         }
         else
-            printf("Respuesta enviada OK.\n");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Respuesta enviada OK", "INFOFIN");
     }
     else if (mode == IRC_RESPONSE_ERROR)
     {
-        printf("No se a aceptado peticion.\n");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "No se a aceptado peticion", "INFOFIN");
 
         /*Se envia al cliente Http Internal Service Error*/
-        printf("Se enviara Http Internal Service Error. ");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara Http Internal Service Error", "INFO");
         if (httpInternalServiceError_send(sockCliente, getInfo) < 0)
-            printf("Error.\n");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
         else
-            printf("Enviado OK.\n");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
     }
 
     /*Libero las respuestas ya utlizadas*/
     free(respuesta);
 
-    printf("Atencion de cliente finalizada.\n\n");
+    WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
+    puthcar('\n');
 
     /*Se cierra conexion con Cliente y con QP*/
     close(sockCliente);
@@ -469,6 +461,7 @@ void *rutinaAtencionCliente (void *args)
     SOCKET sockQM;
     SOCKADDR_IN dirQM;
     int mode = 0x00;
+    char text[60];
 
     void *respuesta = NULL;
     unsigned long respuestaLen = 0;
@@ -476,41 +469,48 @@ void *rutinaAtencionCliente (void *args)
 
     memset(&getInfo, '\0', sizeof(msgGet));
 
-    printf ("Se comienza a atender Request de %s.\n", inet_ntoa(dirCliente.sin_addr));
+    sprintf (text, "Se comienza a atender Request Cache de %s", inet_ntoa(dirCliente.sin_addr));
+    WriteLog(log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
 
     /*Se obtiene el tiempo de inicio de la busqueda*/
     ftime(&tiempoInicio);
 
-    printf("Obteniendo Query String. ");
     /*Se obtiene el query string a buscar*/
+    WriteLog(log, "Obteniendo QueryString", getpid(), thr_self(), text, "INFO");
     if (obtenerQueryString(getThread, &getInfo) < 0)
     {
-        printf("Error de tipo.\n");
+        WriteLog(log, "Error de tipo", getpid(), thr_self(), text, "ERROR");
 
-        printf("Se enviara Http Not Found. ");
         /*Si hubo un error, envia Http Not Found y cierra conexion*/
+        WriteLog(log, "Se enviara Http Not Found", getpid(), thr_self(), text, "INFO");
         if (httpNotFound_send(sockCliente, getInfo) < 0)
-            printf("\nError al enviar HTTP Not Found.\n");
+            WriteLog(log, "Error", getpid(), thr_self(), text, "ERROR");
         else
-            printf("Enviado OK.\n");
+            WriteLog(log, "Enviado OK", getpid(), thr_self(), text, "INFOFIN");
 
-        printf("Atencion de cliente finalizada.\n\n");
+        WriteLog(log, "Atencion de cliente finalizada", getpid(), thr_self(), text, "INFOFIN");
+        putchar('\n');
         close(sockCliente);
         thr_exit(NULL);
     }
     else
-         printf("Obtenido OK.\n\tPalabras buscadas: %s\n\tTipo: %d\n", getInfo.palabras, getInfo.searchType);
+    {
+         sprintf(text, "Obtenido OK.\n\tPalabras buscadas: %s\n\tTipo: %d\n", getInfo.palabras, getInfo.searchType);
+         WriteLog(log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
+    }
 
-    /*Se establece conexion con el Query Manager*/
-    printf("Se establecera conexion con Query Manager. ");
+     /*Se establece conexion con el Query Manager*/
+    WriteLog(log, "Front-end", getpid(), thr_self(), "Se establecera conexion con Query Manager", "INFO");
     if ((sockQM = establecerConexionServidor(config.ipQM, config.puertoQM, &dirQM)) == INVALID_SOCKET)
     {
-        printf("Error.\n");
-        printf("Atencion de cliente finalizada.\n\n");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
+        puthcar('\n');
         close(sockCliente);
         thr_exit(NULL);
     }
-    printf("Establecida OK.\n");
+    else
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Establecida OK", "INFOFIN");
 
     /*Reserva un bloque de memoria para poder recibir las respuestas*/
     if (getInfo.searchType == WEB)      respuesta = (so_URL_HTML *)      malloc (sizeof(so_URL_HTML));
@@ -518,16 +518,17 @@ void *rutinaAtencionCliente (void *args)
     if (getInfo.searchType == OTROS)    respuesta = (so_URL_Archivos *)  malloc (sizeof(so_URL_Archivos));
 
     /*Se solicita la busqueda al Query Manager y se recibe las respuestas*/
-    printf("Se enviara peticion al Query Manager. ");
+   WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara peticion al Query Manager", "INFO");
     if (solicitarBusqueda(sockQM, getInfo, &respuesta, &respuestaLen, &mode) < 0)
     {
-        printf("Error.\n");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
+        puthcar('\n');
         close(sockCliente);
         close(sockQM);
-        printf("Atencion de cliente finalizada.\n\n");
         thr_exit(NULL);
     }
-    printf("Respuesta obtenida.\n");
+    WriteLog(log, "Front-end", getpid(), thr_self(), "Respuesta obtenida", "INFOFIN");
 
     /*Se cierra conexion con el Query Manager*/
     close(sockQM);
@@ -535,35 +536,35 @@ void *rutinaAtencionCliente (void *args)
     if (mode == IRC_RESPONSE_HTML || mode == IRC_RESPONSE_ARCHIVOS)
     {
         /*Se envia el Html de respuesta al Cliente*/
-        printf("Se enviara respuesta al cliente. ");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara respuesta al cliente", "INFO");
         if (EnviarRespuestaHtml(sockCliente, getInfo, respuesta,
                                 respuestaLen, tiempoInicio) < 0)
         {
-            printf("Error.\n");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
 
-            printf("Se enviara Http Not Found. ");
-            /*Si hubo un error, envia Http Not Found y cierra conexion*/
+             WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
             if (httpNotFound_send(sockCliente, getInfo) < 0)
-                printf("Error.\n");
+                WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
             else
-                printf("Enviado OK.\n");
+                WriteLog(log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
         }
         else
-            printf("Respuesta enviada OK.\n");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Respuesta enviada OK", "INFOFIN");
     }
     else if (mode == IRC_RESPONSE_ERROR)
     {
-        printf("No se a aceptado peticion.\n");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "No se a aceptado peticion", "INFOFIN");
 
         /*Se envia al cliente Http Internal Service Error*/
-        printf("Se enviara Http Internal Service Error. ");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara Http Internal Service Error", "INFO");
         if (httpInternalServiceError_send(sockCliente, getInfo) < 0)
-            printf("Error.\n");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
         else
-            printf("Enviado OK.\n");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
     }
 
-    printf("Atencion de cliente finalizada.\n\n");
+    WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
+    puthcar('\n');
 
     /*Se cierra conexion con Cliente*/
     close(sockCliente);
@@ -936,15 +937,15 @@ int EnviarFormularioHtml(SOCKET sockCliente, msgGet getInfo)
 
     if ((strcmp(getInfo.palabras, "/index.hmtl") == 0) || (strcmp(getInfo.palabras, "imgs/soogle.jpg") == 0) )
     {
-        printf("Se esperaba recibir \"/SOogle.html\".\n");
-        printf("Se enviara Http Not Found. ");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Se esperaba recibir \"/SOogle.html\"", "INFOFIN");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
         if (httpNotFound_send(sockCliente, getInfo) < 0)
         {
-            printf("Error.\n");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
             return -1;
         }
         else
-            printf("Enviado OK.\n");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
         return -1;
     }
     else
@@ -956,31 +957,31 @@ int EnviarFormularioHtml(SOCKET sockCliente, msgGet getInfo)
             perror("open");
             if (httpNotFound_send(sockCliente, getInfo) < 0)
             {
-                printf("Error al enviar HTTP Not Found.\n\n");
+                WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
                 return -1;
             }
             return -1;
         }
         else
         {
-            printf("Se enviara Http 200 Ok. ");
+           WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara Http 200 Ok", "INFO");
             if (httpOk_send(sockCliente, getInfo) < 0)
             {
-                printf("Error.\n");
+               WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
                 return -1;
             }
             else
-                printf("Enviado OK.\n");
+                WriteLog(log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
 
-            printf("Se enviara archivo. ");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara archivo solicitado", "INFO");
             if (EnviarArchivo(sockCliente, fdFile) != getFileSize(fdFile))
             {
-                printf("Error.\n");
+                WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
                 close(fdFile);
                 return -1;
             }
             else
-                printf("Enviado OK.\n");
+                WriteLog(log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
             close(fdFile);
         }
     }
@@ -1003,7 +1004,7 @@ void rutinaDeError(char* error, int log)
 
     /*Mutua exclusion*/
     mutex_lock(&logMutex);
-    WriteLog(log, "Front-end", getpid(), 0, error, "ERROR");
+    WriteLog(log, "Front-end", getpid(), thr_self(), error, "ERROR");
     mutex_unlock(&logMutex);
 
     exit(EXIT_FAILURE);

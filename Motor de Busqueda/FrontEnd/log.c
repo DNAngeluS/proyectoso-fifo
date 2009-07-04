@@ -5,6 +5,7 @@
  * Created on 4 de julio de 2009, 14:05
  */
 #include "log.h"
+extern mutex_t logMutex;
 
 int WriteLog(int log, char *proceso, pid_t pid, thread_t thread, char *descripcion, char *tipo)
 {
@@ -22,8 +23,10 @@ int WriteLog(int log, char *proceso, pid_t pid, thread_t thread, char *descripci
 
     lseek(log, 0L, 2);
 
+    mutex_lock(&logMutex);
     if ((n = write(log, buffer, strlen(buffer))) < 0)
         error = 1;
+    mutex_unlock(&logMutex);
 
     printf("%s.%s", descripcion, strcmp(tipo, "INFO") == 0? " ":"\n");
 
