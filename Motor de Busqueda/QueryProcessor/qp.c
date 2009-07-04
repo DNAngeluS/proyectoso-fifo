@@ -242,6 +242,7 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
 	unsigned long len = 0;
 	PLDAP_RESULT_SET resultSet = NULL;
         unsigned int cantBloques = 0;
+        struct timeval timeout = {config.tiempoDemora, 0};
 
         memset(&getInfo, '\0', sizeof(getInfo));
         memset(descriptorID, '\0', sizeof(descriptorID));
@@ -318,7 +319,10 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
             len = sizeof(hostsCodigo);
 	    mode = IRC_RESPONSE_CACHE;
 	}
-        
+
+        /*Demora el tiempo especificado en el archivo de configuracion*/
+        select(0, 0, 0, 0, &timeout);
+
 	/*Envia el IRC con los datos encontrados*/
         printf("Se enviara respuesta. ");
 	if (ircResponse_send(sockCliente, descriptorID, resultados, len, mode) < 0)

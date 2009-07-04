@@ -7,7 +7,6 @@
 
 #include "http.h"
 
-int detectarCaracter                    (char *palabra);
 void desplazarCadena                    (char *ptr, char caracter);
 void transformarCaracteresEspeciales    (char *palabra);
 void formatQueryString                  (char *palabras, char *queryString);
@@ -493,10 +492,11 @@ int obtenerQueryString(msgGet getThread, msgGet *getInfo)
     char *palabra, *tipo, *ptr;
     char busqueda[MAX_PATH];
     char queryString[QUERYSTRING_SIZE];
-    char filtroTipoBusqueda[] = "(!(labeledURL=*.html))";
+    char filtroTipoBusqueda[100];
 
     memset(busqueda, '\0', sizeof(busqueda));
     memset(queryString, '\0', sizeof(queryString));
+    memset(filtroTipoBusqueda, '\0', sizeof(filtroTipoBusqueda));
 
     strcpy(busqueda, getThread.palabras);
 
@@ -510,13 +510,19 @@ int obtenerQueryString(msgGet getThread, msgGet *getInfo)
 
     if (!strcmp(tipo, "web"))
     {
-    getInfo->searchType = WEB;
-            strcpy(filtroTipoBusqueda, "(labeledURL=*.html)");
+        getInfo->searchType = WEB;
+        strcpy(filtroTipoBusqueda, "(labeledURL=*.html)");
     }
     else if (!strcmp(tipo, "img"))
+    {
         getInfo->searchType = IMG;
+        strcpy(filtroTipoBusqueda, "(|(labeledURL=*.jpg)(labeledURL=*.gif)(labeledURL=*.png)(labeledURL=*.jpeg))");
+    }
     else if (!strcmp(tipo, "otros"))
+    {
         getInfo->searchType = OTROS;
+        strcpy(filtroTipoBusqueda, "(!(|(labeledURL=*.html)(labeledURL=*.jpg)(labeledURL=*.gif)(labeledURL=*.png)(labeledURL=*.jpeg)))");
+    }
     else
     {
         strcpy(getInfo->palabras, getThread.palabras);
