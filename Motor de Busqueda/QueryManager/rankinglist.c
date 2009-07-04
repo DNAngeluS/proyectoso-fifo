@@ -137,6 +137,8 @@ int incrementarRanking(ptrListaRanking *lista, char *name)
             ptrAux = ptrAux->sgte;
         }
 
+		if (ptrAux->sgte != NULL)
+			ptr->sgte = ptrAux;
         if (ptrAux == *lista)
         {
             *lista = ptr;
@@ -144,6 +146,7 @@ int incrementarRanking(ptrListaRanking *lista, char *name)
         else
         {
             /*Se mete en el medio*/
+			
             ptrAnt->sgte = ptr;
         }
     }

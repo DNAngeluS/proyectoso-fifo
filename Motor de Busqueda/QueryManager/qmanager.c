@@ -348,11 +348,13 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
 
         strcpy(palabras, ((msgGet *) datos)->palabras);
 
+		/*
         printf("Se computara el querystring en el ranking. ");
         if (incrementarRanking(listaPalabras, palabras) < 0)
             printf("Error: no hay memoria.\n");
         else
             printf("Computado OK.\n");
+		*/
     }
 
     /*Busco hasta el final o hasta que el primero responda que puede atenderme*/
@@ -466,8 +468,10 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
                 else  if (mode == IRC_RESPONSE_ARCHIVOS)
                     strcpy(palabras, ((so_URL_Archivos *) datos)[i].URL);
 
+				/*
                 if (incrementarRanking(listaRecursos, palabras) < 0)
                     control = 1;
+				*/
             }
             if (control)
                 printf("Error: no hay memoria.\n");
