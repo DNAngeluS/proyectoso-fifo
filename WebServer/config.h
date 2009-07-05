@@ -9,6 +9,8 @@
 #include <winsock2.h>
 #include <windows.h>
 
+#define PUERTO_CRAWLER 4445
+
 typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
 

@@ -51,7 +51,7 @@ Devuelve: ok? 0: -1. campo URL completo.
 */
 int xmlAddUrl(const char *filename, char *url)
 {
-	wsprintf(url, "%s%s:%d/%s", "http://", inet_ntoa(*(IN_ADDR *)&config.ip), ntohs(config.puertoCrawler), filename );
+	wsprintf(url, "%s%s:%d/%s", "http://", inet_ntoa(*(IN_ADDR *)&config.ip), ntohs(config.puerto), filename );
 
 	return 0;
 }
@@ -280,7 +280,7 @@ int xmlEnviarCrawler(const char *htmlDir)
 	else
 		puerto = htons(atoi(p));
 
-	if (EnviarCrawler(ip, puerto) < 0)
+	if (EnviarCrawler(ip, config.puertoCrawler) < 0)
 		return -1;
 	else 
 		return 0;
