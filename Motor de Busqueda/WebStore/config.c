@@ -59,7 +59,7 @@ int leerArchivoConfiguracion (configuracion *config)
                     break;
             }
     }
-    config->puertoWebServer = htons(atoi(PUERTO_CRAWLER));
+    config->puertoWebServer = htons(PUERTO_CRAWLER);
 
     return 0;
 }
