@@ -283,6 +283,7 @@ int atenderCrawler(SOCKET sockCrawler, ldapObj ldap)
 int atenderAltaURL(ldapObj *ldap, crawler_URL *entrada, int mode)
 {
     char ipPuerto[MAX_PATH];
+	char aux[MAX_PATH];
     char *ptr, *lim;;
     int existeHost;
 
@@ -291,9 +292,8 @@ int atenderAltaURL(ldapObj *ldap, crawler_URL *entrada, int mode)
     ptr = strchr(entrada->URL, '/');
     ptr +=2 ;
     lim = strchr(ptr, ':');
-    strncpy(ipPuerto, ptr, lim - ptr);
-    strcat(ipPuerto, ":");
-    strcat(ipPuerto, config.puertoWebServer);
+    strncpy(aux, ptr, lim - ptr);
+	sprintf(ipPuerto, "%s:%d", aux, config.puertoWebServer);
 
     /*Si el host no existe aun lo agrega con un nuevo Unix Timestamp*/
     existeHost = ldapComprobarExistencia(ldap, ipPuerto, IRC_CRAWLER_HOST);
