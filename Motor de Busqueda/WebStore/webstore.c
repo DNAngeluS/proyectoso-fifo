@@ -247,7 +247,7 @@ int atenderCrawler(SOCKET sockCrawler, ldapObj ldap)
     memset(&paquete, '\0', sizeof(paquete));
 
 	/*Se recibira el paquete URL del Crawler*/
-	printf("Se recibira un paquete del Crawler. ");
+    printf("Se recibira un paquete del Crawler. ");
     if (ircPaquete_recv(sockCrawler, &paquete, descID, &mode) < 0)
     {
         printf("Error.\n");
@@ -289,9 +289,11 @@ int atenderAltaURL(ldapObj *ldap, crawler_URL *entrada, int mode)
     /*Obtiene la clave IP:PUERTO del URL*/
     memset(ipPuerto, '\0', sizeof(ipPuerto));
     ptr = strchr(entrada->URL, '/');
-    lim = strrchr(entrada->URL, '/');
     ptr +=2 ;
+    lim = strchr(ptr, ':');
     strncpy(ipPuerto, ptr, lim - ptr);
+    strcat(ipPuerto, ":");
+    strcat(ipPuerto, config.puertoWebServer);
 
     /*Si el host no existe aun lo agrega con un nuevo Unix Timestamp*/
     existeHost = ldapComprobarExistencia(ldap, ipPuerto, IRC_CRAWLER_HOST);

@@ -8,6 +8,8 @@
 #ifndef _CONFIG_H
 #define	_CONFIG_H
 
+#define PUERTO_CRAWLER 4445
+
 typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
 

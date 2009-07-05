@@ -59,6 +59,8 @@ int leerArchivoConfiguracion (configuracion *config)
                     break;
             }
     }
+    config->puertoWebServer = htons(atoi(PUERTO_CRAWLER));
+
     return 0;
 }
 
@@ -69,9 +71,6 @@ int asignarDatos (configuracion *config, char *key, char *value)
 
     else if (strcmp(key, "PUERTO_LOCAL") == 0)
         config->puertoL = htons(atoi(value));
-
-    else if (strcmp(key, "PUERTO_WEB_SERVER") == 0)
-        config->puertoWebServer = htons(atoi(value));
     
     else if (strcmp(key, "TIEMPO_MIGRACION_CRAWLER") == 0)
         config->tiempoMigracionCrawler = (atoi(value));
