@@ -18,9 +18,10 @@ SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKA
 int atenderConsulta(SOCKET sockfd, ldapObj ldap, int cantidadConexiones);
 int conectarQueryManager (in_addr_t nDireccionIP, in_port_t nPort);
 
+int log;
 configuracion config;
 mutex_t logMutex;
-int log;
+
 
 int main()
 {
@@ -57,7 +58,7 @@ int main()
 
     /*Se realiza handshake con el QM, enviando el tipo de recurso*/
     WriteLog(log, "Query Processor", getpid(), thr_self(), "Se realizara el Handshake con Query Manager", "INFO");
-    if (conectarQueryManager(config.ipQM, config.puertoQM, log) < 0)
+    if (conectarQueryManager(config.ipQM, config.puertoQM) < 0)
         rutinaDeError("Conectar Query Manager", log);
     WriteLog(log, "Query Processor", getpid(), thr_self(), "Realizado OK", "INFOFIN");
 
@@ -266,10 +267,11 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
 	void *resultados = NULL;
 	unsigned long len = 0;
 	PLDAP_RESULT_SET resultSet = NULL;
-        unsigned int cantBloques = 0;
+  unsigned int cantBloques = 0;
+	struct timeval timeout = {config.tiempoDemora, 0};
 
-        memset(&getInfo, '\0', sizeof(getInfo));
-        memset(descriptorID, '\0', sizeof(descriptorID));
+  memset(&getInfo, '\0', sizeof(getInfo));
+  memset(descriptorID, '\0', sizeof(descriptorID));
 
 	/*Recibe las palabras a buscar*/
         WriteLog(log, "Query Processor", getpid(), thr_self(), "Se recibiran las palabras a buscar", "INFO");
@@ -283,8 +285,8 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
         if (mode != IRC_REQUEST_UNICOQP)
         {
             /*Si no hay concordancia con los tipos de recursos que se enviaron y que se atienden*/
-            if ( (config.tipoRecurso == 1 && mode != IRC_REQUEST_ARCHIVOS) ||
-                    (config.tipoRecurso == 0 && (mode != IRC_REQUEST_HTML || mode != IRC_REQUEST_CACHE)) )
+            if ( (config.tipoRecurso == RECURSO_ARCHIVOS && mode != IRC_REQUEST_ARCHIVOS) ||
+                    (config.tipoRecurso == RECURSO_WEB && !(mode == IRC_REQUEST_HTML || mode == IRC_REQUEST_CACHE)) )
             {
                 WriteLog(log, "Query Processor", getpid(), thr_self(), "El recurso pedido no es atendido por este Query Processor", "INFOFIN");
 
@@ -303,6 +305,8 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
         {
             if (getInfo.searchType == WEB)
                 mode = IRC_REQUEST_HTML;
+						else if (getInfo.searchType == CACHE)
+								mode = IRC_REQUEST_CACHE;
             else
                 mode = IRC_REQUEST_ARCHIVOS;
         }
@@ -341,6 +345,9 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
             len = sizeof(hostsCodigo);
 	    mode = IRC_RESPONSE_CACHE;
 	}
+
+	/*Demora del tiempo especificado en el archivo de configuracion*/
+	select(0,0,0,0, &timeout);
         
 	/*Envia el IRC con los datos encontrados*/
         WriteLog(log, "Query Processor", getpid(), thr_self(), "Se enviara respuesta", "INFO");

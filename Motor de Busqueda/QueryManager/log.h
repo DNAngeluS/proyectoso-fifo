@@ -8,7 +8,7 @@
 #ifndef _LOG_H
 #define	_LOG_H
 
-#include "manager.h"
+#include "qmanager.h"
 
 int WriteLog(int log, char *proceso, pid_t pid, thread_t thread, char *descripcion, char *tipo);
 

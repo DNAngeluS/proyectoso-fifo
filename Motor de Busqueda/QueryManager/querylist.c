@@ -92,7 +92,7 @@ void imprimeLista (ptrListaQuery ptr, int *i)
     ptrListaQuery ptrAux;
 
     printf("Query Processors:\n");
-    for(ptrAux = listaHtml; ptrAux != NULL; *i++, ptrAux = ptrAux->sgte)
+    for(ptrAux = ptr; ptrAux != NULL; *i++, ptrAux = ptrAux->sgte)
     {
         char recurso[20];
 
@@ -111,3 +111,4 @@ void imprimeLista (ptrListaQuery ptr, int *i)
 
     }
 }
+

@@ -114,7 +114,7 @@ int incrementarRanking(ptrListaRanking *lista, char *name)
         
         memset(&info, '\0', sizeof(info));
         strcpy(info.name, name);
-        info.busquedas = 0;
+        info.busquedas = 1;
         
         if (AgregarRanking(lista, info) < 0)
             return -1;
@@ -150,13 +150,19 @@ int incrementarRanking(ptrListaRanking *lista, char *name)
 void imprimeListaRanking (ptrListaRanking lista)
 {
     ptrListaRanking ptrAux = NULL;
-    int cant = cantidadRankingsLista(lista);
+		int i;
+    int cant;
     
     printf("Ranking:\n");
 
-    for (ptrAux = lista, i=0; i < cant; i++, ptrAux = ptrAux->sgte)
-            printf("%d-\t%s\n\tCantidad: %ld\n", i+1, ptrAux->info.name, ptrAux->info.busquedas);
-    putchar('\n');
+		if(lista == NULL)
+						printf("No hay resultados.\n");
+		else
+		{
+						cant = cantidadRankingsLista(lista);
+				    for (ptrAux = lista, i=0; i < cant; i++, ptrAux = ptrAux->sgte)
+			            printf("%d-\t%s\n\tCantidad: %ld\n", i+1, ptrAux->info.name, ptrAux->info.busquedas);
+		}
 }
 
 

@@ -94,7 +94,7 @@ int main(int argc, char** argv)
     */
     WriteLog(log, "Query Manager", getpid(), thr_self(), "Se establecera conexion con Front-end", "INFO");
     if (conectarFrontEnd(config.ipFrontEnd, config.puertoFrontEnd) < 0)
-       rutinaDeError("Conexion a Front-End". log);
+       rutinaDeError("Conexion a Front-End", log);
     WriteLog(log, "Query Manager", getpid(), thr_self(), "Conexion establecida OK", "INFOFIN");
 
     while (1)
@@ -184,7 +184,7 @@ int main(int argc, char** argv)
                         if (sockCliente > fdMax)
                             fdMax = sockCliente;
 
-                        sprintf (text, "Conexion aceptada de %s.\n", inet_ntoa(dirCliente.sin_addr));
+                        sprintf (text, "Conexion aceptada de %s", inet_ntoa(dirCliente.sin_addr));
                         WriteLog(log, "Query Manager", getpid(), thr_self(), text, "INFOFIN");
                     }
                     else if (cli == 0) /*stdin*/
@@ -205,7 +205,7 @@ int main(int argc, char** argv)
                         {
                             int contador = 0;
                             imprimeLista(listaHtml, &contador);
-                            imrpimeLista(listaArchivos, &contador);
+                            imprimeLista(listaArchivos, &contador);
                             putchar('\n');
                         }
 
@@ -285,7 +285,7 @@ int main(int argc, char** argv)
                             {
                                 int control;
                                 WriteLog(log, "Query Manager", getpid(), thr_self(), "Se atendera Front-end", "INFOFIN");
-                                control = atenderFrontEnd(cli, buffer, rtaLen, descID, mode, listaHtml, listaArchivos, listaPalabras, listaRecursos);
+                                control = atenderFrontEnd(cli, buffer, rtaLen, descID, mode, listaHtml, listaArchivos, &listaPalabras, &listaRecursos);
                                 sprintf(text, "Atencion del Front-end finalizada%s", control < 0? " con Error": "");
                                 WriteLog(log, "Query Manager", getpid(), thr_self(), text, control<0? "ERROR": "INFOFIN");
                             }
@@ -364,8 +364,9 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
     /*Computo en ranking de palabras el querystring buscado*/
     {
         char palabras[MAX_PATH];
+				memset(palabras, '\0', sizeof(palabras));
 
-        strcpy(palabras, ((msgGet *) datos)->palabra);
+        strcpy(palabras, ((msgGet *) datos)->palabras);
 
         WriteLog(log, "Query Manager", getpid(), thr_self(), "Se computara el querystring en el ranking", "INFO");
         if (incrementarRanking(listaPalabras, palabras) < 0)
@@ -441,7 +442,7 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
         }
 
         /*Libero y limpio estructuras para recibir*/
-        free(datos);
+
         datos = NULL;
         modeQP = 0x00;
 
@@ -467,11 +468,12 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
     if (mode == IRC_RESPONSE_HTML || mode == IRC_RESPONSE_ARCHIVOS)
     {
         int cantidadRespuestas = 0;
+				int i;
 
         if (mode == IRC_RESPONSE_HTML)
             cantidadRespuestas = respuestaLen / sizeof(so_URL_HTML);
         else  if (mode == IRC_RESPONSE_ARCHIVOS)
-            cantidadRespuestas = respuestaLen / sizeof(so_URL_ARCHIVOS);
+            cantidadRespuestas = respuestaLen / sizeof(so_URL_Archivos);
 
         /*Computo en ranking de recursos los recursos encontrados*/
         for (i = 0; i < cantidadRespuestas; i++)
@@ -481,7 +483,7 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
             if (mode == IRC_RESPONSE_HTML)
                 strcpy(palabras, ((so_URL_HTML *) datos)->URL);
             else  if (mode == IRC_RESPONSE_ARCHIVOS)
-                strcpy(palabras, ((so_URL_ARCHIVOS *) datos)->URL);
+                strcpy(palabras, ((so_URL_Archivos *) datos)->URL);
 
             WriteLog(log, "Query Manager", getpid(), thr_self(), "Se computara el recurso en el ranking", "INFO");
             if (incrementarRanking(listaRecursos, palabras) < 0)

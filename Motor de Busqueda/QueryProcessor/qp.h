@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <thread.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -23,7 +24,7 @@
 #define MAX_HTTP 512
 
 enum getType_t {FORMULARIO, BROWSER};
-enum searchType_t {WEB, IMG, OTROS};
+enum searchType_t {WEB, IMG, OTROS, CACHE};
 enum tipoRecurso_t {RECURSO_WEB, RECURSO_ARCHIVOS, RECURSO_AMBOS};
 
 typedef int SOCKET;
