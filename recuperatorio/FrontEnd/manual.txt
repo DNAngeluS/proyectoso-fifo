@@ -1,0 +1,20 @@
+# Manual de Uso y configuracion del Solaris FrontEnd
+
+1)Configurar el archivo config.cfg segun los parametros de su ambito de prueba. 
+	- IP, puerto del Query Processor
+	- Puerto de escucha del FrontEnd.
+2)Ajustar las varialbes del Makefile a su entorno de prueba. 
+	- Directorios de las bibliotecas
+	- Compilador
+3)Compilar el Proyecto con el comando Make, luego ejecutar ./frontend
+
+
+# Grupo Fifo
+#
+# Integrantes:
+#	Ariel Pacay (lider)
+#	Ariel Dias Navia
+#	Lucio Moya Farina
+#	Mauro Echardt
+#	Mariano Scheinkman
+#

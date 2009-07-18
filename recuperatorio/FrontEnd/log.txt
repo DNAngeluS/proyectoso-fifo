@@ -1,0 +1,11 @@
+[20:59:05] - Front-end [1797][1]:INFO: Inicio de ejecucion
+[20:59:05] - Front-end [1797][1]:INFO: Se leera archivo de configuracion
+[20:59:05] - Front-end [1797][1]:INFOFIN: Leido OK
+[20:59:05] - Front-end [1797][1]:INFO: Se establecera conexion de escucha
+[20:59:05] - Front-end [1797][1]:INFOFIN: Establecida OK
+[20:59:05] - Front-end [1797][1]:INFOFIN: Esperando Query Manager para estar operativo...
+[20:59:09] - Front-end [1797][1]:INFO: Conexion establecida. Realizando Handshake
+[20:59:09] - Front-end [1797][1]:INFOFIN: Realizado OK
+[20:59:09] - Front-end [1797][1]:INFOFIN: Esperando nuevas peticiones...
+[20:59:13] - Front-end [1797][1]:INFOFIN: Conexion aceptada de 192.168.1.4
+[20:59:13] - Front-end [1797][1]:INFO: Se recibira Http GET del cliente
