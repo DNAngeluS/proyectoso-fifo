@@ -140,6 +140,8 @@ int main(int argc, char** argv) {
         WriteLog(log, "Front-end", getpid(), thr_self(), "Recibido OK", "INFOFIN");
 
         getType = obtenerGetType(getInfo.palabras);
+				if (getType == CACHE)
+					getInfo.searchType = SEARCH_CACHE;
 
         WriteLog(log, "Front-end", getpid(), thr_self(), "Se atendera cliente", "INFOFIN");
         if (getType == BROWSER)

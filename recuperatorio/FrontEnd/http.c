@@ -158,20 +158,19 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo, int *getType)
             }
         }
 
-        if (prot != 0 && prot != 1)
+        if (prot != 0 || prot != 1)
             error = 1;
     }
     if (error)
     {
-        getInfo->protocolo = -1;
-        strcpy(getInfo->palabras, "");
-        return -1;
+        prot = -1;
+        strcpy(pal, "");
     }
 
     strcpy(getInfo->palabras, pal);
     getInfo->protocolo = prot;
 
-    return 0;
+    return prot != -1? 0: -1;
 }
 
 
