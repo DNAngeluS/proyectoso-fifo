@@ -484,6 +484,7 @@ int obtenerUUID(msgGet getThread, msgGet *getInfo)
 
     strcpy(getInfo->palabras, uuid);
     sprintf(getInfo->queryString, "(utnurlID=%s)", uuid);
+		getInfo->searchType = SEARCH_CACHE;
 
     return 0;
 }
