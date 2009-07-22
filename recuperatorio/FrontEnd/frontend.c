@@ -482,28 +482,28 @@ void *rutinaAtencionCliente (void *args)
     struct timeb tiempoInicio;
 
     memset(&getInfo, '\0', sizeof(msgGet));
-		getInfo.protocolo = getThread.protocolo;
+    getInfo.protocolo = getThread.protocolo;
 
-		if (getThread.searchType != SEARCH_CACHE)
-			sprintf (text, "Se comienza a atender Request de %s", inet_ntoa(dirCliente.sin_addr));
-		else
-			sprintf (text, "Se comienza a atender Request Cache de %s", inet_ntoa(dirCliente.sin_addr));
+    if (getThread.searchType != SEARCH_CACHE)
+        sprintf (text, "Se comienza a atender Request de %s", inet_ntoa(dirCliente.sin_addr));
+    else
+        sprintf (text, "Se comienza a atender Request Cache de %s", inet_ntoa(dirCliente.sin_addr));
     WriteLog(log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
 
     /*Se obtiene el tiempo de inicio de la busqueda*/
     ftime(&tiempoInicio);
 
     /*Se obtiene el query string a buscar*/
-		if (getThread.searchType != SEARCH_CACHE)
-		{
-			WriteLog(log, "Front-end", getpid(), thr_self(), "Obteniendo QueryString", "INFO");
-			control = obtenerQueryString(getThread, &getInfo);
-		}
-		else
-		{
-			WriteLog(log,"Front-end", getpid(), thr_self(), "Obteniendo UUID", "INFO");
-			control = obtenerUUID(getThread, &getInfo);
-		}
+    if (getThread.searchType != SEARCH_CACHE)
+    {
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Obteniendo QueryString", "INFO");
+        control = obtenerQueryString(getThread, &getInfo);
+    }
+    else
+    {
+        WriteLog(log,"Front-end", getpid(), thr_self(), "Obteniendo UUID", "INFO");
+        control = obtenerUUID(getThread, &getInfo);
+    }
     if (control < 0)
     {
         WriteLog(log, "Front-end", getpid(), thr_self(), "Error de tipo", "ERROR");
@@ -522,11 +522,11 @@ void *rutinaAtencionCliente (void *args)
     }
     else
     {
-		if (getThread.searchType != SEARCH_CACHE)
-			sprintf(text, "Obtenido OK.\n\tPalabras buscadas: %s\n\tTipo: %d", getInfo.palabras, getInfo.searchType);
-		else
-			sprintf(text, "Obtenido OK.\n\tUUID a buscar: %s", getInfo.palabras);
-		WriteLog(log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
+        if (getThread.searchType != SEARCH_CACHE)
+            sprintf(text, "Obtenido OK.\n\tPalabras buscadas: %s\n\tTipo: %d", getInfo.palabras, getInfo.searchType);
+        else
+            sprintf(text, "Obtenido OK.\n\tUUID a buscar: %s", getInfo.palabras);
+        WriteLog(log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
     }
 
      /*Se establece conexion con el Query Manager*/
@@ -543,22 +543,22 @@ void *rutinaAtencionCliente (void *args)
         WriteLog(log, "Front-end", getpid(), thr_self(), "Establecida OK", "INFOFIN");
 
     /*Reserva un bloque de memoria para poder recibir las respuestas*/
-	if (getInfo.searchType == WEB)			
-		respuesta = (so_URL_HTML *)      malloc (sizeof(so_URL_HTML));
-	if (getInfo.searchType == IMG)			
-		respuesta = (so_URL_Archivos *)  malloc (sizeof(so_URL_Archivos));
-	if (getInfo.searchType == OTROS)		
-		respuesta = (so_URL_Archivos *)  malloc (sizeof(so_URL_Archivos));
-	if (getInfo.searchType == SEARCH_CACHE)	
-		respuesta = (hostsCodigo *)      malloc (sizeof(hostsCodigo));
+    if (getInfo.searchType == WEB)
+        respuesta = (so_URL_HTML *)      malloc (sizeof(so_URL_HTML));
+    if (getInfo.searchType == IMG)
+        respuesta = (so_URL_Archivos *)  malloc (sizeof(so_URL_Archivos));
+    if (getInfo.searchType == OTROS)
+        respuesta = (so_URL_Archivos *)  malloc (sizeof(so_URL_Archivos));
+    if (getInfo.searchType == SEARCH_CACHE)
+        respuesta = (hostsCodigo *)      malloc (sizeof(hostsCodigo));
 
-  /*Se solicita la busqueda al Query Manager y se recibe las respuestas*/
-	WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara peticion al Query Manager", "INFO");
-	control = 0;
-	if (getThread.searchType != SEARCH_CACHE)
-		control = solicitarBusqueda(sockQM, getInfo, &respuesta, &respuestaLen, &mode);
-	else
-		control = solicitarBusquedaCache(sockQM, getInfo, (hostsCodigo**)(&respuesta), &mode);
+    /*Se solicita la busqueda al Query Manager y se recibe las respuestas*/
+    WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara peticion al Query Manager", "INFO");
+    control = 0;
+    if (getThread.searchType != SEARCH_CACHE)
+        control = solicitarBusqueda(sockQM, getInfo, &respuesta, &respuestaLen, &mode);
+    else
+        control = solicitarBusquedaCache(sockQM, getInfo, (hostsCodigo**)(&respuesta), &mode);
     if (control < 0)
     {
         WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
@@ -583,7 +583,7 @@ void *rutinaAtencionCliente (void *args)
         {
             WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
 
-             WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
             if (httpNotFound_send(sockCliente, getInfo) < 0)
                 WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
             else
@@ -592,23 +592,23 @@ void *rutinaAtencionCliente (void *args)
         else
             WriteLog(log, "Front-end", getpid(), thr_self(), "Respuesta enviada OK", "INFOFIN");
     }
-	else if (mode == IRC_RESPONSE_CACHE)
+    else if (mode == IRC_RESPONSE_CACHE)
     {
         /*Se envia el Html de respuesta al Cliente*/
-		WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara respuesta al cliente", "INFO");
-		if (EnviarRespuestaHtmlCache(sockCliente, ((hostsCodigo*)respuesta)->html, getInfo) < 0)
-		{
-			WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+        WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara respuesta al cliente", "INFO");
+        if (EnviarRespuestaHtmlCache(sockCliente, ((hostsCodigo*)respuesta)->html, getInfo) < 0)
+        {
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
 
-			/*Si hubo un error, envia Http Not Found y cierra conexion*/
-			WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
-			if (httpNotFound_send(sockCliente, getInfo) < 0)
-				WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
-			else
-				WriteLog(log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
-		}
-		else
-			WriteLog(log, "Front-end", getpid(), thr_self(), "Respuesta enviada OK", "INFOFIN");
+            /*Si hubo un error, envia Http Not Found y cierra conexion*/
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
+            if (httpNotFound_send(sockCliente, getInfo) < 0)
+                WriteLog(log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+            else
+                WriteLog(log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
+        }
+        else
+            WriteLog(log, "Front-end", getpid(), thr_self(), "Respuesta enviada OK", "INFOFIN");
     }
     else if (mode == IRC_RESPONSE_ERROR)
     {
