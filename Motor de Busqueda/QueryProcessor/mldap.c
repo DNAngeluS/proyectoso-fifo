@@ -112,12 +112,14 @@ int armarPayload(PLDAP_RESULT_SET resultSet, void **resultados, int mode, unsign
 
             /*Se libera la memoria utilizada por el field*/
             freeLDAPField(field);
+            field = NULL;
         }
 
         *cantBloques = *cantBloques + 1;
 
         /* Libero los recursos consumidos por el record*/
         freeLDAPRecord(record);
+        record = NULL;
     }
 
     /* Libero los recursos*/
@@ -196,26 +198,32 @@ void generarArrayOTROS(so_URL_Archivos *resultados, PLDAP_FIELD field, int pos)
 {
     int	index = 0;
 
-    if (!(strcmp(field->name,"utnurlNombre")))
-        strcpy(resultados[pos].nombre, field->values[index]);
+    if (!(strcmp(field->name,"labeledURL")))
+		{
+				char *aux = NULL;
+				strcpy(resultados[pos].URL, field->values[index]);
+		
+				aux = strrchr(field->values[index], '/');
+				aux++;
+				strcpy(resultados[pos].nombre, aux);
+		}
+        
     else if (!(strcmp(field->name,"utnurlFormat")))
         strcpy(resultados[pos].formato, field->values[index]);
     else if (!(strcmp(field->name,"utnurlType")))
         strcpy(resultados[pos].tipo, field->values[index]);
-    else if (!(strcmp(field->name,"utnurlLen")))
-        strcpy(resultados[pos].length,field->values[index]);
-    else if (!(strcmp(field->name,"labeledURL")))
-        strcpy(resultados[pos].URL, field->values[index]);
+    else if (!(strcmp(field->name,"utnurlSize")))
+        strcpy(resultados[pos].length,field->values[index]); 
     else if (!(strcmp(field->name,"utnurlKeywords")))
     {
-	char buf[BUF_SIZE] = "";
+				char buf[BUF_SIZE] = "";
         strcat (buf, field->values[index]);
         for(index = 1; index < field->valuesSize; index++)
         {
             strcat(buf, ", ");
             strcat(buf, field->values[index]);
         }
-	strcpy(resultados[pos].palabras, buf);
+				strcpy(resultados[pos].palabras, buf);
     }
     else return;
 }

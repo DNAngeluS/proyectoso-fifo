@@ -69,7 +69,7 @@ typedef struct {
 
 typedef struct {
     char UUID [MAX_UUID];
-    char html [MAX_PATH];
+    char html [MAX_HTMLCODE];
 } hostsCodigo;
 
 typedef struct {

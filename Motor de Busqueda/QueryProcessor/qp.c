@@ -15,7 +15,7 @@
 void rutinaDeError(char *string, int log);
 SOCKET establecerConexionEscucha(in_addr_t nDireccionIP, in_port_t nPort);
 SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr);
-int atenderConsulta(SOCKET sockfd, ldapObj ldap, int cantidadConexiones);
+int atenderConsulta(SOCKET sockfd, ldapObj *ldap, int cantidadConexiones);
 int conectarQueryManager (in_addr_t nDireccionIP, in_port_t nPort);
 
 int log;
@@ -204,7 +204,7 @@ int main()
 
                         WriteLog(log, "Query Processor", getpid(), thr_self(), "Se atendera la peticion del cliente", "INFOFIN");
 
-                        control = atenderConsulta(cli, ldap, cantidadConexiones);
+                        control = atenderConsulta(cli, &ldap, cantidadConexiones);
 
                         if (control == 2)
                             sprintf(text, "Se a llegado al tope conexiones, se rechaza el pedido.");
@@ -258,7 +258,7 @@ Recibe: Socket y estructura LDAP.
 Devuelve: ok? Socket del servidor: socket invalido.
 */
 
-int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
+int atenderConsulta(SOCKET sockCliente, ldapObj *ldap, int cantidadConexiones)
 { 
 	/*IRC/IPC*/
 	msgGet getInfo;
@@ -267,11 +267,11 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
 	void *resultados = NULL;
 	unsigned long len = 0;
 	PLDAP_RESULT_SET resultSet = NULL;
-  unsigned int cantBloques = 0;
+        unsigned int cantBloques = 0;
 	struct timeval timeout = {config.tiempoDemora, 0};
 
-  memset(&getInfo, '\0', sizeof(getInfo));
-  memset(descriptorID, '\0', sizeof(descriptorID));
+        memset(&getInfo, '\0', sizeof(getInfo));
+        memset(descriptorID, '\0', sizeof(descriptorID));
 
 	/*Recibe las palabras a buscar*/
         WriteLog(log, "Query Processor", getpid(), thr_self(), "Se recibiran las palabras a buscar", "INFO");
@@ -305,15 +305,15 @@ int atenderConsulta(SOCKET sockCliente, ldapObj ldap, int cantidadConexiones)
         {
             if (getInfo.searchType == WEB)
                 mode = IRC_REQUEST_HTML;
-						else if (getInfo.searchType == CACHE)
-								mode = IRC_REQUEST_CACHE;
+            else if (getInfo.searchType == CACHE)
+                mode = IRC_REQUEST_CACHE;
             else
                 mode = IRC_REQUEST_ARCHIVOS;
         }
         
 	/*Realiza la busqueda*/
         WriteLog(log, "Query Processor", getpid(), thr_self(), "Se realizara la busqueda en ldap", "INFO");
-	if ((resultSet = consultarLDAP(&ldap, getInfo.queryString)) == NULL)
+	if ((resultSet = consultarLDAP(ldap, getInfo.queryString)) == NULL)
 	{
             WriteLog(log, "Query Processor", getpid(), thr_self(), "Error al consultar ldap", "ERROR");
             return -1;

@@ -21,6 +21,7 @@
 #define BUF_SIZE 1024
 #define QUERYSTRING_SIZE 256
 #define MAX_HTML 512
+#define MAX_HTMLCODE 4096
 #define MAX_HTTP 512
 
 enum getType_t {FORMULARIO, BROWSER};

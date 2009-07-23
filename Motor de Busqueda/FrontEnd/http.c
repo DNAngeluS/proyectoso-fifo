@@ -118,9 +118,12 @@ Devuelve: ok? 0: -1. Esctructura msgGet y tipo del pedido llenos.
 int httpGet_recv(SOCKET sockfd, msgGet *getInfo, int *getType)
 {
     char buffer[MAX_HTTP], *ptr;
+    char *palabras = NULL;
+    int protocolo = -1;
     int bytesRecv=-1, error = 0;
 
     memset(buffer, '\0', MAX_HTTP);
+    memset(getInfo, '\0', sizeof(getInfo));
 
     getInfo->searchType = -1;
     memset(getInfo->queryString, '\0', QUERYSTRING_SIZE);
@@ -129,42 +132,35 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo, int *getType)
         error = 1;
     else
     {
-        int error = 1;
-        char *palabras;
+				char *aux = NULL;
+				char *header = buffer;
 
-        ptr = buffer;
-        for (;*ptr != NULL;ptr++)
-        {
-            if (!memcmp(ptr,"GET ", strlen("GET ")))
-            {
-                error = 0;
-                ptr = ptr + strlen("GET ");
-                palabras = ptr;
-            }
-            if (!error && *ptr == ' ')
-            {
-                strncpy(getInfo->palabras, palabras, ptr - palabras);
-                getInfo->palabras[ptr - palabras] = '\0';
-            }
-
-            if (!error && !memcmp(ptr,"HTTP/1.", strlen("HTTP/1.")))
-            {
-                ptr = ptr + strlen("HTTP/1.");
-                getInfo->protocolo = *ptr - '0';
-                break;
-            }
-        }
-
-        if (getInfo->protocolo != 0 && getInfo->protocolo != 1)
-            error = 1;
+				aux = strtok(buffer, " ");
+				if (strcmp(header, aux) != 0) 
+					error = 1;
+				else
+				{
+					palabras = strtok(NULL, " ");
+					strtok(NULL, ".");
+					protocolo = atoi(strtok(NULL, "\r"));
+					
+		      if ( (protocolo == 0 && protocolo != 1)||(protocolo == 1 && protocolo != 0) )
+						error = 0;
+					else
+						error = 1;
+				}
     }
+
     if (error)
     {
-        getInfo->protocolo = -1;
-        strcpy(getInfo->palabras, "");
-        return -1;
+        protocolo = -1;
+        palabras = NULL;
     }
-    else return 0;
+		
+    strcpy(getInfo->palabras, palabras);
+    getInfo->protocolo = protocolo;
+
+    return protocolo != -1? 0: -1;
 }
 
 
@@ -477,6 +473,7 @@ int obtenerUUID(msgGet getThread, msgGet *getInfo)
 
     strcpy(getInfo->palabras, uuid);
     sprintf(getInfo->queryString, "(utnurlID=%s)", uuid);
+		getInfo->searchType = SEARCH_CACHE;
 
     return 0;
 }
