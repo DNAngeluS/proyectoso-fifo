@@ -118,8 +118,8 @@ Devuelve: ok? 0: -1. Esctructura msgGet y tipo del pedido llenos.
 int httpGet_recv(SOCKET sockfd, msgGet *getInfo, int *getType)
 {
     char buffer[MAX_HTTP], *ptr;
-    char pal[MAX_PATH];
-    int prot;
+    char *palabras = NULL;
+    int protocolo = -1;
     int bytesRecv=-1, error = 0;
 
     memset(buffer, '\0', MAX_HTTP);
@@ -132,45 +132,35 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo, int *getType)
         error = 1;
     else
     {
-        int error = 1;
-        char *palabras;
+				char *aux = NULL;
+				char *header = buffer;
 
-        ptr = buffer;
-        for (;*ptr != NULL;ptr++)
-        {
-            if (!memcmp(ptr,"GET ", strlen("GET ")))
-            {
-                error = 0;
-                ptr = ptr + strlen("GET ");
-                palabras = ptr;
-            }
-            if (!error && *ptr == ' ')
-            {
-                strncpy(pal, palabras, ptr - palabras);
-                pal[ptr - palabras] = '\0';
-            }
-
-            if (!error && !memcmp(ptr,"HTTP/1.", strlen("HTTP/1.")))
-            {
-                ptr = ptr + strlen("HTTP/1.");
-                prot = *ptr - '0';
-                break;
-            }
-        }
-
-        if (prot != 0 || prot != 1)
-            error = 1;
+				aux = strtok(buffer, " ");
+				if (strcmp(header, aux) != 0) 
+					error = 1;
+				else
+				{
+					palabras = strtok(NULL, " ");
+					strtok(NULL, ".");
+					protocolo = atoi(strtok(NULL, "\r"));
+					
+		      if ( (protocolo == 0 && protocolo != 1)||(protocolo == 1 && protocolo != 0) )
+						error = 0;
+					else
+						error = 1;
+				}
     }
+
     if (error)
     {
-        prot = -1;
-        strcpy(pal, "");
+        protocolo = -1;
+        palabras = NULL;
     }
+		
+    strcpy(getInfo->palabras, palabras);
+    getInfo->protocolo = protocolo;
 
-    strcpy(getInfo->palabras, pal);
-    getInfo->protocolo = prot;
-
-    return prot != -1? 0: -1;
+    return protocolo != -1? 0: -1;
 }
 
 

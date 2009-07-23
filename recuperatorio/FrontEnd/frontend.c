@@ -695,9 +695,9 @@ int generarHtmlOTROS(int htmlFile, so_URL_Archivos *respuesta, unsigned long res
         sprintf(buffer, "<b>%d</b>.<br/>Nombre: %s<br/>"
                     "Formato: %s<br/>"
                     "Size: %s<br/>"
-                    "Link: %s<br/><br/>"
-                    , i+1, respuesta[i].nombre, respuesta[i].tipo
-                    , respuesta[i].length, respuesta[i].URL);
+                    "Link: <a href=\"%s\">%s</a><br/>"
+                    , i+1, respuesta[i].nombre, respuesta[i].formato
+                    , respuesta[i].length, respuesta[i].URL, respuesta[i].URL);
 
         lseek(htmlFile,0L,2);
         nBytes = write(htmlFile, buffer, strlen(buffer));
