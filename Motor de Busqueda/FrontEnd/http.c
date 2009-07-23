@@ -474,6 +474,7 @@ int obtenerUUID(msgGet getThread, msgGet *getInfo)
     strcpy(getInfo->palabras, uuid);
     sprintf(getInfo->queryString, "(utnurlID=%s)", uuid);
 		getInfo->searchType = SEARCH_CACHE;
+		getInfo->protocolo = getThread.protocolo;
 
     return 0;
 }
@@ -531,6 +532,7 @@ int obtenerQueryString(msgGet getThread, msgGet *getInfo)
     formatQueryString(getInfo->palabras, queryString);
 	
     sprintf(getInfo->queryString, "(&%s%s)", queryString, filtroTipoBusqueda);
+		getInfo->protocolo = getThread.protocolo;
 
     return 0;
 }

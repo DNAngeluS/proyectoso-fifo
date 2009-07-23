@@ -17,8 +17,7 @@ void itoa_SearchType(int searchType, char *tipo);
 SOCKET establecerConexionEscucha    (in_addr_t nDireccionIP, in_port_t nPort);
 SOCKET establecerConexionServidor         (in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *dir);
 
-void *rutinaAtencionCliente         (void *sock);
-void *rutinaAtencionCache           (void *args);
+void rutinaAtencionCliente         (void *sock);
 int rutinaCrearThread               (void *(*funcion)(void *), threadArgs *args);
 
 int EnviarFormularioHtml            (SOCKET sockfd, msgGet getInfo);
@@ -170,7 +169,7 @@ int main()
             args.dir = dirCliente;
 
             /*Crea el thread que atendera al nuevo cliente*/
-            if (rutinaCrearThread(rutinaAtencionCliente, &args) < 0)
+            if (rutinaCrearThread((void *)rutinaAtencionCliente, &args) < 0)
             {
                 char text[60];
 
@@ -268,13 +267,9 @@ int EnviarRespuestaHtmlCache (SOCKET socket, char *htmlCode, msgGet getInfo)
     }
 		
 		htmlLen = strlen(htmlCode);
-		htmlCode[htmlLen] = '\r';
-		htmlCode[htmlLen+1] = '\n';
-		htmlCode[htmlLen+2] = '\r';
-		htmlCode[htmlLen+3] = '\n';
 
-		nBytes = EnviarBloque(socket, htmlLen+3, (void *)htmlCode);
-		if (nBytes != htmlLen+3)
+		nBytes = EnviarBloque(socket, htmlLen, (void *)htmlCode);
+		if (nBytes != htmlLen)
     {
         printf("Error al enviar Archivo Cache.\n\n");
         return -1;
@@ -289,7 +284,7 @@ Ultima modificacion: Scheinkman, Mariano
 Recibe: un argumento que contiene socket, msg Get y direccion del Cliente
 Devuelve: ok? 0: -1
 */
-void *rutinaAtencionCliente (void *args)
+void rutinaAtencionCliente (void *args)
 {
     threadArgs *arg = (threadArgs *) args;
     SOCKET sockCliente = arg->socket;
@@ -306,7 +301,6 @@ void *rutinaAtencionCliente (void *args)
     struct timeb tiempoInicio;
 
     memset(&getInfo, '\0', sizeof(msgGet));
-    getInfo.protocolo = getThread.protocolo;
 
     if (getThread.searchType != SEARCH_CACHE)
         sprintf (text, "Se comienza a atender Request de %s", inet_ntoa(dirCliente.sin_addr));
@@ -478,7 +472,7 @@ int generarHtmlWEB(int htmlFile, so_URL_HTML *respuesta, unsigned long respuesta
                     "Link: "
                     "<a href=\"%s\">%s</a><br/>"
                     "En cache: "
-                    "<a href=\"http://%s:%d/resultados.html?cache=%s\">http://%s:%d/cache=%s</a><br/>"
+                    "<a href=\"http://%s:%d/?cache=%s\">http://%s:%d/cache=%s</a><br/>"
                     "<br/>",
                     i+1, respuesta[i].titulo, respuesta[i].descripcion,
                     respuesta[i].URL, respuesta[i].URL,
