@@ -468,7 +468,7 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
     if (mode == IRC_RESPONSE_HTML || mode == IRC_RESPONSE_ARCHIVOS)
     {
         int cantidadRespuestas = 0;
-				int i;
+		int i, rankingError = 0;
 
         if (mode == IRC_RESPONSE_HTML)
             cantidadRespuestas = respuestaLen / sizeof(so_URL_HTML);
@@ -476,21 +476,26 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
             cantidadRespuestas = respuestaLen / sizeof(so_URL_Archivos);
 
         /*Computo en ranking de recursos los recursos encontrados*/
+		WriteLog(log, "Query Manager", getpid(), thr_self(), "Se computaran el recursos en el ranking", "INFO");
         for (i = 0; i < cantidadRespuestas; i++)
         {
             char palabras[MAX_PATH];
 
             if (mode == IRC_RESPONSE_HTML)
-                strcpy(palabras, ((so_URL_HTML *) datos)->URL);
+                strcpy(palabras, (((so_URL_HTML *) datos)[i]).URL);
             else  if (mode == IRC_RESPONSE_ARCHIVOS)
-                strcpy(palabras, ((so_URL_Archivos *) datos)->URL);
-
-            WriteLog(log, "Query Manager", getpid(), thr_self(), "Se computara el recurso en el ranking", "INFO");
+                strcpy(palabras, (((so_URL_Archivos *) datos)[i]).URL);
+            
             if (incrementarRanking(listaRecursos, palabras) < 0)
-               WriteLog(log, "Query Manager", getpid(), thr_self(), "Error: no hay memoria", "ERROR");
-            else
-                WriteLog(log, "Query Manager", getpid(), thr_self(), "Computado OK", "INFOFIN");
+			{
+				rankingError = 1;
+				break;
+			}
         }
+		if (rankingError)
+			WriteLog(log, "Query Manager", getpid(), thr_self(), "Error: no hay memoria, computar rakings incompleto", "ERROR");
+		else
+			WriteLog(log, "Query Manager", getpid(), thr_self(), "Computados OK", "INFOFIN");
     }
 
     /*Re-Envio la respuesta al Cliente en Front-End*/

@@ -62,8 +62,12 @@ int incrementarRanking(ptrListaRanking *lista, char *name)
 {
     ptrListaRanking ptr, ptrAnt = NULL;
     struct ranking info;
+	int i;
 
     ptr = *lista;
+
+	for (i=0; name[i] != '\0'; i++) /*Convertimos todo a minusculas*/
+        name[i] = tolower(name[i]);
 
     /*Se busca en la lista*/
     while (ptr != NULL && strcmp(ptr->info.name, name) != 0)
