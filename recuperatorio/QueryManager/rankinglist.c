@@ -13,43 +13,6 @@ int listaVaciaRanking (ptrListaRanking ptr)
     return ptr == NULL;
 }
 
-/*Agrega al final de la lista un nuevo Ranking*/
-int AgregarRanking (ptrListaRanking *ptr, struct ranking info)
-{
-    ptrListaRanking nuevo, actual, anterior;
-
-    if ((nuevo = malloc(sizeof(NodoListaRanking))) == NULL)
-    {
-        printf("No hay memoria disponible para agrega Ranking.\n\n");
-        return -1;
-    }
-
-    nuevo->info = info;
-    nuevo->sgte = NULL;
-
-    anterior = NULL;
-    actual = *ptr;
-
-    while (actual != NULL)
-    {
-            anterior = actual;
-            actual = actual->sgte;
-    }
-
-    if (anterior == NULL)
-    {
-            nuevo->sgte = *ptr;
-            *ptr = nuevo;
-    }
-    else
-    {
-            anterior->sgte = nuevo;
-            nuevo->sgte = actual;
-    }
-
-    return 0;
-};
-
 /*Elimina un Ranking indicado por el puntero que lo apunta*/
 int EliminarRanking (ptrListaRanking *ptr, ptrListaRanking ptrEliminar)
 {
@@ -94,11 +57,13 @@ unsigned cantidadRankingsLista (ptrListaRanking ptr)
     return cantidad;
 }
 
+/*Incrementa y reordena un ranking o si no existe lo crea y agrega*/
 int incrementarRanking(ptrListaRanking *lista, char *name)
 {
-    ptrListaRanking ptr, ptrAux, ptrAnt;
+    ptrListaRanking ptr, ptrAnt = NULL;
+    struct ranking info;
 
-    ptr = ptrAux = ptrAnt  = *lista;
+    ptr = *lista;
 
     /*Se busca en la lista*/
     while (ptr != NULL && strcmp(ptr->info.name, name) != 0)
@@ -106,43 +71,53 @@ int incrementarRanking(ptrListaRanking *lista, char *name)
         ptrAnt = ptr;
         ptr = ptr->sgte;
     }
-    
+
+    memset(&info, '\0', sizeof(info));
+    strcpy(info.name, name);
+
     /*Si no esta lo agrega*/
     if (ptr == NULL)
-    {
-        struct ranking info;
-        
-        memset(&info, '\0', sizeof(info));
-        strcpy(info.name, name);
         info.busquedas = 1;
-        
-        if (AgregarRanking(lista, info) < 0)
-            return -1;
-    }
-    
-    /*Si ya esta lo incremento y reordeno*/
     else
+	{
+        info.busquedas = ptr->info.busquedas + 1;
+		if (ptrAnt != NULL)
+        	ptrAnt->sgte = ptr->sgte;
+	}
+    
+    if (insertaNodoRanking(lista, info, &ptr) < 0)
+        return -1;
+
+    return 0;
+}
+
+/*Inserta el nodo nuevo, creandolo si es NULL, de forma ordenada*/  
+int insertaNodoRanking (ptrListaRanking *lista, struct ranking info, ptrListaRanking *nuevo)
+{
+    if (*lista == NULL || (*lista)->info.busquedas < info.busquedas)
     {
-        /*Se incrementa la busqueda y puentea*/
-        ptr->info.busquedas++;
-        ptrAnt->sgte = ptr->sgte;
+        int i;
 
-        /*Se busca su nueva posicion para reordenarse*/
-        ptrAnt = *lista;
-        while (ptrAux != NULL && ptrAux->info.busquedas > ptr->info.busquedas)
-        {
-            ptrAnt = ptrAux;
-            ptrAux = ptrAux->sgte;
-        }
-
-        /*Se mete en el medio*/
-        ptr->sgte = ptrAux;
-
-        if (ptrAux == *lista)
-            *lista = ptr;
-        else
-            ptrAux = ptr;
+		if (*nuevo == NULL)
+		{
+			if ((*nuevo = malloc(sizeof(NodoListaRanking))) == NULL)
+    		{
+				printf("No hay memoria disponible para agrega Ranking.\n\n");
+				return -1;
+    		}
+			(*nuevo)->sgte = NULL;
+		}
+		else if (*nuevo != *lista)
+			(*nuevo)->sgte = *lista;
+		
+        (*nuevo)->info = info;
+        for (i=0; ((*nuevo)->info.name)[i] != '\0'; i++) /*Convertimos todo a minusculas*/
+            ((*nuevo)->info.name)[i] = tolower(((*nuevo)->info.name)[i]);
+        *lista = (*nuevo);
     }
+    else
+        if (insertaNodoRanking(&((*lista)->sgte), info, nuevo) < 0)
+            return -1;
 
     return 0;
 }
@@ -150,19 +125,19 @@ int incrementarRanking(ptrListaRanking *lista, char *name)
 void imprimeListaRanking (ptrListaRanking lista)
 {
     ptrListaRanking ptrAux = NULL;
-		int i;
+	int i;
     int cant;
     
     printf("Ranking:\n");
 
-		if(lista == NULL)
-						printf("No hay resultados.\n");
-		else
-		{
-						cant = cantidadRankingsLista(lista);
-				    for (ptrAux = lista, i=0; i < cant; i++, ptrAux = ptrAux->sgte)
-			            printf("%d-\t%s\n\tCantidad: %ld\n", i+1, ptrAux->info.name, ptrAux->info.busquedas);
-		}
+    if(lista == NULL)
+		printf("No hay resultados.\n");
+	else
+	{
+		cant = cantidadRankingsLista(lista);
+	    for (ptrAux = lista, i=0; i < cant; i++, ptrAux = ptrAux->sgte)
+        	printf("%d-\t%s\n\tCantidad: %ld\n", i+1, ptrAux->info.name, ptrAux->info.busquedas);
+	}
 }
 
 

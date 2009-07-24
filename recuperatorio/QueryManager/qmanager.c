@@ -369,10 +369,10 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
         strcpy(palabras, ((msgGet *) datos)->palabras);
 
         WriteLog(log, "Query Manager", getpid(), thr_self(), "Se computara el querystring en el ranking", "INFO");
-        /*if (incrementarRanking(listaPalabras, palabras) < 0)
+        if (incrementarRanking(listaPalabras, palabras) < 0)
             WriteLog(log, "Query Manager", getpid(), thr_self(), "Error: no hay memoria", "ERROR");
         else
-            WriteLog(log, "Query Manager", getpid(), thr_self(), "Computado OK", "INFOFIN");*/
+            WriteLog(log, "Query Manager", getpid(), thr_self(), "Computado OK", "INFOFIN");
     }
 
     /*Busco hasta el final o hasta que el primero responda que puede atenderme*/
@@ -486,10 +486,10 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
                 strcpy(palabras, ((so_URL_Archivos *) datos)->URL);
 
             WriteLog(log, "Query Manager", getpid(), thr_self(), "Se computara el recurso en el ranking", "INFO");
-            /*if (incrementarRanking(listaRecursos, palabras) < 0)
+            if (incrementarRanking(listaRecursos, palabras) < 0)
                WriteLog(log, "Query Manager", getpid(), thr_self(), "Error: no hay memoria", "ERROR");
             else
-                WriteLog(log, "Query Manager", getpid(), thr_self(), "Computado OK", "INFOFIN");*/
+                WriteLog(log, "Query Manager", getpid(), thr_self(), "Computado OK", "INFOFIN");
         }
     }
 

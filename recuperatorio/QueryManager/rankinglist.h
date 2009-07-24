@@ -25,10 +25,10 @@ typedef NodoListaRanking *ptrListaRanking;
 
 void imprimeListaRanking (ptrListaRanking ptr);
 int listaVaciaRanking (ptrListaRanking ptr);
-int AgregarRanking (ptrListaRanking *ptr, struct ranking info);
 int EliminarRanking (ptrListaRanking *ptr, ptrListaRanking ptrEliminar);
 unsigned cantidadRankingsLista (ptrListaRanking ptr);
 int incrementarRanking(ptrListaRanking *lista, char *name);
+int insertaNodoRanking (ptrListaRanking *lista, struct ranking info, ptrListaRanking *nuevo);
 
 #endif	/* _RANKINGLIST_H */
 
