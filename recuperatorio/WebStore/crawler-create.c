@@ -165,6 +165,10 @@ int main(int argc, char **argv)
         }
     }
 
+    /*Finalizo el mutex*/
+    pthread_mutex_destroy(&logMutex);
+    close(log);
+
     kill(getppid(), SIGCHLD);
     exit(EXIT_SUCCESS);
 }

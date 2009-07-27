@@ -319,6 +319,10 @@ int main(int argc, char** argv)
     while (listaRecursos != NULL)
         EliminarRanking(&listaRecursos, listaRecursos);
 
+	/*Finalizo el mutex*/
+    mutex_destroy(&logMutex);
+	close(log);
+
     return (EXIT_SUCCESS);
 }
 
@@ -670,6 +674,8 @@ void rutinaDeError(char* error, int log)
     mutex_lock(&logMutex);
     WriteLog(log, "Front-end", getpid(), thr_self(), error, "ERROR");
     mutex_unlock(&logMutex);
+
+	close(log);
 
     exit(EXIT_FAILURE);
 }
