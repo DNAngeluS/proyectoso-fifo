@@ -10,7 +10,7 @@
 
 #include "frontend.h"
 
-enum filetype_t {HTML, TXT, PHP, JPG, GIF, PNG, JPEG, PDF, ARCHIVO, EXE, ZIP, DOC, XLS, PPT };
+enum filetype_t {HTML, TXT, PHP, JPG, GIF, PNG, BMP, JPEG, PDF, ARCHIVO, EXE, ZIP, DOC, XLS, PPT };
 
 typedef struct {
     char palabras[MAX_PATH];

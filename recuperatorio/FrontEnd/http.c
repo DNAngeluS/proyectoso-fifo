@@ -317,6 +317,9 @@ int httpOk_send(SOCKET sockfd, msgGet getInfo)
     case JPG:
         strcpy(tipoArchivo, "image/jpg");
         break;
+    case BMP:
+        strcpy(tipoArchivo, "image/bmp");
+        break;
     case PNG:
         strcpy(tipoArchivo, "image/png");
         break;
@@ -421,6 +424,8 @@ int getFileType(const char *nombre)
         return EXE;
     if (!strcmp(ptr, "zip"))
         return ZIP;
+    if (!strcmp(ptr, "bmp"))
+        return BMP;
     if (!strcmp(ptr, "html"))
         return HTML;
     if (!strcmp(ptr, "doc"))
@@ -515,12 +520,12 @@ int obtenerQueryString(msgGet getThread, msgGet *getInfo)
     else if (!strcmp(tipo, "img"))
     {
         getInfo->searchType = IMG;
-        strcpy(filtroTipoBusqueda, "(|(labeledURL=*.jpg)(labeledURL=*.gif)(labeledURL=*.png)(labeledURL=*.jpeg))");
+        strcpy(filtroTipoBusqueda, "(|(labeledURL=*.jpg)(labeledURL=*.gif)(labeledURL=*.png)(labeledURL=*.bmp)(labeledURL=*.jpeg))");
     }
     else if (!strcmp(tipo, "otros"))
     {
         getInfo->searchType = OTROS;
-        strcpy(filtroTipoBusqueda, "(!(|(labeledURL=*.html)(labeledURL=*.jpg)(labeledURL=*.gif)(labeledURL=*.png)(labeledURL=*.jpeg)))");
+        strcpy(filtroTipoBusqueda, "(!(|(labeledURL=*.html)(labeledURL=*.jpg)(labeledURL=*.gif)(labeledURL=*.png)(labeledURL=*.bmp)(labeledURL=*.jpeg)))");
     }
     else
     {
