@@ -1,14 +1,10 @@
 # Grupo Fifo
-# ---------------------
+#
 # Integrantes:
-#	-Ariel Dias
-#	-Ariel Pacay
-#	-Lucio Moya Farina
-#	-Mariano Schienkman
-#----------------------
-# Ayudante designado:
-#	-Carla Cadarola
-#----------------------
+#	Lucio Moya Farina
+#	Mariano Scheinkman
+#
+# Makefile - Query Procesor
 
 EXTRACFLAGS=
 EXTRALDFLAGS=-lsocket -lnsl

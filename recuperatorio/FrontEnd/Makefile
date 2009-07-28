@@ -1,14 +1,10 @@
-# Lo atamo' con alambre
-# ---------------------
+# Grupo Fifo
+#
 # Integrantes:
-#	-Ariel Dias
-#	-Ariel Pacay
-#	-Lucio Moya Farina
-#	-Mariano Schienkman
-#----------------------
-# Ayudante designado:
-#	-Carla Cadarola
-#----------------------
+#	Lucio Moya Farina
+#	Mariano Scheinkman
+#
+# Makefile - Front-end
 
 #Libs
 SOCKLIBS=-lsocket -lnsl
