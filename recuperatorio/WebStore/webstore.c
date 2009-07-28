@@ -1,4 +1,4 @@
-/* 
+﻿/* 
  * File:   webstore.c
  * Author: marianoyfer
  *
@@ -169,7 +169,7 @@ int main()
         {
             if (childID != 0)
                 kill(childID, SIGUSR1);
-            WriteLog(log, "Query Manager", getpid(), 1, "Señal SIGURS1 enviada a crawler-create", "INFOFIN");
+            WriteLog(log, "Web Store", getpid(), 1, "Señal SIGURS1 enviada a crawler-create", "INFOFIN");
             putchar('\n');
             mensajeEsperando = 0;
             
