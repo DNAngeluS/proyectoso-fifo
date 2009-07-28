@@ -353,19 +353,8 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
             ptrAux = listaArchivos;
     }
 
-    if (mode == IRC_REQUEST_HTML)
-        mode = IRC_RESPONSE_HTML;
-    else if (mode == IRC_REQUEST_ARCHIVOS)
-        mode = IRC_RESPONSE_ARCHIVOS;
-    else if (mode == IRC_REQUEST_CACHE)
-        mode = IRC_RESPONSE_CACHE;
-    else
-    {
-        WriteLog(log, "Query Manager", getpid(), thr_self(), "Error: tipo de respuesta incompatible. Se descarta mensaje", "ERROR");
-        return -1;
-    }
-
     /*Computo en ranking de palabras el querystring buscado*/
+		if (mode != IRC_REQUEST_CACHE)
     {
         char palabras[MAX_PATH];
 				memset(palabras, '\0', sizeof(palabras));
@@ -377,6 +366,18 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
             WriteLog(log, "Query Manager", getpid(), thr_self(), "Error: no hay memoria", "ERROR");
         else
             WriteLog(log, "Query Manager", getpid(), thr_self(), "Computado OK", "INFOFIN");
+    }
+
+    if (mode == IRC_REQUEST_HTML)
+        mode = IRC_RESPONSE_HTML;
+    else if (mode == IRC_REQUEST_ARCHIVOS)
+        mode = IRC_RESPONSE_ARCHIVOS;
+    else if (mode == IRC_REQUEST_CACHE)
+        mode = IRC_RESPONSE_CACHE;
+    else
+    {
+        WriteLog(log, "Query Manager", getpid(), thr_self(), "Error: tipo de respuesta incompatible. Se descarta mensaje", "ERROR");
+        return -1;
     }
 
     /*Busco hasta el final o hasta que el primero responda que puede atenderme*/
