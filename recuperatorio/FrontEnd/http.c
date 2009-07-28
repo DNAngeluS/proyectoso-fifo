@@ -133,10 +133,10 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo, int *getType)
     else
     {
 				char *aux = NULL;
-				char *header = buffer;
+				char *header;
 
-				aux = strtok(buffer, " ");
-				if (strcmp(header, aux) != 0) 
+				header = strtok(buffer, " ");
+				if (strcmp(header, "GET") != 0) 
 					error = 1;
 				else
 				{
