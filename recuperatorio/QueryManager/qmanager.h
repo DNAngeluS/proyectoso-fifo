@@ -38,7 +38,9 @@ enum tipoRecurso_t {RECURSO_WEB, RECURSO_ARCHIVOS, RECURSO_AMBOS};
 #define QUERYSTRING_SIZE 256
 
 /*Definiciones para el manejo de los mensajes de consola*/
-#define STR_MSG_HELP "USO:\n\t-help: Desplega modo de uso\n\t-qpstatus: Desplega estado de los Query Processors\n\n"
+#define STR_MSG_HELP "USO:\n\t-help: Desplega modo de uso\n\t-qpstatus: Desplega estado de los Query Processors\
+											\n\t-ranking-palabras: Desplega el ranking de palabras mas buscadas\
+											\n\t-ranking-recursos: Desplega el ranking de los recursos mas solicitados\n\n"
 #define STR_MSG_INVALID_INPUT "Error: Comando invalido. Escriba -help para informacion de comandos\n\n"
 
 typedef int SOCKET;
