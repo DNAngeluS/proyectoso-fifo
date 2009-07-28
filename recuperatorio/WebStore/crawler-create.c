@@ -189,7 +189,7 @@ int EnviarCrawler(in_addr_t nDireccion, in_port_t nPort, int *mode)
         return -1;
 
     /*Se envia mensaje de instanciacion de un Crawler*/
-    if (ircRequest_send(sockWebServer, NULL, 0, descriptorID, IRC_CRAWLER_CONNECT) < 0)
+    if (ircRequest_send(sockWebServer, IRC_CRAWLER_HANDSHAKE_CONNECT, sizeof(IRC_CRAWLER_HANDSHAKE_CONNECT), descriptorID, IRC_CRAWLER_CONNECT) < 0)
     {
         close(sockWebServer);
         return -1;
