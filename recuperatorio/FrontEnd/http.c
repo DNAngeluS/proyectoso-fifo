@@ -155,12 +155,13 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo, int *getType)
     {
         protocolo = -1;
         palabras = NULL;
+        return -1;
     }
-		
+	
     strcpy(getInfo->palabras, palabras);
     getInfo->protocolo = protocolo;
 
-    return protocolo != -1? 0: -1;
+    return 0;
 }
 
 
