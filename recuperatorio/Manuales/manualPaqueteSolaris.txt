@@ -1,4 +1,4 @@
-Manual de Usuario SOogle - Paquete Linux
+Manual de Usuario SOogle - Paquete Solaris
 
 Grupo Fifo
 ---------------------
@@ -10,7 +10,7 @@ Ayudante designado:
 -Carla Cadarola
 ----------------------
 
-A) Pre-requisitos:
+A) Precondiciones y Requisitos:
 
 
 B) Configuracion y Compilacion:
