@@ -10,13 +10,13 @@ Ayudante designado:
 -Carla Cadarola
 ----------------------
 
-A) Pre-requisitos:
+A) Precondiciones y requisitos:
 
 
 B) Configuracion y Compilacion:
 
 Ir a la carpeta paqueteLinux e ingresar:
-# cd /WebStore
+# cd WebStore/
 # vim config.cfg
 Se acaba de abrir el archivo de configuracion. 
 Usuando los comandos del vim modificar:
@@ -24,7 +24,7 @@ Usuando los comandos del vim modificar:
 -Puerto local del WebStore
 -El tiempo de espera (en segundos) para migrar un nuevo Crawler (es el que se compara contra el timestamp)
 -El tiempo de espera (en segundos) para generar una actualizacion de los hosts ya indexados
--El IP + el puerto del servidor Ldap
+-IP + el puerto del servidor Ldap
 -La clave del sevidor Ldap
 Luego para compilar y ejecutar el servidor ingresar:
 # make

@@ -1,0 +1,76 @@
+Manual de Usuario SOogle - Paquete Linux
+
+Grupo Fifo
+---------------------
+Integrantes:
+-Lucio Moya Farina
+-Mariano Schienkman
+----------------------
+Ayudante designado:
+-Carla Cadarola
+----------------------
+
+A) Pre-requisitos:
+
+
+B) Configuracion y Compilacion:
+
+Ir a la carpeta paqueteSolaris e ingresar:
+# cd FrontEnd/
+# vim config.cfg
+Se acaba de abrir el archivo de configuracion. 
+Usuando los comandos del vim modificar:
+-Puerto local del FrontEnd
+-IP local del FrontEnd
+Luego ingresar:
+# cd ../QueryManager/
+# vim config.cfg
+Se acaba de abrir el archivo de configuracion. 
+Usuando los comandos del vim modificar:
+-IP local del QueryManager
+-Puerto local del QueryManager
+-IP del FrontEnd
+-Puerto del FrontEnd
+Luego ingresar:
+# cd ../QueryProcessor/
+# vim config.cfg
+Se acaba de abrir el archivo de configuracion. 
+Usuando los comandos del vim modificar:
+-IP local del QueryProcessor
+-Puerto local del QueryProcessor
+-IP del QueryManager
+-Puerto del QueryManager
+-IP + el puerto del servidor Ldap
+-La clave del sevidor Ldap
+-Tipo de recurso que el QueryProcessor atendera
+-Cantidad maxima de conexiones simultaneas que aceptara
+-Tiempo de demora (en segundos) que el QueryProcessor tendra para enviar una respuesta
+Luego para compilar y ejecutar los servidores, en 3 consolas distintas ir a la carpeta paqueteSolaris e ingresar:
+Primer consola:
+# cd FrontEnd/
+# make
+# ./frontend
+Segunda consola:
+# cd QueryManager/
+# make
+# ./qmanager
+Tercer consola:
+# cd QueryProcessor/
+# make
+# ./qp
+
+
+C) Uso de los servidores:
+
+El FrontEnd estara a la espera del QueryManager para realizar sus funciones.
+Asi mismo, este estara a la espera de el primer QueryProcessor para realizar sus funciones.
+Una vez los 3 procesos corriendo, el paquete Solaris estara operativo.
+
+Para ingresar al buscador, escribir en un browser:
+http://IPdelFrontEnd:PUERTOdelFrontEnd/index.html
+Una vez ingresado, navegar como en cualquier buscador.
+
+El proceso QueryManager acepta comandos de usuario:
+Para mas informacion ingresar el comando -help.
+
+
