@@ -1,0 +1,40 @@
+Manual de Usuario SOogle - Paquete Windows
+
+Grupo Fifo
+---------------------
+Integrantes:
+-Lucio Moya Farina
+-Mariano Schienkman
+---------------------
+Ayudante designado:
+-Carla Cadarola
+---------------------
+
+A) Precondiciones y Requisitos:
+
+
+B) Configuracion y Compilacion:
+
+Abrir el Visual Studio y abrir el proyecto webserver ubicado en paqueteWindows\WebServer.
+Abrir el archivo config.cfg, en la carpeta "Archivos de recursos" dentro del proyecto.
+Modificar:
+-IP local del WebServer
+-Puerto local del WebServer
+-Directorio donde se ubica el repositorio de archivos
+-Directorio y archivo que se usara como tabla de datos Hash
+-Directorio y archivo que se usara como archivo Log y Reporte de Ejecucion
+-Maxima espera (en milisegundos) que soportara un cliente antes de ser atendido
+-Cantidad maxima de concurrencia de clientes en el WebServer
+-Tiempo de espera (en milisegundos) que habra para migraciones de Crawlers
+-IP del WebStore
+-Puerto del WebStore
+Para ejecutar en modo debug: Generar la solucion en modo debug, y clickear RUN (o play).
+Para ejecutar en modo release: Generar la solucion en modo release y hacer doble click en el webserver.exe generado.
+
+C) Uso del servidor:
+
+El WebServer una vez iniciado cargara una antigua tabla hash (de existir) y se pondra a la espera de clientes que le soliciten datos para atenderlos.
+Ademas, espera peticiones a un puerto especial para instanciar Crawlers y mantener la base de datos actualizada.
+El proceso acepta comandos de usuario:
+Para mas informacion ingresar el comando -help.
+
