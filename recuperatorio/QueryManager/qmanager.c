@@ -205,6 +205,7 @@ int main(int argc, char** argv)
                         {
                             int contador = 0;
                             imprimeLista(listaHtml, &contador);
+														contador = 0;
                             imprimeLista(listaArchivos, &contador);
                             putchar('\n');
                         }
