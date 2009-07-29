@@ -1,0 +1,45 @@
+Manual de Usuario SOogle - Paquete Linux
+
+Grupo Fifo
+---------------------
+Integrantes:
+-Lucio Moya Farina
+-Mariano Schienkman
+----------------------
+Ayudante designado:
+-Carla Cadarola
+----------------------
+
+A) Pre-requisitos:
+
+
+B) Configuracion y Compilacion:
+
+Ir a la carpeta paqueteLinux e ingresar:
+# cd /WebStore
+# vim config.cfg
+Se acaba de abrir el archivo de configuracion. 
+Usuando los comandos del vim modificar:
+-IP del WebServer conocido
+-Puerto local del WebStore
+-El tiempo de espera (en segundos) para migrar un nuevo Crawler (es el que se compara contra el timestamp)
+-El tiempo de espera (en segundos) para generar una actualizacion de los hosts ya indexados
+-El IP + el puerto del servidor Ldap
+-La clave del sevidor Ldap
+Luego para compilar y ejecutar el servidor ingresar:
+# make
+# ./webstore
+
+
+C) Uso del servidor:
+
+El WebStore una vez iniciado estara esperando una signal SIGUSR1 para comenzar. 
+Esta se debe lanzar desde otra consola ingresando:
+# kill -SIGUSR1 pid
+El pid del proceso WebStore sera mostrado en pantalla o alternativamente se puede buscar ingresando:
+# ps -e
+Luego de recibir la señal, el servidor estara a la espera de paquetes de datos de Crawlers para indexarlos a la base de datos Ldap.
+Si el proceso es interrumpido, se retornara a un punto seguro, esperando que el usuario de la orden de que vuelva a ejecutar. 
+Esto se hace enviando nuevamente una signal SIGUSR1.
+
+
