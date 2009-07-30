@@ -36,6 +36,7 @@ enum tipoRecurso_t {RECURSO_WEB, RECURSO_ARCHIVOS, RECURSO_AMBOS};
 #define MAX_FORMATO 5
 #define MAX_UUID 35
 #define QUERYSTRING_SIZE 256
+#define MAX_ID_QP 5
 
 /*Definiciones para el manejo de los mensajes de consola*/
 #define STR_MSG_HELP "USO:\n\t-help: Desplega modo de uso\n\t-qpstatus: Desplega estado de los Query Processors\

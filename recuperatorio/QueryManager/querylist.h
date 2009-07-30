@@ -10,7 +10,9 @@
 
 #include "qmanager.h"
 
+
 struct query {
+		char id[MAX_ID_QP];
     in_addr_t ip;
     in_port_t puerto;
     int tipoRecurso;

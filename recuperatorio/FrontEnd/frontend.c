@@ -130,7 +130,7 @@ int main()
 
         /*Se recibe el Http GET del cliente*/
         WriteLog(log, "Front-end", getpid(), thr_self(), "Se recibira Http GET del cliente", "INFO");
-        if (httpGet_recv(sockCliente, &getInfo, &getType) < 0)
+        if (httpGet_recv(sockCliente, &getInfo) < 0)
         {
             WriteLog(log, "Front-end", getpid(), thr_self(), "Error al recibir HTTP GET", "ERROR");
             putchar('\n');

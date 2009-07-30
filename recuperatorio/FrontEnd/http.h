@@ -30,7 +30,7 @@ int RecibirBloque                       (SOCKET sockfd, char *bloque);
 int RecibirNBloque                      (SOCKET socket, void *buffer, unsigned long length);
 int EnviarArchivo                       (SOCKET sockRemoto, int filefd);
 
-int httpGet_recv                        (SOCKET sockfd, msgGet *getInfo, int *getType);
+int httpGet_recv                        (SOCKET sockfd, msgGet *getInfo);
 int httpNotFound_send                   (SOCKET sockfd, msgGet getInfo);
 int httpOk_send                         (SOCKET sockfd, msgGet getInfo);
 int httpInternalServiceError_send		(SOCKET sockfd, msgGet getInfo);

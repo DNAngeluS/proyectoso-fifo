@@ -115,7 +115,7 @@ Ultima modificacion: Scheinkman, Mariano
 Recibe: socket, estructura msgGet vacia, tipo del pedido vacio
 Devuelve: ok? 0: -1. Esctructura msgGet y tipo del pedido llenos.
 */
-int httpGet_recv(SOCKET sockfd, msgGet *getInfo, int *getType)
+int httpGet_recv(SOCKET sockfd, msgGet *getInfo)
 {
     char buffer[MAX_HTTP], *ptr;
     char *palabras = NULL;

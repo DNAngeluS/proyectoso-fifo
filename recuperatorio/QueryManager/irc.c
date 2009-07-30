@@ -160,6 +160,8 @@ int ircRequest_recv (SOCKET sock, void **bloque, unsigned long *rtaLen, char *de
         printf("Error en irc request recv header\n");
         return -1;
     }
+    else if (bytesRecibidos == 0)
+    		return 1;
 
     memcpy(descriptorID, header.descriptorID, DESCRIPTORID_LEN);
     if (*mode == 0x00)
