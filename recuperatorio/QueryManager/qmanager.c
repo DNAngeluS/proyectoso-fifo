@@ -15,8 +15,8 @@
 
 void rutinaDeError (char* error, int log);
 int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, char *descriptorID, 
-										char *descriptorIDQP, int mode, ptrListaQuery listaHtml, 
-										ptrListaQuery listaArchivos, ptrListaRanking *listaPalabras, char *idQP);
+										char *descriptorIDQP, int mode, ptrListaQuery *lstHtml, 
+										ptrListaQuery *lstArchivos, ptrListaRanking *listaPalabras, char *idQP);
 SOCKET establecerConexionEscucha (in_addr_t nDireccionIP, in_port_t nPort);
 SOCKET establecerConexionServidor (in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr);
 int conectarFrontEnd (in_addr_t nDireccionIP, in_port_t nPort);
@@ -254,6 +254,15 @@ int main(int argc, char** argv)
                         						char idQP[MAX_ID_QP];
                         						
                         						strcpy(idQP, ptrAux->info.idQP);
+
+																		/*Re-Envio la respuesta fallida al Cliente en Front-End*/
+																		WriteLog(log, "Query Manager", getpid(), thr_self(), "A fallado conexion con Query Processor. Se enviara Http 500 Internal Service Error", "INFO");
+																		if (ircResponse_send(ptrAux->info.sockCliente, ptrAux->info.descIDCliente, NULL, 0, IRC_RESPONSE_ERROR) < 0)
+																		{
+																			printf("Error.\n");
+																			return -1;
+																		}
+																		WriteLog(log, "Query Manager", getpid(), thr_self(), "Enviado OK", "INFOFIN");
                         						
                         						/*Se elimina de la lista de requests*/
                         						EliminarRequest(&listaRequest, ptrAux);
@@ -267,6 +276,14 @@ int main(int argc, char** argv)
                         						/*Inconsistencia*/
                         				}
                         		}
+                        		/*Eliminar cliente y actualizar nuevo maximo*/
+		                          close(cli);
+		                          FD_CLR(cli, &fdMaestro);
+		                          if (cli == fdMax)
+		                              while (FD_ISSET(fdMax, &fdMaestro) == 0)
+		                                  fdMax--;
+		                          putchar('\n');
+		                          mensajeEsperando = 1;
                         }
                         else
                         {
@@ -307,7 +324,7 @@ int main(int argc, char** argv)
                             {
                                 char idQP[MAX_ID_QP];
                                 WriteLog(log, "Query Manager", getpid(), thr_self(), "Se atendera Front-end", "INFOFIN");
-                                socketQP = atenderFrontEnd(cli, buffer, rtaLen, descID, descQP, mode, listaHtml, listaArchivos, &listaPalabras, idQP);
+                                socketQP = atenderFrontEnd(cli, buffer, rtaLen, descID, descQP, mode, &listaHtml, &listaArchivos, &listaPalabras, idQP);
                                 sprintf(text, "Request del Front-end recibido%s", socketQP < 0? " con Error": "");
                                 WriteLog(log, "Query Manager", getpid(), thr_self(), text, socketQP<0? "ERROR": "INFOFIN");
                                 if (socketQP > 0)
@@ -432,13 +449,15 @@ int main(int argc, char** argv)
 }
 
 int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, char *descriptorID, 
-										char *descriptorIDQP, int mode,ptrListaQuery listaHtml, 
-										ptrListaQuery listaArchivos, ptrListaRanking *listaPalabras, char *idQP)
+										char *descriptorIDQP, int mode,ptrListaQuery *lstHtml, 
+										ptrListaQuery *lstArchivos, ptrListaRanking *listaPalabras, char *idQP)
 {
     SOCKET sockQP;
     char descIDQP[DESCRIPTORID_LEN];
     int modeQP = 0x00;
     unsigned long respuestaLen = 0;
+    ptrListaQuery listaHtml = *lstHtml;
+    ptrListaQuery listaArchivos = *lstArchivos;
     ptrListaQuery ptrAux = NULL;
     int esUnicoQP;
 
@@ -487,38 +506,44 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
 
         if (sockQP == INVALID_SOCKET)
         {
+            ptrListaQuery ptrEliminar = ptrAux;
+            
+            ptrAux = ptrAux->sgte;
+            EliminarQuery(ptrEliminar->info.tipoRecurso == RECURSO_WEB? lstHtml: lstArchivos, ptrEliminar);
             WriteLog(log, "Query Manager", getpid(), thr_self(), "Error: conectar Query Processor", "ERROR");
-            continue;
+            WriteLog(log, "Query Manager", getpid(), thr_self(), "Query Processor sin vida se a eliminado de la lista de Html", "INFOFIN");
         }
-
-        /*Envia al QP el permiso de peticion*/
-        if (ircRequest_send(sockQP, NULL, 0, descIDQP, modeQPHandshake) < 0)
+        else
         {
-            WriteLog(log, "Query Manager", getpid(), thr_self(), "Error: enviar permiso a Query Processor", "ERROR");
-        }
-				else
-				{
-				  modeQPHandshake = 0x00;
+						/*Envia al QP el permiso de peticion*/
+						if (ircRequest_send(sockQP, NULL, 0, descIDQP, modeQPHandshake) < 0)
+						{
+						    WriteLog(log, "Query Manager", getpid(), thr_self(), "Error: enviar permiso a Query Processor", "ERROR");
+						}
+						else
+						{
+							modeQPHandshake = 0x00;
 
-				  /*Recibir respuesta del permiso por parte del QP*/
-				  if (ircResponse_recv(sockQP, &buff, descIDQP, &rtaLen, &modeQPHandshake) < 0)
-				  {
-				      WriteLog(log, "Query Manager", getpid(), thr_self(), "Error: recibir permiso de Query Processor", "ERROR");
-				  }
-				  else
-				  {
-						/*Si es posible la atencion en ese servidor, continuar pedido*/
-						if (modeQPHandshake == IRC_RESPONSE_POSIBLE)
-						    break;
-					}
+							/*Recibir respuesta del permiso por parte del QP*/
+							if (ircResponse_recv(sockQP, &buff, descIDQP, &rtaLen, &modeQPHandshake) < 0)
+							{
+									WriteLog(log, "Query Manager", getpid(), thr_self(), "Error: recibir permiso de Query Processor", "ERROR");
+							}
+							else
+							{
+								/*Si es posible la atencion en ese servidor, continuar pedido*/
+								if (modeQPHandshake == IRC_RESPONSE_POSIBLE)
+										break;
+							}
+						}
+
+						/*Sino cerrar conexion y probar con el proximo*/
+						close(sockQP);
+						if (buff != NULL)
+							free(buff);
+				
+						ptrAux = ptrAux->sgte;
 				}
-
-        /*Sino cerrar conexion y probar con el proximo*/
-        close(sockQP);
-        if (buff != NULL)
-        	free(buff);
-        ptrAux = ptrAux->sgte;
-
     }
 		
     /*Ninguno pudo atenderme*/
@@ -536,7 +561,6 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
 				  printf("Error.\n");
 				  return -1;
 				}
-
 				WriteLog(log, "Query Manager", getpid(), thr_self(), "Respuesta enviada satisfactoriamente", "INFOFIN");
 
 				strcpy(descriptorIDQP, "");

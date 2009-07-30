@@ -496,7 +496,7 @@ int obtenerQueryString(msgGet getThread, msgGet *getInfo)
     char *palabra, *tipo, *ptr;
     char busqueda[MAX_PATH];
     char queryString[QUERYSTRING_SIZE];
-    char filtroTipoBusqueda[100];
+    char filtroTipoBusqueda[MAX_PATH];
 
     memset(busqueda, '\0', sizeof(busqueda));
     memset(queryString, '\0', sizeof(queryString));
@@ -525,7 +525,7 @@ int obtenerQueryString(msgGet getThread, msgGet *getInfo)
     else if (!strcmp(tipo, "otros"))
     {
         getInfo->searchType = OTROS;
-        strcpy(filtroTipoBusqueda, "(!(|(labeledURL=*.html)(labeledURL=*.jpg)(labeledURL=*.gif)(labeledURL=*.png)(labeledURL=*.bmp)(labeledURL=*.jpeg)))");
+        strcpy(filtroTipoBusqueda, "(!(|(labeledURL=*.jpg)(labeledURL=*.html)(labeledURL=*.gif)(labeledURL=*.png)(labeledURL=*.bmp)(labeledURL=*.jpeg)))");
     }
     else
     {
