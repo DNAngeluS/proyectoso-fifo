@@ -118,7 +118,7 @@ Devuelve: ok? 0: -1. Esctructura msgGet y tipo del pedido llenos.
 */
 int httpGet_recv(SOCKET sockfd, msgGet *getInfo, int *getType)
 {
-    char buffer[MAX_HTTP], *ptr;
+    char buffer[BUF_SIZE], *ptr;
     int bytesRecv=-1, error = 0;
 
     memset(buffer, '\0', MAX_HTTP);
