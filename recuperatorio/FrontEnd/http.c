@@ -117,7 +117,7 @@ Devuelve: ok? 0: -1. Esctructura msgGet y tipo del pedido llenos.
 */
 int httpGet_recv(SOCKET sockfd, msgGet *getInfo)
 {
-    char buffer[MAX_HTTP], *ptr;
+    char buffer[BUF_SIZE], *ptr;
     char *palabras = NULL;
     int protocolo = -1;
     int bytesRecv=-1, error = 0;
@@ -144,7 +144,7 @@ int httpGet_recv(SOCKET sockfd, msgGet *getInfo)
 					strtok(NULL, ".");
 					protocolo = atoi(strtok(NULL, "\r"));
 					
-		      if ( (protocolo == 0 && protocolo != 1)||(protocolo == 1 && protocolo != 0) )
+		      if ( (protocolo == 0)||(protocolo == 1) )
 						error = 0;
 					else
 						error = 1;
