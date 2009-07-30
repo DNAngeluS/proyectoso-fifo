@@ -443,6 +443,8 @@ void rutinaAtencionCliente (void *args)
 
     WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
     putchar('\n');
+    
+    free(respuesta);
 
     /*Se cierra conexion con Cliente*/
     close(sockCliente);
@@ -683,9 +685,6 @@ int EnviarRespuestaHtml(SOCKET socket, msgGet getInfo, void *respuesta,
         perror("generarHtml: error al escribir resultados");
         return -1;
     }
-
-    /*Libero las respuestas ya utlizadas*/
-    free(respuesta);
 
     /*Escribe en el archivo el fin de Html*/
     if (generarFinDeHtml(htmlFile) < 0)
