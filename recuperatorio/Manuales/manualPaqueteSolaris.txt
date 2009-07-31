@@ -12,9 +12,30 @@ Ayudante designado:
 
 A) Precondiciones y Requisitos:
 
+-Una instalacion de Solaris con conexion de Red funcionando.
+-Instalacion del compilador gcc4
+-Instalacion de las bibliotecas ldap
+
+En caso de tener no instalados ni el compilador ni las bibliotecas ldap, se necesitara una conexion a internet. Seguir los siguientes pasos para realizar la instalacion de 32 bits (si se desea de 64 bits, buscar en www.blastwave.org/howto.html):
+1- Desde un terminal de Solaris ingresar:
+# cd /tmp
+# which wget
+# /usr/bin/wget
+# /usr/bin/wget http://blastwave.network.com/csw/pkguil_i386.pkg
+2-
+# ls -lrt
+# pkgadd -d ./pkgutil_i386.pkg
+3-
+# /opt/csw/bin/pkgutil --catalog
+# /opt/csw/bin/pkgutil --install openldap_devel
+# /opt/csw/bin/pkgutil --install CSWgcc4core
+# /opt/csw/bin/pkgutil --install CSWgcc4corert
+4- En caso de que la instalacion no haya sido en las carpetas predeterminadas, estas son /opt/csw/include/, /opt/csw/lib y /opt/csw/gcc4/bin/gcc, editar el archivo Makefile en los 3 subdirectorios (FrontEnd, QueryManager y QueryProcessor) y cambiar las ocurrencias de dichos directorios por los de la instalacion recien efectuada.
+
 
 B) Configuracion y Compilacion:
 
+FrontEnd:
 Ir a la carpeta paqueteSolaris e ingresar:
 # cd FrontEnd/
 # vim config.cfg
@@ -22,7 +43,12 @@ Se acaba de abrir el archivo de configuracion.
 Usuando los comandos del vim modificar:
 -Puerto local del FrontEnd
 -IP local del FrontEnd
-Luego ingresar:
+Luego para compilar y ejecutar el servidor, ir a la carpeta paqueteSolaris e ingresar:
+# cd FrontEnd/
+# make
+# ./frontend
+
+QueryManager:
 # cd ../QueryManager/
 # vim config.cfg
 Se acaba de abrir el archivo de configuracion. 
@@ -31,7 +57,12 @@ Usuando los comandos del vim modificar:
 -Puerto local del QueryManager
 -IP del FrontEnd
 -Puerto del FrontEnd
-Luego ingresar:
+Luego para compilar y ejecutar el servidor, ir a la carpeta paqueteSolaris e ingresar:
+# cd QueryManager/
+# make
+# ./qmanager
+
+QueryProcessor:
 # cd ../QueryProcessor/
 # vim config.cfg
 Se acaba de abrir el archivo de configuracion. 
@@ -45,16 +76,7 @@ Usuando los comandos del vim modificar:
 -Tipo de recurso que el QueryProcessor atendera
 -Cantidad maxima de conexiones simultaneas que aceptara
 -Tiempo de demora (en segundos) que el QueryProcessor tendra para enviar una respuesta
-Luego para compilar y ejecutar los servidores, en 3 consolas distintas ir a la carpeta paqueteSolaris e ingresar:
-Primer consola:
-# cd FrontEnd/
-# make
-# ./frontend
-Segunda consola:
-# cd QueryManager/
-# make
-# ./qmanager
-Tercer consola:
+Luego para compilar y ejecutar el servidor, ir a la carpeta paqueteSolaris e ingresar:
 # cd QueryProcessor/
 # make
 # ./qp
