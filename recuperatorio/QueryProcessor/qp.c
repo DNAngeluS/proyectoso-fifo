@@ -268,14 +268,14 @@ int atenderConsulta(SOCKET sockCliente, ldapObj *ldap, int cantidadConexiones)
 	void *resultados = NULL;
 	unsigned long len = 0;
 	PLDAP_RESULT_SET resultSet = NULL;
-        unsigned int cantBloques = 0;
+  unsigned int cantBloques = 0;
 	struct timeval timeout = {config.tiempoDemora, 0};
 
         memset(&getInfo, '\0', sizeof(getInfo));
         memset(descriptorID, '\0', sizeof(descriptorID));
 
 	/*Recibe las palabras a buscar*/
-        WriteLog(log, "Query Processor", getpid(), thr_self(), "Se recibiran las palabras a buscar", "INFO");
+  WriteLog(log, "Query Processor", getpid(), thr_self(), "Se recibiran las palabras a buscar", "INFO");
 	if (ircRequest_recv (sockCliente, (void *) &getInfo, descriptorID, &mode) < 0)
 	{
             WriteLog(log, "Query Processor", getpid(), thr_self(), "Error", "ERROR");
@@ -383,7 +383,7 @@ int conectarQueryManager (in_addr_t nDireccionIP, in_port_t nPort)
     }
     WriteLog(log, "Query Processor", getpid(), thr_self(), "Conexion OK", "INFOFIN");
 
-    sprintf(buffer, "%s:%d-%d", inet_ntoa(*(IN_ADDR *) &config.ip), ntohs(config.puerto), config.tipoRecurso);
+    sprintf(buffer, "%s:%d-%d+%d", inet_ntoa(*(IN_ADDR *) &config.ip), ntohs(config.puerto), config.tipoRecurso, config.cantidadConexiones);
 
     WriteLog(log, "Query Processor", getpid(), thr_self(), "Realizando Handshake", "INFOFIN");
     if (ircRequest_send(sockQM, buffer, sizeof(buffer), descID, IRC_HANDSHAKE_QP) < 0)

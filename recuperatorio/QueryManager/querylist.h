@@ -16,6 +16,7 @@ struct query {
     in_addr_t ip;
     in_port_t puerto;
     int tipoRecurso;
+    int conexionesMaxima;
     unsigned int consultasExito;
     unsigned int consultasFracaso;
 };

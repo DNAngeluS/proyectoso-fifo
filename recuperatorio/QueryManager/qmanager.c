@@ -16,7 +16,8 @@
 void rutinaDeError (char* error, int log);
 int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, char *descriptorID, 
 										char *descriptorIDQP, int mode, ptrListaQuery *lstHtml, 
-										ptrListaQuery *lstArchivos, ptrListaRanking *listaPalabras, char *idQP);
+										ptrListaQuery *lstArchivos, ptrListaRanking *listaPalabras, 
+										ptrListaRequest listaRequest, char *idQP);
 SOCKET establecerConexionEscucha (in_addr_t nDireccionIP, in_port_t nPort);
 SOCKET establecerConexionServidor (in_addr_t nDireccionIP, in_port_t nPort, SOCKADDR_IN *their_addr);
 int conectarFrontEnd (in_addr_t nDireccionIP, in_port_t nPort);
@@ -298,7 +299,8 @@ int main(int argc, char** argv)
 
                                 info.ip = inet_addr(strtok((char *)buffer, ":"));
                                 info.puerto = htons(atoi(strtok(NULL, "-")));
-                                info.tipoRecurso = atoi(strtok(NULL, ""));
+                                info.tipoRecurso = atoi(strtok(NULL, "+"));
+                                info.conexionesMaxima = atoi(strtok(NULL, ""));
                                 info.consultasExito = 0;
                                 info.consultasFracaso = 0;
                                 GenerarIDQP(info.id);
@@ -324,7 +326,7 @@ int main(int argc, char** argv)
                             {
                                 char idQP[MAX_ID_QP];
                                 WriteLog(log, "Query Manager", getpid(), thr_self(), "Se atendera Front-end", "INFOFIN");
-                                socketQP = atenderFrontEnd(cli, buffer, rtaLen, descID, descQP, mode, &listaHtml, &listaArchivos, &listaPalabras, idQP);
+                                socketQP = atenderFrontEnd(cli, buffer, rtaLen, descID, descQP, mode, &listaHtml, &listaArchivos, &listaPalabras, listaRequest, idQP);
                                 sprintf(text, "Request del Front-end recibido%s", socketQP < 0? " con Error": "");
                                 WriteLog(log, "Query Manager", getpid(), thr_self(), text, socketQP<0? "ERROR": "INFOFIN");
                                 if (socketQP > 0)
@@ -450,7 +452,7 @@ int main(int argc, char** argv)
 
 int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, char *descriptorID, 
 										char *descriptorIDQP, int mode,ptrListaQuery *lstHtml, 
-										ptrListaQuery *lstArchivos, ptrListaRanking *listaPalabras, char *idQP)
+										ptrListaQuery *lstArchivos, ptrListaRanking *listaPalabras, ptrListaRequest listaRequest, char *idQP)
 {
     SOCKET sockQP;
     char descIDQP[DESCRIPTORID_LEN];
@@ -501,9 +503,22 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
         void *buff = NULL;
         int modeQPHandshake = IRC_REQUEST_POSIBLE;
         SOCKADDR_IN their_addr;
-        sockQP = establecerConexionServidor(ptrAux->info.ip, ptrAux->info.puerto, &their_addr);
         unsigned long rtaLen = 0;
-
+        
+        /*Verificamos que el qp a pedir permiso tenga disponibilidad de conexiones*/
+        int conexionesActuales = 0;
+        ptrListaRequest ptrRequest = listaRequest;
+        
+        while (ptrRequest != NULL)
+        		if (strcmp(ptrRequest->info.idQP, ptrAux->info.id) == 0)
+        				conexionesActuales++;
+        if (conexionesActuales >= ptrAux->info.conexionesMaxima)
+        {
+        		ptrAux = ptrAux->sgte;
+        		continue;
+        }
+        
+				sockQP = establecerConexionServidor(ptrAux->info.ip, ptrAux->info.puerto, &their_addr);
         if (sockQP == INVALID_SOCKET)
         {
             ptrListaQuery ptrEliminar = ptrAux;
