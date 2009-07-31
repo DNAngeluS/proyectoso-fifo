@@ -870,9 +870,11 @@ void rutinaDeError(char* error, int log)
     perror(error);
 
     /*Mutua exclusion*/
-    WriteLog(log, "Front-end", getpid(), thr_self(), error, "ERROR");
-
-	close(log);
+    if (log != 0)
+    {
+    	WriteLog(log, "Front-end", getpid(), thr_self(), error, "ERROR");
+    	close(log);
+	}
 
     exit(EXIT_FAILURE);
 }

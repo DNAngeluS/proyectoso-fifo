@@ -28,6 +28,8 @@ int leerArchivoConfiguracion (configuracion *config)
     int buf_len;
     int fd;
 
+	config->log = 0;
+
     if( (fd = open("config.cfg", O_RDONLY)) < 0) {
             perror("No existe el archivo de configuracion\n");
             return -1;
