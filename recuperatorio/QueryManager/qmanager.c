@@ -57,13 +57,13 @@ int main(int argc, char** argv)
     /*Se inicializa el mutex*/
     mutex_init(&logMutex, USYNC_THREAD, NULL);
 
-    WriteLog(config->config->log, "Query Manager", getpid(), thr_self(), "Inicio de ejecucion", "INFO");  
-
     /*Lectura de Archivo de Configuracion*/
-    WriteLog(config->config->log, "Query Manager", getpid(), thr_self(), "Se leera archivo de configuracion", "INFO");
+    
     if (leerArchivoConfiguracion(&config) != 0)
-       rutinaDeError("Lectura Archivo de configuracion", config->config->log);
+       rutinaDeError("Lectura Archivo de configuracion", config->config->log);   
+    WriteLog(config->config->log, "Query Manager", getpid(), thr_self(), "Se leera archivo de configuracion", "INFO");
     WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Leido OK", "INFOFIN");
+    WriteLog(config->config->log, "Query Manager", getpid(), thr_self(), "Inicio de ejecucion", "INFO");
 
     /*Se establece conexion a puerto de escucha*/
     WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Se establecera conexion de escucha", "INFO");
