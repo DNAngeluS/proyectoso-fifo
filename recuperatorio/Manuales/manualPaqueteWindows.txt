@@ -17,7 +17,7 @@ A) Precondiciones y Requisitos:
 instalacion de la biblioteca LibXML:
  1 - Descomprimir el paquete libxml2-2.7.3.win32FULL.zip.
  2 - Copiar las carpetas bin, include y lib incluidas.
- 3 - Pegar las tres en el directorioc VC de la instalacion del Virutal Studio
+ 3 - Pegar las tres en el directorio VC de la instalacion del Visual Studio
      (por defecto: c:\Archivos de programa\Microsoft Visual Studio 8\VC)
 
 Configuracion de un projecto Visual Studio (en caso de no poder utilizar el otorgado en el paquete):
@@ -29,11 +29,11 @@ Configuracion de un projecto Visual Studio (en caso de no poder utilizar el otor
  6 - Dar click en Siguiente
  7 - Elegir Aplicacion de consola y Proyecto vacio
  8 - Dar click en Finalizar
- 9 - Hacer clic derecho en Archivos de código fuente->Agregar->Elemento existente
+ 9 - Hacer click derecho en Archivos de código fuente->Agregar->Elemento existente
 10 - Seleccionar todos los .c incluidos en el paquete WebServer
-11 - Hacer clic derecho en ARchivos de encabezado->Argegar->Elemento existente
+11 - Hacer click derecho en Archivos de encabezado->Agregar->Elemento existente
 12 - Seleccionar todos los .h incluidos en el paquete WebServer
-13 - Hacer clic derecho en ARchivos de recursos->Argegar->Elemento existente
+13 - Hacer click derecho en Archivos de recursos->Agregar->Elemento existente
 14 - Seleccionar config.cfg
 15 - Ir a Proyecto->propiedades de "nombre de proyecto"
 16 - Ir a Propiedades de configuración->General
