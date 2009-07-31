@@ -21,6 +21,7 @@ typedef struct {
     int tipoRecurso;            /*Tipo de recurso que atendera*/
     int cantidadConexiones;     /*Cantidad de conexiones simultaneas*/
     int tiempoDemora;           /*Tiempo de demora en enviar rta al Front-end*/
+    int log;
 } configuracion;
 
 int leerArchivoConfiguracion (configuracion *config);

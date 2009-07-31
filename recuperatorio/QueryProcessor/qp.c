@@ -18,7 +18,6 @@ SOCKET establecerConexionServidor(in_addr_t nDireccionIP, in_port_t nPort, SOCKA
 int atenderConsulta(SOCKET sockfd, ldapObj *ldap, int cantidadConexiones);
 int conectarQueryManager (in_addr_t nDireccionIP, in_port_t nPort);
 
-int log;
 configuracion config;
 mutex_t logMutex;
 
@@ -38,35 +37,31 @@ int main()
     /*Se inicializa el mutex*/
     mutex_init(&logMutex, USYNC_THREAD, NULL);
 
-    /*Se crea el archivo log*/
-    if ((log = open("log.txt", O_CREAT | O_TRUNC | O_WRONLY, modeOpen)) < 0)
-        rutinaDeError("Crear archivo Log", log);
-
-    WriteLog(log, "Query Processor", getpid(), thr_self(), "Inicio de ejecucion", "INFO");
+    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Inicio de ejecucion", "INFO");
     
    /*Lectura de Archivo de Configuracion*/
-    WriteLog(log, "Query Processor", getpid(), thr_self(), "Se leera archivo de configuracion", "INFO");
+    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Se leera archivo de configuracion", "INFO");
     if (leerArchivoConfiguracion(&config) != 0)
-       rutinaDeError("Lectura Archivo de configuracion", log);
-    WriteLog(log, "Query Processor", getpid(), thr_self(), "Leido OK", "INFOFIN");
+       rutinaDeError("Lectura Archivo de configuracion", config->log);
+    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Leido OK", "INFOFIN");
 
     /*Se realiza la conexion a la base ldap*/
-    WriteLog(log, "Query Processor", getpid(), thr_self(), "Se realizara la conexion a ldap", "INFO");
+    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Se realizara la conexion a ldap", "INFO");
     if (establecerConexionLDAP(&ldap, config) < 0)
-      rutinaDeError("No se pudo establecer la conexion LDAP.", log);
-    WriteLog(log, "Query Processor", getpid(), thr_self(), "Conectado OK", "INFOFIN");
+      rutinaDeError("No se pudo establecer la conexion LDAP.", config->log);
+    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Conectado OK", "INFOFIN");
 
     /*Se realiza handshake con el QM, enviando el tipo de recurso*/
-    WriteLog(log, "Query Processor", getpid(), thr_self(), "Se realizara el Handshake con Query Manager", "INFO");
+    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Se realizara el Handshake con Query Manager", "INFO");
     if (conectarQueryManager(config.ipQM, config.puertoQM) < 0)
-        rutinaDeError("Conectar Query Manager", log);
-    WriteLog(log, "Query Processor", getpid(), thr_self(), "Realizado OK", "INFOFIN");
+        rutinaDeError("Conectar Query Manager", config->log);
+    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Realizado OK", "INFOFIN");
 
     /*Se establece la conexion de escucha*/
-    WriteLog(log, "Query Processor", getpid(), thr_self(), "Se establecera la conexion de escucha", "INFO");
+    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Se establecera la conexion de escucha", "INFO");
     if ((sockQP = establecerConexionEscucha(INADDR_ANY, config.puerto)) < 0)
-      rutinaDeError("Establecer conexion de escucha", log);
-    WriteLog(log, "Query Processor", getpid(), thr_self(), "Realizado OK", "INFOFIN");
+      rutinaDeError("Establecer conexion de escucha", config->log);
+    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Realizado OK", "INFOFIN");
 
     putchar('\n');
     FD_ZERO (&fdMaestro);
@@ -83,12 +78,12 @@ int main()
         FD_ZERO(&fdLectura);
         memcpy(&fdLectura, &fdMaestro, sizeof(fdMaestro));
 
-        WriteLog(log, "Query Processor", getpid(), thr_self(), "Esperando nuevas peticiones...", "INFOFIN");
+        WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Esperando nuevas peticiones...", "INFOFIN");
         putchar('\n');
         rc = select(fdMax+1, &fdLectura, NULL, NULL, &timeout);
 
         if (rc < 0)
-            rutinaDeError("select", log);
+            rutinaDeError("select", config->log);
         if (rc == 0)
         {
         /*SELECT TIMEOUT*/
@@ -119,28 +114,28 @@ int main()
                         sockCliente = accept(sockQP, (SOCKADDR *) &dirCliente, &nAddrSize);
                         if (sockCliente == INVALID_SOCKET)
                         {
-                            WriteLog(log, "Query Processor", getpid(), thr_self(), "No se pudo conectar cliente", "ERROR");
+                            WriteLog(config->log, "Query Processor", getpid(), thr_self(), "No se pudo conectar cliente", "ERROR");
                             continue;
                         }
 
                         sprintf(text, "Conexion aceptada de %s", inet_ntoa(dirCliente.sin_addr));
-                        WriteLog(log, "Query Processor", getpid(), thr_self(), text, "INFOFIN");
+                        WriteLog(config->log, "Query Processor", getpid(), thr_self(), text, "INFOFIN");
 
                         /*Recibe el IRC con el permiso de peticion de atender request*/
-                        WriteLog(log, "Query Processor", getpid(), thr_self(), "Se recibira handshake", "INFO");
+                        WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Se recibira handshake", "INFO");
                         if (ircRequest_recv (sockCliente, NULL, descriptorID, &mode) < 0)
                         {
-                            WriteLog(log, "Query Processor", getpid(), thr_self(), "Error", "ERROR");
+                            WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Error", "ERROR");
                             putchar('\n');
                             close(sockCliente);
                             continue;
                         }
-                        WriteLog(log, "Query Processor", getpid(), thr_self(), "Recibido OK", "INFOFIN");
+                        WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Recibido OK", "INFOFIN");
 
                         /*Si se pueden realizar conexiones*/
                         if (mode == IRC_REQUEST_POSIBLE)
                         {
-                            WriteLog(log, "Query Processor", getpid(), thr_self(), "Se a recibido un permiso de peticion", "INFOFIN");
+                            WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Se a recibido un permiso de peticion", "INFOFIN");
 
                             /*Si no hay conexiones disponibles*/
                             if (!(cantidadConexiones < config.cantidadConexiones))
@@ -149,19 +144,19 @@ int main()
                                 mode = IRC_RESPONSE_POSIBLE;                        
 
                             /*Responde el IRC con codigo de error*/
-                            WriteLog(log, "Query Processor", getpid(), thr_self(), "Se respondera permiso de peticion", "INFO");
+                            WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Se respondera permiso de peticion", "INFO");
                             if (ircResponse_send(sockCliente, descriptorID, NULL, 0, mode) < 0)
                             {
-                                WriteLog(log, "Query Processor", getpid(), thr_self(), "Error", "ERROR");
+                                WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Error", "ERROR");
                                 close(sockCliente);
                                 continue;
                             }
-                            WriteLog(log, "Query Processor", getpid(), thr_self(), "Respondido OK", "INFOFIN");
+                            WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Respondido OK", "INFOFIN");
 
                             /*Si no fue posible cierra conexion.*/
                             if (mode == IRC_RESPONSE_NOT_POSIBLE)
                             {
-                                WriteLog(log, "Query Processor", getpid(), thr_self(), "Conexion a sido rechazada", "INFOFIN");
+                                WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Conexion a sido rechazada", "INFOFIN");
                                 putchar('\n');
                                 close(sockCliente);
                             }
@@ -173,7 +168,7 @@ int main()
                                 if (sockCliente > fdMax)
                                         fdMax = sockCliente;
                                 cantidadConexiones++;
-                                WriteLog(log, "Query Processor", getpid(), thr_self(), "Conexion a sido aceptada", "INFOFIN");
+                                WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Conexion a sido aceptada", "INFOFIN");
                                 putchar('\n');
                             }
                         }
@@ -202,7 +197,7 @@ int main()
                         int control;
                         char text[60];
 
-                        WriteLog(log, "Query Processor", getpid(), thr_self(), "Se atendera la peticion del cliente", "INFOFIN");
+                        WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Se atendera la peticion del cliente", "INFOFIN");
 
                         control = atenderConsulta(cli, &ldap, cantidadConexiones);
 
@@ -216,7 +211,7 @@ int main()
                             sprintf(text, "Hubo un error al atender Cliente.");
                         strcat(text, " Se cierra conexion");
 
-                        WriteLog(log, "Query Processor", getpid(), thr_self(), text, control<0? "ERROR": "INFOFIN");
+                        WriteLog(config->log, "Query Processor", getpid(), thr_self(), text, control<0? "ERROR": "INFOFIN");
                         putchar('\n');
                    
                         /*Eliminar cliente y actualizar nuevo maximo*/
@@ -247,7 +242,7 @@ int main()
 
 	/*Finalizo el mutex*/
     mutex_destroy(&logMutex);
-	close(log);
+	close(config->log);
 
     return 0;
 }
@@ -275,13 +270,13 @@ int atenderConsulta(SOCKET sockCliente, ldapObj *ldap, int cantidadConexiones)
         memset(descriptorID, '\0', sizeof(descriptorID));
 
 	/*Recibe las palabras a buscar*/
-  WriteLog(log, "Query Processor", getpid(), thr_self(), "Se recibiran las palabras a buscar", "INFO");
+  WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Se recibiran las palabras a buscar", "INFO");
 	if (ircRequest_recv (sockCliente, (void *) &getInfo, descriptorID, &mode) < 0)
 	{
-            WriteLog(log, "Query Processor", getpid(), thr_self(), "Error", "ERROR");
+            WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Error", "ERROR");
             return -1;
 	}
-        WriteLog(log, "Query Processor", getpid(), thr_self(), "Recibidas OK", "INFOFIN");
+        WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Recibidas OK", "INFOFIN");
 
         if (mode != IRC_REQUEST_UNICOQP)
         {
@@ -289,16 +284,16 @@ int atenderConsulta(SOCKET sockCliente, ldapObj *ldap, int cantidadConexiones)
             if ( (config.tipoRecurso == RECURSO_ARCHIVOS && mode != IRC_REQUEST_ARCHIVOS) ||
                     (config.tipoRecurso == RECURSO_WEB && !(mode == IRC_REQUEST_HTML || mode == IRC_REQUEST_CACHE)) )
             {
-                WriteLog(log, "Query Processor", getpid(), thr_self(), "El recurso pedido no es atendido por este Query Processor", "INFOFIN");
+                WriteLog(config->log, "Query Processor", getpid(), thr_self(), "El recurso pedido no es atendido por este Query Processor", "INFOFIN");
 
                 /*Envia el IRC con codigo de error*/
-                WriteLog(log, "Query Processor", getpid(), thr_self(), "Se enviara Internal Service Error", "INFO");
+                WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Se enviara Internal Service Error", "INFO");
                 if (ircResponse_send(sockCliente, descriptorID, NULL, 0, IRC_RESPONSE_ERROR) < 0)
                 {
-                    WriteLog(log, "Query Processor", getpid(), thr_self(), "Error", "ERROR");
+                    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Error", "ERROR");
                     return -1;
                 }
-                WriteLog(log, "Query Processor", getpid(), thr_self(), "Recibidas OK", "INFOFIN");
+                WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Recibidas OK", "INFOFIN");
                 return 1;
             }
         }
@@ -313,22 +308,22 @@ int atenderConsulta(SOCKET sockCliente, ldapObj *ldap, int cantidadConexiones)
         }
         
 	/*Realiza la busqueda*/
-        WriteLog(log, "Query Processor", getpid(), thr_self(), "Se realizara la busqueda en ldap", "INFO");
+        WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Se realizara la busqueda en ldap", "INFO");
 	if ((resultSet = consultarLDAP(ldap, getInfo.queryString)) == NULL)
 	{
-            WriteLog(log, "Query Processor", getpid(), thr_self(), "Error al consultar ldap", "ERROR");
+            WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Error al consultar ldap", "ERROR");
             return -1;
 	}
 
 	/*Prepara la informacion a enviar por el IRC*/
 	if ((armarPayload(resultSet, &resultados, mode, &cantBloques)) < 0)
 	{
-            WriteLog(log, "Query Processor", getpid(), thr_self(), "Error al armar el payload", "ERROR");
+            WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Error al armar el payload", "ERROR");
             ldapFreeResultSet(resultSet);
             return -1;
 	}
 
-        WriteLog(log, "Query Processor", getpid(), thr_self(), "Busqueda realizada", "INFOFIN");
+        WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Busqueda realizada", "INFOFIN");
 
         /*Indentifica el tipo de busqueda*/
 	if (mode == IRC_REQUEST_HTML)
@@ -351,13 +346,13 @@ int atenderConsulta(SOCKET sockCliente, ldapObj *ldap, int cantidadConexiones)
 	select(0,0,0,0, &timeout);
         
 	/*Envia el IRC con los datos encontrados*/
-        WriteLog(log, "Query Processor", getpid(), thr_self(), "Se enviara respuesta", "INFO");
+        WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Se enviara respuesta", "INFO");
 	if (ircResponse_send(sockCliente, descriptorID, resultados, len, mode) < 0)
 	{
-            WriteLog(log, "Query Processor", getpid(), thr_self(), "Error", "ERROR");
+            WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Error", "ERROR");
             return -1;
 	}
-        WriteLog(log, "Query Processor", getpid(), thr_self(), "Respuesta enviada OK", "INFOFIN");
+        WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Respuesta enviada OK", "INFOFIN");
 
 	free(resultados);
 	
@@ -374,25 +369,25 @@ int conectarQueryManager (in_addr_t nDireccionIP, in_port_t nPort)
 
     memset(buffer, '\0', sizeof(buffer));
 
-    WriteLog(log, "Query Processor", getpid(), thr_self(), "Conectando Query Manager", "INFOFIN");
+    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Conectando Query Manager", "INFOFIN");
     sockQM = establecerConexionServidor(nDireccionIP, nPort, &their_addr);
     if (sockQM == INVALID_SOCKET)
     {
-        WriteLog(log, "Query Processor", getpid(), thr_self(), "Error", "ERROR");
+        WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Error", "ERROR");
         return -1;
     }
-    WriteLog(log, "Query Processor", getpid(), thr_self(), "Conexion OK", "INFOFIN");
+    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Conexion OK", "INFOFIN");
 
     sprintf(buffer, "%s:%d-%d+%d", inet_ntoa(*(IN_ADDR *) &config.ip), ntohs(config.puerto), config.tipoRecurso, config.cantidadConexiones);
 
-    WriteLog(log, "Query Processor", getpid(), thr_self(), "Realizando Handshake", "INFOFIN");
+    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Realizando Handshake", "INFOFIN");
     if (ircRequest_send(sockQM, buffer, sizeof(buffer), descID, IRC_HANDSHAKE_QP) < 0)
     {
-        WriteLog(log, "Query Processor", getpid(), thr_self(), "Error", "ERROR");
+        WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Error", "ERROR");
         close(sockQM);
         return -1;
     }
-    WriteLog(log, "Query Processor", getpid(), thr_self(), "Handshake OK", "INFOFIN");
+    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Handshake OK", "INFOFIN");
 
     close(sockQM);
 
@@ -480,11 +475,11 @@ void rutinaDeError(char* error, int log)
     perror(error);
 
     /*Mutua exclusion*/
-    mutex_lock(&logMutex);
-    WriteLog(log, "Query Processor", getpid(), thr_self(), error, "ERROR");
-    mutex_unlock(&logMutex);
-
-	close(log);
-
+	if (log != 0)
+	{
+    	WriteLog(log, "Query Processor", getpid(), thr_self(), error, "ERROR");
+		close(log);
+	}
+	
     exit(EXIT_FAILURE);
 }
