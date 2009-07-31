@@ -11,7 +11,6 @@
 
 void GenerarUUID(char *cadenaOUT);
 
-extern int log;
 
 int establecerConexionLDAP(ldapObj *ldap, configuracion config)
 {
@@ -28,14 +27,14 @@ int establecerConexionLDAP(ldapObj *ldap, configuracion config)
 	ldap->ctxOp->initialize(ldap->context, config.ipPortLDAP);
 	if(ldap->context->errorCode != LDAP_SUCCESS)
 	{
-            WriteLog(log, "Web Store", getpid(), 1, "Ldap initialize", "ERROR");
+            WriteLog(config.log, "Web Store", getpid(), 1, "Ldap initialize", "ERROR");
             return -1;
 	}
 	
 	ldap->session = ldap->ctxOp->newSession(ldap->context, "cn=Directory Manager", config.claveLDAP);
 	if(ldap->session == NULL)
 	{
-            WriteLog(log, "Web Store", getpid(), 1, "Ldap new session", "ERROR");
+            WriteLog(config.log, "Web Store", getpid(), 1, "Ldap new session", "ERROR");
             perror("ldap newSession");
             return -1;
 	}
@@ -43,7 +42,7 @@ int establecerConexionLDAP(ldapObj *ldap, configuracion config)
 	ldap->sessionOp->startSession(ldap->session);	
 	if (ldap->session->started != 1)
 	{
-            WriteLog(log, "Web Store", getpid(), 1, "Ldap start session", "ERROR");
+            WriteLog(config.log, "Web Store", getpid(), 1, "Ldap start session", "ERROR");
             return -1;
 	}
 
@@ -78,7 +77,7 @@ Ultima modificacion: Moya Farina, Lucio
 Recibe: entrada con los datos modificados, tipo de archivo, cantidad de palabras
 Devuelve: ok? 0: -1.
 */
-int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode)
+int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode, configuracion config)
 {
     char uuid[MAX_UUID];
     char dn[DN_LEN];
@@ -91,12 +90,12 @@ int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode)
     {
         char text[100];
         sprintf(text, "ldapAltaURL: Imposible crear, ya existe la entrada %s", entrada->URL);
-        WriteLog(log, "Web Store", getpid(), 1, text, "ERROR");
+        WriteLog(config.log, "Web Store", getpid(), 1, text, "ERROR");
         return -1;
     }
     else if (control == -1)
     {
-        WriteLog(log, "Web Store", getpid(), 1, "ldapAltaURL: Error en la verificacion de existencia", "ERROR");
+        WriteLog(config.log, "Web Store", getpid(), 1, "ldapAltaURL: Error en la verificacion de existencia", "ERROR");
         return -1;
     }
 
@@ -143,7 +142,7 @@ int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode)
     }
     else
     {
-        WriteLog(log, "Web Store", getpid(), 1, "ldapAltaURL: opcion inexistente", "ERROR");
+        WriteLog(config.log, "Web Store", getpid(), 1, "ldapAltaURL: opcion inexistente", "ERROR");
         return -1;
     }
     
@@ -159,7 +158,7 @@ Ultima modificacion: Moya Farina, Lucio
 Recibe: entrada con los datos modificados, tipo de archivo, cantidad de palabras
 Devuelve: ok? 0: -1.
 */
-int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode)
+int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode, configuracion config)
 {
     int control;
     PLDAP_ENTRY entry = ldap->entryOp->createEntry();
@@ -176,12 +175,12 @@ int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode)
         char text[100];
         
         sprintf(text, "ldapModificarURL: Imposible modificar, no se encontro la entrada %s", entrada->URL);
-        WriteLog(log, "Web Store", getpid(), 1, text, "ERROR");
+        WriteLog(config.log, "Web Store", getpid(), 1, text, "ERROR");
         return -1;
     }
     if (control==-1)    
     {
-        WriteLog(log, "Web Store", getpid(), 1, "ldapModificarURL: Error en la verificacion de existencia", "ERROR");
+        WriteLog(config.log, "Web Store", getpid(), 1, "ldapModificarURL: Error en la verificacion de existencia", "ERROR");
         return -1;
     }
     
@@ -213,7 +212,7 @@ int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode)
     }
     else
     {
-        WriteLog(log, "Web Store", getpid(), 1, "ldapModificarURL: opcion inexistente", "ERROR");
+        WriteLog(config.log, "Web Store", getpid(), 1, "ldapModificarURL: opcion inexistente", "ERROR");
         return -1;
     }
 
@@ -228,7 +227,7 @@ Ultima modificacion: Moya Farina, Lucio
 Recibe: lista de hosts actuales, numero maximo de hosts
 Devuelve: ok? 0: -1. lista de hosts actualizada, y numero maximo de hosts
 */
-int ldapObtenerHosts(ldapObj *ldap, webServerHosts **hosts, int *maxHosts)
+int ldapObtenerHosts(ldapObj *ldap, webServerHosts **hosts, int *maxHosts, configuracion config)
 {
     /* hago una consulta en una determinada rama aplicando la siguiente condicion */
     PLDAP_RESULT_SET resultSet 	= ldap->sessionOp->searchEntry(ldap->session, "ou=hosts,dc=utn,dc=edu", "utnHostID=*");
@@ -247,7 +246,7 @@ int ldapObtenerHosts(ldapObj *ldap, webServerHosts **hosts, int *maxHosts)
 
     if ((*hosts = malloc(allocLen)) == NULL)
     {
-        WriteLog(log, "Web Store", getpid(), 1, "No hay suficiente memoria para armar estructura de Hosts", "ERROR");
+        WriteLog(config.log, "Web Store", getpid(), 1, "No hay suficiente memoria para armar estructura de Hosts", "ERROR");
         ldapFreeResultSet(resultSet);
         return -1;
     }
@@ -258,7 +257,7 @@ int ldapObtenerHosts(ldapObj *ldap, webServerHosts **hosts, int *maxHosts)
         PLDAP_RECORD record = iterator->next(resultSet);
         if ((*hosts = realloc(*hosts, allocLen*(i+1))) == NULL)
         {
-            WriteLog(log, "Web Store", getpid(), 1, "No hay suficiente memoria para armar estructura de Hosts", "ERROR");
+            WriteLog(config.log, "Web Store", getpid(), 1, "No hay suficiente memoria para armar estructura de Hosts", "ERROR");
             ldapFreeResultSet(resultSet);
             return -1;
         }
@@ -283,8 +282,8 @@ int ldapObtenerHosts(ldapObj *ldap, webServerHosts **hosts, int *maxHosts)
                         (*hosts)[i].hostIP = inet_addr(ip);
                         (*hosts)[i].hostPort = htons(atoi(puerto));
                     }
-                    else WriteLog(log, "Web Store", getpid(), 1, "Entrada Ldap erronea. Se ignora", "ERROR");
-                }  else WriteLog(log, "Web Store", getpid(), 1, "Entrada Ldap erronea. Se ignora", "ERROR");
+                    else WriteLog(config.log, "Web Store", getpid(), 1, "Entrada Ldap erronea. Se ignora", "ERROR");
+                }  else WriteLog(config.log, "Web Store", getpid(), 1, "Entrada Ldap erronea. Se ignora", "ERROR");
             }
             else
                 if (!(strcmp(field->name, "utnHostModTimestamp")))
@@ -310,7 +309,7 @@ Ultima modificacion: Moya Farina, Lucio
 Recibe: nuevo uts, modo
 Devuelve: ok? 0: -1. Indica para cada modo a que se debio el fallo
 */
-int ldapActualizarHost(ldapObj *ldap, const char *ipPuerto, time_t nuevoUts, int mode)
+int ldapActualizarHost(ldapObj *ldap, const char *ipPuerto, time_t nuevoUts, int mode, configuracion config)
 {    
     PLDAP_ENTRY entry = ldap->entryOp->createEntry();
     char dn[DN_LEN];
@@ -320,7 +319,7 @@ int ldapActualizarHost(ldapObj *ldap, const char *ipPuerto, time_t nuevoUts, int
     
     if (!(mode == ALTA || mode == MODIFICACION))
     {
-        WriteLog(log, "Web Store", getpid(), 1, "Modo invalido", "ERROR");
+        WriteLog(config.log, "Web Store", getpid(), 1, "Modo invalido", "ERROR");
         return -1;
     }
     
@@ -331,12 +330,12 @@ int ldapActualizarHost(ldapObj *ldap, const char *ipPuerto, time_t nuevoUts, int
     
     if (existe && mode == ALTA)
     {
-        WriteLog(log, "Web Store", getpid(), 1, "ldapActualizarHost: No se pudo agregar Host. Ya existe un host con esa entrada", "ERROR");
+        WriteLog(config.log, "Web Store", getpid(), 1, "ldapActualizarHost: No se pudo agregar Host. Ya existe un host con esa entrada", "ERROR");
         return -1;
     }
     if (!existe && mode == MODIFICACION)
     {
-       WriteLog(log, "Web Store", getpid(), 1, "ldapActualizarHost: No se pudo agregar Host. No existe un host con esa entrada", "ERROR");
+       WriteLog(config.log, "Web Store", getpid(), 1, "ldapActualizarHost: No se pudo agregar Host. No existe un host con esa entrada", "ERROR");
         return -1;
     }
 

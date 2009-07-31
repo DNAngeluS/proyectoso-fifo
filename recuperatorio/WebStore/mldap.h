@@ -29,12 +29,12 @@ int establecerConexionLDAP(ldapObj *ldap, configuracion config);
 int ldapObtenerDN(ldapObj *ldap,char *key, int mode, char *dn);
 void ldapFreeResultSet(PLDAP_RESULT_SET resultSet);
 
-int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode);
-int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode);
+int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode, configuracion config);
+int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode, configuracion config);
 int ldapComprobarExistencia(ldapObj *ldap, const char *clave, int mode);
 
-int ldapActualizarHost(ldapObj *ldap, const char *ipPuerto, time_t nuevoUts, int mode);
-int ldapObtenerHosts(ldapObj *ldap, webServerHosts **hosts, int *maxHosts);
+int ldapActualizarHost(ldapObj *ldap, const char *ipPuerto, time_t nuevoUts, int mode, configuracion config);
+int ldapObtenerHosts(ldapObj *ldap, webServerHosts **hosts, int *maxHosts, configuracion config);
 
 
 

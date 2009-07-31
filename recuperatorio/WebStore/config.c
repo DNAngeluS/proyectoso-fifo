@@ -20,6 +20,7 @@ int leerArchivoConfiguracion (configuracion *config)
     char *key, *value, *act, *primero, *lim;
     int buf_len;
     int fd;
+    mode_t modeOpen = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
     
     config->log = 0;
 
