@@ -7,7 +7,7 @@
 # Makefile - Front-end
 
 #Libs
-SOCKLIBS=-lsocket -lnsl
+SOCKLIBS= -lsocket -lnsl -lthread -lc -D_REENTRANT
 LIBDIR=
 #Flags
 CC = exec /opt/csw/gcc4/bin/gcc
