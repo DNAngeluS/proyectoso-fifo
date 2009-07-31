@@ -37,13 +37,14 @@ int main()
     /*Se inicializa el mutex*/
     mutex_init(&logMutex, USYNC_THREAD, NULL);
 
-    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Inicio de ejecucion", "INFO");
+    
     
    /*Lectura de Archivo de Configuracion*/
-    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Se leera archivo de configuracion", "INFO");
     if (leerArchivoConfiguracion(&config) != 0)
        rutinaDeError("Lectura Archivo de configuracion", config->log);
+    WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Se leera archivo de configuracion", "INFO");
     WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Leido OK", "INFOFIN");
+   	WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Inicio de ejecucion", "INFO");
 
     /*Se realiza la conexion a la base ldap*/
     WriteLog(config->log, "Query Processor", getpid(), thr_self(), "Se realizara la conexion a ldap", "INFO");
