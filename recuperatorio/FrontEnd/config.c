@@ -64,6 +64,11 @@ int leerArchivoConfiguracion (configuracion *config)
                     break;
             }
     }
+    
+    /*Se crea el archivo log*/
+    if ((config->log = open("log.txt", O_CREAT | O_TRUNC | O_WRONLY, modeOpen)) < 0)
+        return -1;
+    
     return 0;
 }
 
