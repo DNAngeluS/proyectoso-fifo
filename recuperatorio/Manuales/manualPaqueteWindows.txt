@@ -63,7 +63,8 @@ Modificar:
 -IP del WebStore
 -Puerto del WebStore
 Para ejecutar en modo debug: Generar la solucion en modo debug, y clickear RUN (o play).
-Para ejecutar en modo release: Generar la solucion en modo release y hacer doble click en el webserver.exe generado.
+Para ejecutar en modo release: Generar la solucion en modo release, ir a inicio->ejecutar y escribir "cmd".
+Ir por consola al directorio del proyecto (por defecto C:\Documents and Settings\Administrador\Mis Documentos\Visual Studio 2005\Projects\webserver\release) e ingresar en consola webserver.exe.
 
 C) Uso del servidor:
 
