@@ -12,6 +12,40 @@ Ayudante designado:
 
 A) Precondiciones y Requisitos:
 
+- Una instalación de Windows XP con el Visual Estudio 2005
+
+instalacion de la biblioteca LibXML:
+ 1 - Descomprimir el paquete libxml2-2.7.3.win32FULL.zip.
+ 2 - Copiar las carpetas bin, include y lib incluidas.
+ 3 - Pegar las tres en el directorioc VC de la instalacion del Virutal Studio
+     (por defecto: c:\Archivos de programa\Microsoft Visual Studio 8\VC)
+
+Configuracion de un projecto Visual Studio (en caso de no poder utilizar el otorgado en el paquete):
+ 1 - Abrir el Visual Studio 2005
+ 2 - Ir a Archivo->Nuevo->Projecto
+ 3 - Seleccionar Visual C++->Win32->Aplicacón de consola Win32
+ 4 - Dar un nombre al projecto y elegir el directorio para el mismo
+ 5 - Dar click en Aceptar
+ 6 - Dar click en Siguiente
+ 7 - Elegir Aplicacion de consola y Proyecto vacio
+ 8 - Dar click en Finalizar
+ 9 - Hacer clic derecho en Archivos de código fuente->Agregar->Elemento existente
+10 - Seleccionar todos los .c incluidos en el paquete WebServer
+11 - Hacer clic derecho en ARchivos de encabezado->Argegar->Elemento existente
+12 - Seleccionar todos los .h incluidos en el paquete WebServer
+13 - Hacer clic derecho en ARchivos de recursos->Argegar->Elemento existente
+14 - Seleccionar config.cfg
+15 - Ir a Proyecto->propiedades de "nombre de proyecto"
+16 - Ir a Propiedades de configuración->General
+17 - Juego de caracteres - cambiar a - multibyte
+18 - Ir a C/C++->Avanzadas
+19 - Compilar como - cambiar a - Compilar como código de C(/TC)
+20 - Ir a Vinculador->Entrada
+21 - Dependencias adicionales - agregar - ws2_32.lib libxml2.lib
+22 - Ir a Herramienta Manifiesto->Entrada y Salida
+23 - Incrustar maniefiesto - cambiar a - No
+
+
 
 B) Configuracion y Compilacion:
 
