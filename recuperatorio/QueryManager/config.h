@@ -16,6 +16,7 @@ typedef struct {
     in_port_t puertoL;                /*puerto local*/
     in_addr_t ipFrontEnd;          /*ip local*/
     in_port_t puertoFrontEnd;  /*puerto local*/
+    int log;
 } configuracion;
 
 int leerArchivoConfiguracion (configuracion *config);

@@ -28,6 +28,8 @@ int leerArchivoConfiguracion (configuracion *config)
     int buf_len;
     int fd;
 
+||||config->log = 0;
+
     if( (fd = open("config.cfg", O_RDONLY)) < 0) {
             perror("No existe el archivo de configuracion\n");
             return -1;
@@ -64,6 +66,11 @@ int leerArchivoConfiguracion (configuracion *config)
                     break;
             }
     }
+    
+    /*Se crea el archivo log*/
+    if ((config->log = open("log.txt", O_CREAT | O_TRUNC | O_WRONLY, modeOpen)) < 0)
+        return -1;
+    
     return 0;
 }
 
