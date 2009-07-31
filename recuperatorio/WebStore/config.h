@@ -21,6 +21,7 @@ typedef struct {
     int tiempoNuevaConsulta;
     char ipPortLDAP[40];            /*ip servidor LDAP*/
     char claveLDAP[20];             /*Clave servidor LDAP*/
+    int log;
 } configuracion;
 
 int leerArchivoConfiguracion (configuracion *config);

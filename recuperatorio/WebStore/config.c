@@ -20,6 +20,8 @@ int leerArchivoConfiguracion (configuracion *config)
     char *key, *value, *act, *primero, *lim;
     int buf_len;
     int fd;
+    
+    config->log = 0;
 
     memset(config, '\0', sizeof(configuracion));
 
@@ -60,6 +62,10 @@ int leerArchivoConfiguracion (configuracion *config)
             }
     }
     config->puertoWebServer = htons(PUERTO_CRAWLER);
+    
+    /*Se crea el archivo log*/
+    if ((config->log = open("log.txt", O_CREAT | O_TRUNC | O_WRONLY, modeOpen)) < 0)
+        return -1;
 
     return 0;
 }
