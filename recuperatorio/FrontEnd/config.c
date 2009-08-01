@@ -29,8 +29,8 @@ int leerArchivoConfiguracion (configuracion *config)
     int buf_len;
     int fd;
     mode_t modeOpen = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-
-		config->log = 0;
+    
+    memset(config, '\0', sizeof(configuracion));
 
     if( (fd = open("config.cfg", O_RDONLY)) < 0) {
             perror("No existe el archivo de configuracion\n");
