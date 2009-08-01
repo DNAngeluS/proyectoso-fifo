@@ -12,6 +12,20 @@ Ayudante designado:
 
 A) Precondiciones y requisitos:
 
+-Una instalacion de Linux con conexion de Red funcionando.
+-Instalacion de las bibliotecas ldap
+
+En caso de tener no instalados las bibliotecas ldap, se necesitara una conexion a internet. Seguir los siguientes pasos para realizar la instalacion en un equipo con instalacion Debian de 32bits.
+ 1 - Conseguir una copia actualizada de los repositorios de Linux. (se incluye en el paquete un source.list para la version de Debian 4.0 etch).
+ 	$ su (ingresar clave de super usuario)
+ 	# cp source.lst /etc/apt/
+ 2 - Actualizar los repositorios del linux
+  # apt-get update
+ 3 - Instalar los paquetes necesarios
+  # apt-get install ldap-utils
+  # apt-get install libldap2-dev
+ 4- En caso de que la instalacion no haya sido en las carpetas predeterminadas, estas son /usr/include/, /usr/lib/, editar el archivo Makefile y cambiar las ocurrencias de dichos directorios por los de la instalacion recien efectuada.
+
 
 B) Configuracion y Compilacion:
 
