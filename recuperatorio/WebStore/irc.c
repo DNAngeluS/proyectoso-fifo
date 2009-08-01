@@ -108,7 +108,7 @@ int EnviarBloque(SOCKET sockfd, unsigned long len, void *buffer)
     int bytesEnviados = 0;
 
     do {
-        if ((bHastaAhora = send(sockfd, buffer, len, 0)) == -1){
+        if ((bHastaAhora = send(sockfd, buffer, len-bHastaAhora, 0)) == -1){
                 break;
         }
         bytesEnviados += bHastaAhora;
