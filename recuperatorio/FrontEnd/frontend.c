@@ -44,6 +44,11 @@ int main()
 {
 
     SOCKET sockFrontEnd;
+    fd_set fdMaestro;
+    fd_set fdLectura;
+    struct timeval timeout;
+    int fdMax, cli;
+    fdMax = cli = 0;
 
     /*Se inicializa el mutex*/
     mutex_init(&logMutex, USYNC_THREAD, NULL);
@@ -96,82 +101,150 @@ int main()
         break;
     }
 
+		/*Se agregan los sockets abiertos y se asigna el maximo actual*/
+    FD_ZERO (&fdMaestro);
+    FD_SET(sockFrontEnd, &fdMaestro); /*Añado stdin*/
+    fdMax = sockFrontEnd;
+
     while(1)
     {
-        SOCKET sockCliente;
-        SOCKADDR_IN dirCliente;
-        int nAddrSize = sizeof(dirCliente);
         msgGet getInfo;
         int getType;
+        int rc, desc_ready;
+        int mensajeEsperando = 0;
+
+        timeout.tv_sec = 20;
+        timeout.tv_usec = 0;
+
+        FD_ZERO(&fdLectura);
+        memcpy(&fdLectura, &fdMaestro, sizeof(fdMaestro));
 
         memset(&getInfo, '\0', sizeof(msgGet));
 
-        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Esperando nuevas peticiones...", "INFOFIN");
-        putchar('\n');
-
-        /*Acepta la conexion entrante*/
-        sockCliente = accept(sockFrontEnd, (SOCKADDR *) &dirCliente, &nAddrSize);
+				if (!mensajeEsperando)
+				{
+						putchar('\n');
+				    WriteLog(config.log, "Front-end", getpid(), thr_self(), "Esperando nuevas peticiones...", "INFOFIN");
+				    putchar('\n');
+				    mensajeEsperando = 1;
+				}
         
-        /*Si el socket es invalido, ignora y vuelve a empezar*/
-        if (sockCliente == INVALID_SOCKET)
-            continue;
+        rc = select(fdMax+1, &fdLectura, NULL, NULL, &timeout);
+
+        if (rc < 0)
+            rutinaDeError("select", config.log);
+        else if (rc == 0)
         {
-            char text[60];
-            sprintf(text, "Conexion aceptada de %s", inet_ntoa(dirCliente.sin_addr));
-            WriteLog(config.log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
+            mensajeEsperando = 1;           
         }
-
-        /*Se recibe el Http GET del cliente*/
-        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se recibira Http GET del cliente", "INFO");
-        if (httpGet_recv(sockCliente, &getInfo) < 0)
+        else if (rc > 0)
         {
-            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error al recibir HTTP GET", "ERROR");
-            putchar('\n');
-            close(sockCliente);
-            continue;
-        }
-        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Recibido OK", "INFOFIN");
-
-        getType = obtenerGetType(getInfo.palabras);
-				if (getType == CACHE)
-					getInfo.searchType = SEARCH_CACHE;
-
-        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se atendera cliente", "INFOFIN");
-        if (getType == BROWSER)
-        /*Si el GET corresponde a un browser pidiendo formulario*/
-        {
-            int control;
-            char text[150];
-
-            /*Envia el formulario html para empezar a atender.*/
-            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se envia Formulario Html", "INFOFIN");
-            control = EnviarFormularioHtml (sockCliente, getInfo);
-            sprintf(text, "Atencion de cliente finalizada%s", control < 0? " con Error": "");
-            WriteLog(config.log, "Front-end", getpid(), thr_self(), text, control<0? "ERROR": "INFOFIN");
-            putchar('\n');
-            
-            close(sockCliente);
-        }
-        else if (getType == FORMULARIO || getType == CACHE)
-        /*Si el GET corresponde a un formulario pidiendo una busqueda*/
-        {
-            threadArgs args;
-
-            args.socket = sockCliente;
-            args.getInfo = getInfo;
-            args.dir = dirCliente;
-
-            /*Crea el thread que atendera al nuevo cliente*/
-            if (rutinaCrearThread((void *)rutinaAtencionCliente, &args) < 0)
+        		desc_ready = rc;
+            for (cli = 0; cli < fdMax+1 && desc_ready > 0; cli++)
             {
-                char text[60];
+                if (FD_ISSET(cli, &fdLectura))
+                {
+                    desc_ready--;
+                    if (cli == sockFrontEnd)
+                    /*Nueva conexion detectada*/
+                    {
+                    		/*Cliente*/
+                        SOCKET sockCliente;
+                        SOCKADDR_IN dirCliente;
+                        int nAddrSize = sizeof(dirCliente);
+                        char text[60];
+                        
+                        /*Acepta la conexion entrante*/
+												sockCliente = accept(sockFrontEnd, (SOCKADDR *) &dirCliente, &nAddrSize);
+								
+												/*Si el socket es invalido, ignora y vuelve a empezar*/
+												if (sockCliente == INVALID_SOCKET)
+														continue;	
+												
+												/*Agrega cliente (Front-End o QP) y actualiza max*/
+                        FD_SET (sockCliente, &fdMaestro);
+                        if (sockCliente > fdMax)
+                            fdMax = sockCliente;
+                            
+                        putchar('\n');
+												sprintf(text, "Conexion aceptada de %s", inet_ntoa(dirCliente.sin_addr));
+												WriteLog(config.log, "Front-end", getpid(), thr_self(), text, "INFOFIN");												
+                    }
+                    else
+                    {
+                    		FD_CLR(cli, &fdMaestro);
+                        if (cli == fdMax)
+                            while (FD_ISSET(fdMax, &fdMaestro) == 0)
+                                fdMax--;
+                                
+                        mensajeEsperando = 0;
+                                
+                    		/*Se recibe el Http GET del cliente*/
+												WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se recibira Http GET del cliente", "INFO");
+												if (httpGet_recv(cli, &getInfo) < 0)
+												{
+														WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error al recibir HTTP GET", "ERROR");
+														putchar('\n');
+														
+														close(cli);	
+														
+														continue;
+												}
+												WriteLog(config.log, "Front-end", getpid(), thr_self(), "Recibido OK", "INFOFIN");
+												
+												getType = obtenerGetType(getInfo.palabras);
+												if (getType == CACHE)
+													getInfo.searchType = SEARCH_CACHE;
+													
+												WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se atendera cliente", "INFOFIN");
+												if (getType == BROWSER)
+												/*Si el GET corresponde a un browser pidiendo formulario*/
+												{
+														int control;
+														char text[150];
 
-                sprintf(text, "No se ha podido atender cliente de %s. Se cierra conexion", inet_ntoa(dirCliente.sin_addr));
-                WriteLog(config.log, "Front-end", getpid(), thr_self(), text, "ERROR");
-                putchar('\n');
-                close(sockCliente);
-            }
+														/*Envia el formulario html para empezar a atender.*/
+														WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se envia Formulario Html", "INFOFIN");
+														control = EnviarFormularioHtml (cli, getInfo);
+														sprintf(text, "Atencion de cliente finalizada%s", control < 0? " con Error": "");
+														WriteLog(config.log, "Front-end", getpid(), thr_self(), text, control<0? "ERROR": "INFOFIN");
+												
+														close(cli);
+												}
+												else if (getType == FORMULARIO || getType == CACHE)
+												/*Si el GET corresponde a un formulario pidiendo una busqueda*/
+												{
+														threadArgs args;
+
+														args.socket = cli;
+														args.getInfo = getInfo;
+														memset(&args.dir, '\0', sizeof(args.dir));
+
+														/*Crea el thread que atendera al nuevo cliente*/
+														if (rutinaCrearThread((void *)rutinaAtencionCliente, &args) < 0)
+														{
+																char text[60];
+
+																sprintf(text, "No se ha podido atender cliente. Se cierra conexion");
+																WriteLog(config.log, "Front-end", getpid(), thr_self(), text, "ERROR");
+																putchar('\n');
+																close(cli);
+														}
+												}
+												
+                    }
+						}
         }
+    }
+
+        
+
+        
+
+        
+
+        
+        
     }
 
     /*
@@ -297,9 +370,9 @@ void rutinaAtencionCliente (void *args)
     memset(&getInfo, '\0', sizeof(msgGet));
 
     if (getThread.searchType != SEARCH_CACHE)
-        sprintf (text, "Se comienza a atender Request de %s", inet_ntoa(dirCliente.sin_addr));
+        sprintf (text, "Se comienza a atender Request");
     else
-        sprintf (text, "Se comienza a atender Request Cache de %s", inet_ntoa(dirCliente.sin_addr));
+        sprintf (text, "Se comienza a atender Request Cache");
     WriteLog(config.log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
 
     /*Se obtiene el tiempo de inicio de la busqueda*/
@@ -328,7 +401,7 @@ void rutinaAtencionCliente (void *args)
             WriteLog(config.log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
 
         WriteLog(config.log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
-        putchar('\n');
+
         close(sockCliente);
         thr_exit(NULL);
     }
@@ -347,7 +420,7 @@ void rutinaAtencionCliente (void *args)
     {
         WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
         WriteLog(config.log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
-        putchar('\n');
+
         close(sockCliente);
         thr_exit(NULL);
     }
@@ -375,7 +448,7 @@ void rutinaAtencionCliente (void *args)
     {
         WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
         WriteLog(config.log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
-        putchar('\n');
+
         close(sockCliente);
         close(sockQM);
         thr_exit(NULL);
@@ -435,7 +508,6 @@ void rutinaAtencionCliente (void *args)
     }
 
     WriteLog(config.log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
-    putchar('\n');
     
     free(respuesta);
 

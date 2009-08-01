@@ -49,16 +49,16 @@ int main()
       rutinaDeError("No se pudo establecer la conexion LDAP.", config.log);
     WriteLog(config.log, "Query Processor", getpid(), thr_self(), "Conectado OK", "INFOFIN");
 
+		/*Se establece la conexion de escucha*/
+    WriteLog(config.log, "Query Processor", getpid(), thr_self(), "Se establecera la conexion de escucha", "INFO");
+    if ((sockQP = establecerConexionEscucha(INADDR_ANY, config.puerto)) < 0)
+      rutinaDeError("Establecer conexion de escucha", config.log);
+    WriteLog(config.log, "Query Processor", getpid(), thr_self(), "Realizado OK", "INFOFIN");
+
     /*Se realiza handshake con el QM, enviando el tipo de recurso*/
     WriteLog(config.log, "Query Processor", getpid(), thr_self(), "Se realizara el Handshake con Query Manager", "INFO");
     if (conectarQueryManager(config.ipQM, config.puertoQM) < 0)
         rutinaDeError("Conectar Query Manager", config.log);
-    WriteLog(config.log, "Query Processor", getpid(), thr_self(), "Realizado OK", "INFOFIN");
-
-    /*Se establece la conexion de escucha*/
-    WriteLog(config.log, "Query Processor", getpid(), thr_self(), "Se establecera la conexion de escucha", "INFO");
-    if ((sockQP = establecerConexionEscucha(INADDR_ANY, config.puerto)) < 0)
-      rutinaDeError("Establecer conexion de escucha", config.log);
     WriteLog(config.log, "Query Processor", getpid(), thr_self(), "Realizado OK", "INFOFIN");
 
     putchar('\n');

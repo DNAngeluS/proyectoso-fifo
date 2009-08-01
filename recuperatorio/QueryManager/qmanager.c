@@ -503,8 +503,11 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
         ptrListaRequest ptrRequest = listaRequest;
         
         while (ptrRequest != NULL)
+        {
         		if (strcmp(ptrRequest->info.idQP, ptrAux->info.id) == 0)
         				conexionesActuales++;
+        		ptrRequest = ptrRequest->sgte;
+        }
         if (conexionesActuales >= ptrAux->info.conexionesMaxima)
         {
         		ptrAux = ptrAux->sgte;
@@ -639,7 +642,7 @@ int eliminarQueryProcessor(ptrListaQuery *lstHtml, ptrListaQuery *lstArchivos, c
     /*Si encontro*/
     if (ptrAux != NULL)
     {
-    		EliminarQuery(&listaHtml, ptrAux);
+    		EliminarQuery(lstHtml, ptrAux);
         WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Query Processor sin vida se a eliminado de la lista de Html", "INFOFIN");
     }
     
@@ -655,7 +658,7 @@ int eliminarQueryProcessor(ptrListaQuery *lstHtml, ptrListaQuery *lstArchivos, c
 				/*Si encontro*/
 				if (ptrAux != NULL)
 				{
-						EliminarQuery(&listaArchivos, ptrAux);
+						EliminarQuery(lstArchivos, ptrAux);
 				    WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Query Processor sin vida se a eliminado de la lista de Archivos", "INFOFIN");
 				}
 				else
