@@ -122,8 +122,8 @@ int ldapAltaURL(ldapObj *ldap, crawler_URL* entrada, int mode, configuracion con
     word = strtok(keywords, ",");
     for (; word;)
     {
-    ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1,  word));
-            word = strtok(NULL, ",");
+    	ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1,  word));
+        word = strtok(NULL, ",");
     }
 
     /*Si es un Archivo guarda los campos espeficos del mismo*/
@@ -163,10 +163,12 @@ int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode, configuracio
     int control;
     PLDAP_ENTRY entry = ldap->entryOp->createEntry();
     char dn[DN_LEN];
+    char uuid[MAX_UUID];
     char keywords[strlen(entrada->palabras)+1];
-    char *word;
+    char *word, *uuidInf, *uuidSup;
 
     memset(dn, '\0', DN_LEN);
+    memset(uuid, '\0', MAX_UUID);
     strcpy(keywords, entrada->palabras);
     
     control = ldapObtenerDN(ldap, entrada->URL, mode, dn);
@@ -184,31 +186,43 @@ int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode, configuracio
         return -1;
     }
     
+    /*Se eliminara la entry completa*/
+    ldap->sessionOp->deleteEntryDn(ldap->session, dn);
 
+    /*Se obtiene el UUID anterior para reescribir la entrada*/
+    uuidInf = strchr(dn, '=');
+    uuidInf++;
+    uuidSup = strchr(dn, ',');
+    strncpy(uuid, uuidInf, uuidSup - uuidInf);
+
+    /*Se asigna la DN a la Entry para hacer la entrada en LDAP*/
     entry->dn = dn;
-       
-   /*Guarda las palabras claves, ubicadas en entrada->palabras, separadas por coma*/
+    
+    ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("objectclass", 2, "top", "utnUrl"));
+    ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnUrlID", 1, uuid));
+    ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("labeledURL", 1, entrada->URL));
+  
+    /*Guarda las palabras claves, ubicadas en entrada->palabras, separadas por coma*/
     word = strtok(keywords, ",");
-    for (; word+1 == NULL;)
+    for (; word;)
     {
 		ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlKeywords", 1,  word));
 		word = strtok(NULL, ",");
     }
 
-
     /*Si es un Archivo guarda los campos espeficos del mismo*/
     if (mode == IRC_CRAWLER_MODIFICACION_ARCHIVOS)
     {
-        ldap->entryOp->editAttribute(entry, ldap->attribOp->createAttribute("utnUrlType", 1, entrada->tipo));
-        ldap->entryOp->editAttribute(entry, ldap->attribOp->createAttribute("utnUrlFormat", 1, entrada->formato));
-        ldap->entryOp->editAttribute(entry, ldap->attribOp->createAttribute("utnUrlSize", 1, entrada->length));
+        ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnUrlType", 1, entrada->tipo));
+        ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnUrlFormat", 1, entrada->formato));
+        ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnUrlSize", 1, entrada->length));
     }
     /*Si es un HTML edita los campos espeficos del mismo*/
     else if (mode == IRC_CRAWLER_MODIFICACION_HTML)
     {
-        ldap->entryOp->editAttribute(entry, ldap->attribOp->createAttribute("utnurlTitle", 1, entrada->titulo));
-        ldap->entryOp->editAttribute(entry, ldap->attribOp->createAttribute("utnurlDescription", 1, entrada->descripcion));
-        ldap->entryOp->editAttribute(entry, ldap->attribOp->createAttribute("utnurlContent", 1, entrada->htmlCode));
+        ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlTitle", 1, entrada->titulo));
+        ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlDescription", 1, entrada->descripcion));
+        ldap->entryOp->addAttribute(entry, ldap->attribOp->createAttribute("utnurlContent", 1, entrada->htmlCode));
     }
     else
     {
@@ -217,7 +231,7 @@ int ldapModificarURL(ldapObj *ldap, crawler_URL* entrada, int mode, configuracio
     }
 
    sleep(1);
-   ldap->sessionOp->editEntry(ldap->session, entry);
+   ldap->sessionOp->addEntry(ldap->session, entry);
 
     return 0;
 }
