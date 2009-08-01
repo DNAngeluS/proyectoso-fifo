@@ -35,15 +35,13 @@ int main()
 
     /*Se inicializa el mutex*/
     mutex_init(&logMutex, USYNC_THREAD, NULL);
-
-    
     
    /*Lectura de Archivo de Configuracion*/
     if (leerArchivoConfiguracion(&config) != 0)
-       rutinaDeError("Lectura Archivo de configuracion", config.log);
+       rutinaDeError("Lectura Archivo de configuracion", 0);
+    WriteLog(config.log, "Query Processor", getpid(), thr_self(), "Inicio de ejecucion", "INFO");
     WriteLog(config.log, "Query Processor", getpid(), thr_self(), "Se leera archivo de configuracion", "INFO");
     WriteLog(config.log, "Query Processor", getpid(), thr_self(), "Leido OK", "INFOFIN");
-   	WriteLog(config.log, "Query Processor", getpid(), thr_self(), "Inicio de ejecucion", "INFO");
 
     /*Se realiza la conexion a la base ldap*/
     WriteLog(config.log, "Query Processor", getpid(), thr_self(), "Se realizara la conexion a ldap", "INFO");
@@ -242,7 +240,7 @@ int main()
 
 	/*Finalizo el mutex*/
     mutex_destroy(&logMutex);
-	close(config.log);
+		close(config.log);
 
     return 0;
 }
@@ -308,7 +306,7 @@ int atenderConsulta(SOCKET sockCliente, ldapObj *ldap, int cantidadConexiones)
         }
         
 	/*Realiza la busqueda*/
-        WriteLog(config.log, "Query Processor", getpid(), thr_self(), "Se realizara la busqueda en ldap", "INFO");
+  WriteLog(config.log, "Query Processor", getpid(), thr_self(), "Se realizara la busqueda en ldap", "INFO");
 	if ((resultSet = consultarLDAP(ldap, getInfo.queryString)) == NULL)
 	{
             WriteLog(config.log, "Query Processor", getpid(), thr_self(), "Error al consultar ldap", "ERROR");
@@ -475,11 +473,11 @@ void rutinaDeError(char* error, int log)
     perror(error);
 
     /*Mutua exclusion*/
-	if (log != 0)
-	{
-    	WriteLog(log, "Query Processor", getpid(), thr_self(), error, "ERROR");
-		close(log);
-	}
-	
+   	if (log != 0)
+   	{
+    		WriteLog(log, "Query Processor", getpid(), thr_self(), error, "ERROR");
+				close(log);
+		}
+
     exit(EXIT_FAILURE);
 }

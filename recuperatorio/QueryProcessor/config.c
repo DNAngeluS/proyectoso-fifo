@@ -22,8 +22,6 @@ int leerArchivoConfiguracion (configuracion *config)
     int buf_len;
     int fd;
     mode_t modeOpen = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-    
-    config->log = 0;
 
     if( (fd = open("config.cfg", O_RDONLY)) < 0) {
             perror("No existe el archivo de configuracion\n");
@@ -62,10 +60,9 @@ int leerArchivoConfiguracion (configuracion *config)
             }
     }
     
-	/*Se crea el archivo log*/
+    /*Se crea el archivo log*/
     if ((config->log = open("log.txt", O_CREAT | O_TRUNC | O_WRONLY, modeOpen)) < 0)
         return -1;
-
     
     return 0;
 }
@@ -97,7 +94,7 @@ int asignarDatos (configuracion *config, char *key, char *value)
         config->cantidadConexiones = atoi(value);
 
     else if (strcmp(key, "TIEMPO_DEMORA") == 0)
-        config->tiempoDemora = (int) (atoi(value) / 1000);
+        config->tiempoDemora = atoi(value);
 
     else
     {
