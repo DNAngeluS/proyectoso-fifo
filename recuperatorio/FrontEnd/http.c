@@ -25,7 +25,7 @@ int EnviarBloque(SOCKET sockfd, unsigned long len, void *buffer)
     int bytesEnviados = 0;
 
     do {
-        if ((bHastaAhora = send(sockfd, buffer, len, 0)) == -1){
+        if ((bHastaAhora = send(sockfd, buffer, len-bHastaAhora, 0)) == -1){
                 break;
         }
         bytesEnviados += bHastaAhora;
@@ -47,7 +47,7 @@ int RecibirNBloque(SOCKET socket, void *buffer, unsigned long length)
     int bHastaAhora = 0;
 
     do {
-        if ((bHastaAhora = recv(socket, buffer, length, 0)) == -1) {
+        if ((bHastaAhora = recv(socket, buffer, length-bHastaAhora, 0)) == -1) {
                 break;
         }
         if (bHastaAhora == 0)
