@@ -94,7 +94,7 @@ int asignarDatos (configuracion *config, char *key, char *value)
         config->cantidadConexiones = atoi(value);
 
     else if (strcmp(key, "TIEMPO_DEMORA") == 0)
-        config->tiempoDemora = atoi(value);
+        config->tiempoDemora = (int)(atoi(value) / 1000);
 
     else
     {
