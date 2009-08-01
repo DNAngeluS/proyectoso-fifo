@@ -27,10 +27,8 @@ int leerArchivoConfiguracion (configuracion *config)
     char buf[BUF_SIZE];
     char *key, *value, *act, *primero, *lim;
     int buf_len;
-    int fd;  
+    int fd;
     mode_t modeOpen = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-
-		config->log = 0;
 
     if( (fd = open("config.cfg", O_RDONLY)) < 0) {
             perror("No existe el archivo de configuracion\n");
@@ -69,7 +67,7 @@ int leerArchivoConfiguracion (configuracion *config)
             }
     }
     
-    /*Se crea el archivo log*/
+		/*Se crea el archivo log*/
     if ((config->log = open("log.txt", O_CREAT | O_TRUNC | O_WRONLY, modeOpen)) < 0)
         return -1;
     

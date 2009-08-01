@@ -56,12 +56,12 @@ int main(int argc, char** argv)
     /*Se inicializa el mutex*/
     mutex_init(&logMutex, USYNC_THREAD, NULL);
 
-    /*Lectura de Archivo de Configuracion*/   
+    /*Lectura de Archivo de Configuracion*/
     if (leerArchivoConfiguracion(&config) != 0)
-       rutinaDeError("Lectura Archivo de configuracion", config.log);   
+       rutinaDeError("Lectura Archivo de configuracion", 0);
+    WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Inicio de ejecucion", "INFO");
     WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se leera archivo de configuracion", "INFO");
     WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Leido OK", "INFOFIN");
-    WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Inicio de ejecucion", "INFO");
 
     /*Se establece conexion a puerto de escucha*/
     WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se establecera conexion de escucha", "INFO");
@@ -436,9 +436,9 @@ int main(int argc, char** argv)
     while (listaRecursos != NULL)
         EliminarRanking(&listaRecursos, listaRecursos);
 
-	/*Finalizo el mutex*/
+		/*Finalizo el mutex*/
     mutex_destroy(&logMutex);
-	close(config.log);
+		close(config.log);
 
     return (EXIT_SUCCESS);
 }
@@ -890,9 +890,9 @@ void rutinaDeError(char* error, int log)
     /*Mutua exclusion*/
     if (log != 0)
     {
-    	WriteLog(log, "Front-end", getpid(), thr_self(), error, "ERROR");
-    	close(log);
-	}
+				WriteLog(log, "Front-end", getpid(), thr_self(), error, "ERROR");
+				close(log);
+		}
 
     exit(EXIT_FAILURE);
 }

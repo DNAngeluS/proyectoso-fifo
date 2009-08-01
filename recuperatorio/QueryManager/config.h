@@ -12,10 +12,10 @@ typedef unsigned int in_addr_t;
 typedef unsigned short in_port_t;
 
 typedef struct {
-    in_addr_t ipL;                        /*ip local*/
+    in_addr_t ipL;                    /*ip local*/
     in_port_t puertoL;                /*puerto local*/
-    in_addr_t ipFrontEnd;          /*ip local*/
-    in_port_t puertoFrontEnd;  /*puerto local*/
+    in_addr_t ipFrontEnd;          		/*ip local*/
+    in_port_t puertoFrontEnd;  				/*puerto local*/
     int log;
 } configuracion;
 
