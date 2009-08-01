@@ -44,7 +44,6 @@ int main()
 {
 
     SOCKET sockFrontEnd;
-    mode_t modeOpen = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
     /*Se inicializa el mutex*/
     mutex_init(&logMutex, USYNC_THREAD, NULL);
@@ -53,16 +52,16 @@ int main()
 
     /*Lectura de Archivo de Configuracion*/ 
     if (leerArchivoConfiguracion(&config) != 0)
-       rutinaDeError("Lectura Archivo de configuracion", config->log);
-    WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se leera archivo de configuracion", "INFO");
-    WriteLog(config->log, "Front-end", getpid(), thr_self(), "Leido OK", "INFOFIN");
-    WriteLog(config->log, "Front-end", getpid(), thr_self(), "Inicio de ejecucion", "INFO");
+       rutinaDeError("Lectura Archivo de configuracion", config.log);
+    WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se leera archivo de configuracion", "INFO");
+    WriteLog(config.log, "Front-end", getpid(), thr_self(), "Leido OK", "INFOFIN");
+    WriteLog(config.log, "Front-end", getpid(), thr_self(), "Inicio de ejecucion", "INFO");
 
     /*Se establece conexion a puerto de escucha*/
-    WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se establecera conexion de escucha", "INFO");
+    WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se establecera conexion de escucha", "INFO");
     if ((sockFrontEnd = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
-       rutinaDeError("Socket invalido", config->log);
-    WriteLog(config->log, "Front-end", getpid(), thr_self(), "Establecida OK", "INFOFIN");
+       rutinaDeError("Socket invalido", config.log);
+    WriteLog(config.log, "Front-end", getpid(), thr_self(), "Establecida OK", "INFOFIN");
 
     /*Hasta que llegue el handshake del QM*/
     while (1)
@@ -74,22 +73,22 @@ int main()
         char descID[DESCRIPTORID_LEN];
         int mode = IRC_HANDSHAKE_QM;
 
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Esperando Query Manager para estar operativo...", "INFOFIN");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Esperando Query Manager para estar operativo...", "INFOFIN");
 
         /*Conecto nuevo cliente, posiblemente el QM*/
         sockCliente = accept(sockFrontEnd, (SOCKADDR *) &dirCliente, &nAddrSize);
 
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Conexion establecida. Realizando Handshake", "INFO");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Conexion establecida. Realizando Handshake", "INFO");
 
         /*Si el socket es invalido, ignora y vuelve a empezar*/
         if (sockCliente == INVALID_SOCKET || (ircRequest_recv (sockCliente, buffer, descID, &mode) < 0))
         {
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
             if (sockCliente != INVALID_SOCKET)
                 close(sockCliente);
             continue;
         }
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Realizado OK", "INFOFIN");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Realizado OK", "INFOFIN");
 
         /*Guarda en la estructura de configuracion global el ip y puerto del Query Manager*/
         config.ipQM = inet_addr(strtok(buffer, ":"));
@@ -109,7 +108,7 @@ int main()
 
         memset(&getInfo, '\0', sizeof(msgGet));
 
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Esperando nuevas peticiones...", "INFOFIN");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Esperando nuevas peticiones...", "INFOFIN");
         putchar('\n');
 
         /*Acepta la conexion entrante*/
@@ -121,25 +120,25 @@ int main()
         {
             char text[60];
             sprintf(text, "Conexion aceptada de %s", inet_ntoa(dirCliente.sin_addr));
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
         }
 
         /*Se recibe el Http GET del cliente*/
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se recibira Http GET del cliente", "INFO");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se recibira Http GET del cliente", "INFO");
         if (httpGet_recv(sockCliente, &getInfo) < 0)
         {
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Error al recibir HTTP GET", "ERROR");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error al recibir HTTP GET", "ERROR");
             putchar('\n');
             close(sockCliente);
             continue;
         }
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Recibido OK", "INFOFIN");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Recibido OK", "INFOFIN");
 
         getType = obtenerGetType(getInfo.palabras);
 				if (getType == CACHE)
 					getInfo.searchType = SEARCH_CACHE;
 
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se atendera cliente", "INFOFIN");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se atendera cliente", "INFOFIN");
         if (getType == BROWSER)
         /*Si el GET corresponde a un browser pidiendo formulario*/
         {
@@ -147,10 +146,10 @@ int main()
             char text[150];
 
             /*Envia el formulario html para empezar a atender.*/
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se envia Formulario Html", "INFOFIN");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se envia Formulario Html", "INFOFIN");
             control = EnviarFormularioHtml (sockCliente, getInfo);
             sprintf(text, "Atencion de cliente finalizada%s", control < 0? " con Error": "");
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), text, control<0? "ERROR": "INFOFIN");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), text, control<0? "ERROR": "INFOFIN");
             putchar('\n');
             
             close(sockCliente);
@@ -170,7 +169,7 @@ int main()
                 char text[60];
 
                 sprintf(text, "No se ha podido atender cliente de %s. Se cierra conexion", inet_ntoa(dirCliente.sin_addr));
-                WriteLog(config->log, "Front-end", getpid(), thr_self(), text, "ERROR");
+                WriteLog(config.log, "Front-end", getpid(), thr_self(), text, "ERROR");
                 putchar('\n');
                 close(sockCliente);
             }
@@ -185,7 +184,7 @@ int main()
 
     /*Finalizo el mutex*/
     mutex_destroy(&logMutex);
-	close(config->log);
+	close(config.log);
 
     return (EXIT_SUCCESS);
 }
@@ -303,7 +302,7 @@ void rutinaAtencionCliente (void *args)
         sprintf (text, "Se comienza a atender Request de %s", inet_ntoa(dirCliente.sin_addr));
     else
         sprintf (text, "Se comienza a atender Request Cache de %s", inet_ntoa(dirCliente.sin_addr));
-    WriteLog(config->log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
+    WriteLog(config.log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
 
     /*Se obtiene el tiempo de inicio de la busqueda*/
     ftime(&tiempoInicio);
@@ -311,26 +310,26 @@ void rutinaAtencionCliente (void *args)
     /*Se obtiene el query string a buscar*/
     if (getThread.searchType != SEARCH_CACHE)
     {
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Obteniendo QueryString", "INFO");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Obteniendo QueryString", "INFO");
         control = obtenerQueryString(getThread, &getInfo);
     }
     else
     {
-        WriteLog(config->log,"Front-end", getpid(), thr_self(), "Obteniendo UUID", "INFO");
+        WriteLog(config.log,"Front-end", getpid(), thr_self(), "Obteniendo UUID", "INFO");
         control = obtenerUUID(getThread, &getInfo);
     }
     if (control < 0)
     {
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Error de tipo", "ERROR");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error de tipo", "ERROR");
 
         /*Si hubo un error, envia Http Not Found y cierra conexion*/
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
         if (httpNotFound_send(sockCliente, getInfo) < 0)
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
         else
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
 
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
         putchar('\n');
         close(sockCliente);
         thr_exit(NULL);
@@ -341,21 +340,21 @@ void rutinaAtencionCliente (void *args)
             sprintf(text, "Obtenido OK.\n\tPalabras buscadas: %s\n\tTipo: %d", getInfo.palabras, getInfo.searchType);
         else
             sprintf(text, "Obtenido OK.\n\tUUID a buscar: %s", getInfo.palabras);
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), text, "INFOFIN");
     }
 
      /*Se establece conexion con el Query Manager*/
-    WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se establecera conexion con Query Manager", "INFO");
+    WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se establecera conexion con Query Manager", "INFO");
     if ((sockQM = establecerConexionServidor(config.ipQM, config.puertoQM, &dirQM)) == INVALID_SOCKET)
     {
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
         putchar('\n');
         close(sockCliente);
         thr_exit(NULL);
     }
     else
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Establecida OK", "INFOFIN");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Establecida OK", "INFOFIN");
 
     /*Reserva un bloque de memoria para poder recibir las respuestas*/
     if (getInfo.searchType == WEB)
@@ -368,7 +367,7 @@ void rutinaAtencionCliente (void *args)
         respuesta = (hostsCodigo *)      malloc (sizeof(hostsCodigo));
 
     /*Se solicita la busqueda al Query Manager y se recibe las respuestas*/
-    WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se enviara peticion al Query Manager", "INFO");
+    WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se enviara peticion al Query Manager", "INFO");
     control = 0;
     if (getThread.searchType != SEARCH_CACHE)
         control = solicitarBusqueda(sockQM, getInfo, &respuesta, &respuestaLen, &mode);
@@ -376,15 +375,15 @@ void rutinaAtencionCliente (void *args)
         control = solicitarBusquedaCache(sockQM, getInfo, (hostsCodigo**)(&respuesta), &mode);
     if (control < 0)
     {
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
         putchar('\n');
         close(sockCliente);
         close(sockQM);
         thr_exit(NULL);
     }
 	else
-		WriteLog(config->log, "Front-end", getpid(), thr_self(), "Respuesta obtenida", "INFOFIN");
+		WriteLog(config.log, "Front-end", getpid(), thr_self(), "Respuesta obtenida", "INFOFIN");
 
     /*Se cierra conexion con el Query Manager*/
     close(sockQM);
@@ -392,52 +391,52 @@ void rutinaAtencionCliente (void *args)
     if (mode == IRC_RESPONSE_HTML || mode == IRC_RESPONSE_ARCHIVOS)
     {
         /*Se envia el Html de respuesta al Cliente*/
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se enviara respuesta al cliente", "INFO");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se enviara respuesta al cliente", "INFO");
         if (EnviarRespuestaHtml(sockCliente, getInfo, respuesta,
                                 respuestaLen, tiempoInicio) < 0)
         {
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
 
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
             if (httpNotFound_send(sockCliente, getInfo) < 0)
-                WriteLog(config->log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+                WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
             else
-                WriteLog(config->log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
+                WriteLog(config.log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
         }
         else
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Respuesta enviada OK", "INFOFIN");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Respuesta enviada OK", "INFOFIN");
     }
     else if (mode == IRC_RESPONSE_CACHE)
     {
         /*Se envia el Html de respuesta al Cliente*/
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se enviara respuesta al cliente", "INFO");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se enviara respuesta al cliente", "INFO");
         if (EnviarRespuestaHtmlCache(sockCliente, ((hostsCodigo*)respuesta)->html, getInfo) < 0)
         {
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
 
             /*Si hubo un error, envia Http Not Found y cierra conexion*/
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
             if (httpNotFound_send(sockCliente, getInfo) < 0)
-                WriteLog(config->log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+                WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
             else
-                WriteLog(config->log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
+                WriteLog(config.log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
         }
         else
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Respuesta enviada OK", "INFOFIN");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Respuesta enviada OK", "INFOFIN");
     }
     else if (mode == IRC_RESPONSE_ERROR)
     {
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "No se a aceptado peticion", "INFOFIN");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "No se a aceptado peticion", "INFOFIN");
 
         /*Se envia al cliente Http Internal Service Error*/
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se enviara Http Internal Service Error", "INFO");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se enviara Http Internal Service Error", "INFO");
         if (httpInternalServiceError_send(sockCliente, getInfo) < 0)
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
         else
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
     }
 
-    WriteLog(log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
+    WriteLog(config.log, "Front-end", getpid(), thr_self(), "Atencion de cliente finalizada", "INFOFIN");
     putchar('\n');
     
     free(respuesta);
@@ -805,15 +804,15 @@ int EnviarFormularioHtml(SOCKET sockCliente, msgGet getInfo)
 
     if ((strcmp(getInfo.palabras, "/index.hmtl") == 0) || (strcmp(getInfo.palabras, "imgs/soogle.jpg") == 0) )
     {
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se esperaba recibir \"/SOogle.html\"", "INFOFIN");
-        WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se esperaba recibir \"/SOogle.html\"", "INFOFIN");
+        WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se enviara Http Not Found", "INFO");
         if (httpNotFound_send(sockCliente, getInfo) < 0)
         {
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
             return -1;
         }
         else
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
         return -1;
     }
     else
@@ -825,31 +824,31 @@ int EnviarFormularioHtml(SOCKET sockCliente, msgGet getInfo)
             perror("open");
             if (httpNotFound_send(sockCliente, getInfo) < 0)
             {
-                WriteLog(config->log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+                WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
                 return -1;
             }
             return -1;
         }
         else
         {
-           WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se enviara Http 200 Ok", "INFO");
+           WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se enviara Http 200 Ok", "INFO");
             if (httpOk_send(sockCliente, getInfo) < 0)
             {
-               WriteLog(config->log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+               WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
                 return -1;
             }
             else
-                WriteLog(config->log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
+                WriteLog(config.log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
 
-            WriteLog(config->log, "Front-end", getpid(), thr_self(), "Se enviara archivo solicitado", "INFO");
+            WriteLog(config.log, "Front-end", getpid(), thr_self(), "Se enviara archivo solicitado", "INFO");
             if (EnviarArchivo(sockCliente, fdFile) != getFileSize(fdFile))
             {
-                WriteLog(config->log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
+                WriteLog(config.log, "Front-end", getpid(), thr_self(), "Error", "ERROR");
                 close(fdFile);
                 return -1;
             }
             else
-                WriteLog(config->log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
+                WriteLog(config.log, "Front-end", getpid(), thr_self(), "Enviado OK", "INFOFIN");
             close(fdFile);
         }
     }

@@ -50,40 +50,38 @@ int main(int argc, char** argv)
     fd_set fdLectura;
     struct timeval timeout;
     int fdMax, cli;
-    mode_t modeOpen = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
     fdMax = cli = 0;
     char text[60];
 
     /*Se inicializa el mutex*/
     mutex_init(&logMutex, USYNC_THREAD, NULL);
 
-    /*Lectura de Archivo de Configuracion*/
-    
+    /*Lectura de Archivo de Configuracion*/   
     if (leerArchivoConfiguracion(&config) != 0)
-       rutinaDeError("Lectura Archivo de configuracion", config->config->log);   
-    WriteLog(config->config->log, "Query Manager", getpid(), thr_self(), "Se leera archivo de configuracion", "INFO");
-    WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Leido OK", "INFOFIN");
-    WriteLog(config->config->log, "Query Manager", getpid(), thr_self(), "Inicio de ejecucion", "INFO");
+       rutinaDeError("Lectura Archivo de configuracion", config.log);   
+    WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se leera archivo de configuracion", "INFO");
+    WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Leido OK", "INFOFIN");
+    WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Inicio de ejecucion", "INFO");
 
     /*Se establece conexion a puerto de escucha*/
-    WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Se establecera conexion de escucha", "INFO");
+    WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se establecera conexion de escucha", "INFO");
     if ((sockQM = establecerConexionEscucha(INADDR_ANY, config.puertoL)) == INVALID_SOCKET)
-       rutinaDeError("Socket invalido", config->log);
-    WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Establecido OK", "INFOFIN");
+       rutinaDeError("Socket invalido", config.log);
+    WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Establecido OK", "INFOFIN");
 
     do
     {
-        WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Esperando primer Query Processor para estar operativo...", "INFOFIN");
+        WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Esperando primer Query Processor para estar operativo...", "INFOFIN");
         putchar('\n');
 
         /*Acepta la conexion entrante del primer QP, condicionante para estar operativo*/
         sockPrimerQP = accept(sockQM, (SOCKADDR *) &dirPrimerQP, &nAddrSize);
         if (sockPrimerQP == INVALID_SOCKET)
-            WriteLog(config->log, "Query Manager", getpid(), thr_self(), "No se pudo conectar al Query Processor", "ERROR");
+            WriteLog(config.log, "Query Manager", getpid(), thr_self(), "No se pudo conectar al Query Processor", "ERROR");
     } while (sockPrimerQP == INVALID_SOCKET);
 
     sprintf(text, "Query Processor en %s conectado.\n", inet_ntoa(dirPrimerQP.sin_addr));
-    WriteLog(config->log, "Query Manager", getpid(), thr_self(), text, "INFOFIN");
+    WriteLog(config.log, "Query Manager", getpid(), thr_self(), text, "INFOFIN");
 
     /*Se agregan los sockets abiertos y se asigna el maximo actual*/
     FD_ZERO (&fdMaestro);
@@ -96,10 +94,10 @@ int main(int argc, char** argv)
     * Ya se recibio la conexion del primer QP, ya se puede establecer la conexion con el Front-End.
     * Se conecta al Front-End, se le envia la IP y Puerto local, y se cierra conexion.
     */
-    WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Se establecera conexion con Front-end", "INFO");
+    WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se establecera conexion con Front-end", "INFO");
     if (conectarFrontEnd(config.ipFrontEnd, config.puertoFrontEnd) < 0)
-       rutinaDeError("Conexion a Front-End", config->log);
-    WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Conexion establecida OK", "INFOFIN");
+       rutinaDeError("Conexion a Front-End", config.log);
+    WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Conexion establecida OK", "INFOFIN");
 
     while (1)
     {
@@ -114,13 +112,13 @@ int main(int argc, char** argv)
         if (!mensajeEsperando)
         {
             mensajeEsperando = 1;
-            WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Esperando nuevas peticiones", "INFOFIN");
+            WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Esperando nuevas peticiones", "INFOFIN");
         }
 
         rc = select(fdMax+1, &fdLectura, NULL, NULL, &timeout);
 
         if (rc < 0)
-            rutinaDeError("select", config->log);
+            rutinaDeError("select", config.log);
         else if (rc == 0)
         {
             /*SELECT TIMEOUT*/
@@ -147,7 +145,7 @@ int main(int argc, char** argv)
                         sockCliente = accept(sockQM, (SOCKADDR *) &dirCliente, &nAddrSize);
                         if (sockCliente == INVALID_SOCKET)
                         {
-                            WriteLog(config->log, "Query Manager", getpid(), thr_self(), "No se pudo conectar cliente", "ERROR");
+                            WriteLog(config.log, "Query Manager", getpid(), thr_self(), "No se pudo conectar cliente", "ERROR");
                             continue;
                         }
 
@@ -157,7 +155,7 @@ int main(int argc, char** argv)
                             fdMax = sockCliente;
 
                         sprintf (text, "Conexion aceptada de %s", inet_ntoa(dirCliente.sin_addr));
-                        WriteLog(config->log, "Query Manager", getpid(), thr_self(), text, "INFOFIN");
+                        WriteLog(config.log, "Query Manager", getpid(), thr_self(), text, "INFOFIN");
                     }
                     else if (cli == 0) /*stdin*/
                     {
@@ -219,10 +217,10 @@ int main(int argc, char** argv)
                         memset(descID, '\0', sizeof(descID));
 
                         /*Recibir HandShake*/
-                        WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Se recibira informacion entrante", "INFOFIN");
+                        WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se recibira informacion entrante", "INFOFIN");
                         if ((control = ircRequest_recv (cli, (void **)&buffer, &rtaLen, descID, &mode)) < 0)
                         {
-                            WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Error", "ERROR");
+                            WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Error", "ERROR");
                             putchar('\n');
                         }
                         
@@ -252,13 +250,13 @@ int main(int argc, char** argv)
                         						strcpy(idQP, ptrAux->info.idQP);
 
 																		/*Re-Envio la respuesta fallida al Cliente en Front-End*/
-																		WriteLog(config->log, "Query Manager", getpid(), thr_self(), "A fallado conexion con Query Processor. Se enviara Http 500 Internal Service Error", "INFO");
+																		WriteLog(config.log, "Query Manager", getpid(), thr_self(), "A fallado conexion con Query Processor. Se enviara Http 500 Internal Service Error", "INFO");
 																		if (ircResponse_send(ptrAux->info.sockCliente, ptrAux->info.descIDCliente, NULL, 0, IRC_RESPONSE_ERROR) < 0)
 																		{
 																			printf("Error.\n");
 																			return -1;
 																		}
-																		WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Enviado OK", "INFOFIN");
+																		WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Enviado OK", "INFOFIN");
                         						
                         						/*Se elimina de la lista de requests*/
                         						EliminarRequest(&listaRequest, ptrAux);
@@ -283,14 +281,14 @@ int main(int argc, char** argv)
                         }
                         else
                         {
-                            WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Handshake recibido OK", "INFOFIN");
+                            WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Handshake recibido OK", "INFOFIN");
                             if (mode == IRC_HANDSHAKE_QP)
                             /*Si es QP -> colgar de lista segun recurso atendido (payload)*/
                             {
                                 int control;
                                 struct query info;
 
-                                WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Se atendera nuevo Query Processor", "INFOFIN");
+                                WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se atendera nuevo Query Processor", "INFOFIN");
 
                                 info.ip = inet_addr(strtok((char *)buffer, ":"));
                                 info.puerto = htons(atoi(strtok(NULL, "-")));
@@ -300,30 +298,30 @@ int main(int argc, char** argv)
                                 info.consultasFracaso = 0;
                                 GenerarIDQP(info.id);
 
-                                WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Se agregara a la lista", "INFO");
+                                WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se agregara a la lista", "INFO");
                                 if (info.tipoRecurso == RECURSO_WEB)
                                 {
                                     if ((control = AgregarQuery (&listaHtml, info)) < 0)
-                                        WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Error al agregar a lista Html", "ERROR");
+                                        WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Error al agregar a lista Html", "ERROR");
                                 }
                                 else
                                 {
                                     if ((control = AgregarQuery (&listaArchivos, info)) < 0)
-                                        WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Error al agregar a lista Archivos", "ERROR");
+                                        WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Error al agregar a lista Archivos", "ERROR");
                                 }
                                 
                                 if (control == 0)
-                                    WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Agregado a lista OK", "INFOFIN");
+                                    WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Agregado a lista OK", "INFOFIN");
                                 printf("Atencion de conexion de Query Processor finalizada.\n\n");
                             }
                             else if (mode == IRC_REQUEST_HTML || mode == IRC_REQUEST_ARCHIVOS || mode == IRC_REQUEST_CACHE)
                             /*Si es Front-End atender*/
                             {
                                 char idQP[MAX_ID_QP];
-                                WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Se atendera Front-end", "INFOFIN");
+                                WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se atendera Front-end", "INFOFIN");
                                 socketQP = atenderFrontEnd(cli, buffer, rtaLen, descID, descQP, mode, &listaHtml, &listaArchivos, &listaPalabras, listaRequest, idQP);
                                 sprintf(text, "Request del Front-end recibido%s", socketQP < 0? " con Error": "");
-                                WriteLog(config->log, "Query Manager", getpid(), thr_self(), text, socketQP<0? "ERROR": "INFOFIN");
+                                WriteLog(config.log, "Query Manager", getpid(), thr_self(), text, socketQP<0? "ERROR": "INFOFIN");
                                 if (socketQP > 0)
                                 {
                                 
@@ -343,7 +341,7 @@ int main(int argc, char** argv)
                                 	strcpy(info.descIDCliente, descID);
                                 	
                                 	if (AgregarRequest(&listaRequest, info) < 0)
-                                		WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Error al agregar request a lista", "ERROR");
+                                		WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Error al agregar request a lista", "ERROR");
                                 	putchar('\n');
 																	mensajeEsperando = 0;
                                 }
@@ -355,7 +353,7 @@ int main(int argc, char** argv)
 																int control;
 																ptrListaRequest ptrAux = listaRequest;
 																
-																WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Se atendera Query Processor", "INFOFIN");
+																WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se atendera Query Processor", "INFOFIN");
 																
 																/*BUSCAR EL QP SEGUN DESCID DEL QP (descID)*/
 																while (ptrAux != NULL && strcmp(ptrAux->info.descIDQP, descID) != 0)
@@ -363,13 +361,13 @@ int main(int argc, char** argv)
 																	
 																if (ptrAux == NULL)
 																{
-																		WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Consulta inconsistente, Se descarta request", "ERROR");
+																		WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Consulta inconsistente, Se descarta request", "ERROR");
 																}
 																else
 																{
 																		char text[100];
 																		
-																		WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Se han obtenido respuestas de un QP", "INFOFIN");
+																		WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se han obtenido respuestas de un QP", "INFOFIN");
 																		control = atenderQP(ptrAux->info.sockCliente, buffer, rtaLen, ptrAux->info.descIDCliente, mode, &listaRecursos);
 																		if (control < 0)
 																		{
@@ -391,7 +389,7 @@ int main(int argc, char** argv)
 								                    /*Eliminamos de la lista de Requests*/
 																		EliminarRequest(&listaRequest, ptrAux);
 																		sprintf(text, "Atencion del Front-end finalizada%s", control < 0? " con Error": "");
-																		WriteLog(config->log, "Query Manager", getpid(), thr_self(), text, control<0? "ERROR": "INFOFIN");
+																		WriteLog(config.log, "Query Manager", getpid(), thr_self(), text, control<0? "ERROR": "INFOFIN");
 																		putchar('\n');
 																		mensajeEsperando = 0;
 																}					
@@ -440,7 +438,7 @@ int main(int argc, char** argv)
 
 	/*Finalizo el mutex*/
     mutex_destroy(&logMutex);
-	close(config->log);
+	close(config.log);
 
     return (EXIT_SUCCESS);
 }
@@ -483,11 +481,11 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
 
         strcpy(palabras, ((msgGet *) datos)->palabras);
 
-        WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Se computara el querystring en el ranking", "INFO");
+        WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se computara el querystring en el ranking", "INFO");
         if (incrementarRanking(listaPalabras, palabras) < 0)
-            WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Error: no hay memoria", "ERROR");
+            WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Error: no hay memoria", "ERROR");
         else
-            WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Computado OK", "INFOFIN");
+            WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Computado OK", "INFOFIN");
     }
 
     /*Busco hasta el final o hasta que el primero responda que puede atenderme*/
@@ -520,15 +518,15 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
             
             ptrAux = ptrAux->sgte;
             EliminarQuery(ptrEliminar->info.tipoRecurso == RECURSO_WEB? lstHtml: lstArchivos, ptrEliminar);
-            WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Error: conectar Query Processor", "ERROR");
-            WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Query Processor sin vida se a eliminado de la lista de Html", "INFOFIN");
+            WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Error: conectar Query Processor", "ERROR");
+            WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Query Processor sin vida se a eliminado de la lista de Html", "INFOFIN");
         }
         else
         {
 						/*Envia al QP el permiso de peticion*/
 						if (ircRequest_send(sockQP, NULL, 0, descIDQP, modeQPHandshake) < 0)
 						{
-						    WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Error: enviar permiso a Query Processor", "ERROR");
+						    WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Error: enviar permiso a Query Processor", "ERROR");
 						}
 						else
 						{
@@ -537,7 +535,7 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
 							/*Recibir respuesta del permiso por parte del QP*/
 							if (ircResponse_recv(sockQP, &buff, descIDQP, &rtaLen, &modeQPHandshake) < 0)
 							{
-									WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Error: recibir permiso de Query Processor", "ERROR");
+									WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Error: recibir permiso de Query Processor", "ERROR");
 							}
 							else
 							{
@@ -559,19 +557,19 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
     /*Ninguno pudo atenderme*/
     if (ptrAux == NULL)
     {
-        WriteLog(config->log, "Query Manager", getpid(), thr_self(), "No se encontraron Query Processors disponibles. Se enviara Internal Service Error", "INFOFIN");
+        WriteLog(config.log, "Query Manager", getpid(), thr_self(), "No se encontraron Query Processors disponibles. Se enviara Internal Service Error", "INFOFIN");
         void *vacio = NULL;
         respuestaLen = 0;
         mode = IRC_RESPONSE_ERROR;
 
 				/*Re-Envio la respuesta al Cliente en Front-End*/
-				WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Se envia respuesta al Front-end", "INFO");
+				WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se envia respuesta al Front-end", "INFO");
 				if (ircResponse_send(sockCliente, descriptorID, vacio, respuestaLen, mode) < 0)
 				{
 				  printf("Error.\n");
 				  return -1;
 				}
-				WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Respuesta enviada satisfactoriamente", "INFOFIN");
+				WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Respuesta enviada satisfactoriamente", "INFOFIN");
 
 				strcpy(descriptorIDQP, "");
 				strcpy(idQP, "");
@@ -581,17 +579,17 @@ int atenderFrontEnd(SOCKET sockCliente, void *datos, unsigned long sizeDatos, ch
     /*Si me pueden atender*/
 		else
 		{
-				WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Se a conectado a un Query Processor", "INFOFIN");
+				WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se a conectado a un Query Processor", "INFOFIN");
 
         /*Re-Envia las palabras a buscar al QP*/
-        WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Se enviara peticion", "INFO");
+        WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se enviara peticion", "INFO");
         if (ircRequest_send(sockQP, datos, sizeDatos, descIDQP, modeQP) < 0)
         {
-            WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Error: enviar consulta a Query Processor", "ERROR");
+            WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Error: enviar consulta a Query Processor", "ERROR");
             close(sockQP);
             return -1;
         }
-        WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Peticion enviada OK", "INFOFIN");
+        WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Peticion enviada OK", "INFOFIN");
 				
 				strcpy(descriptorIDQP, descIDQP);
 				strcpy(idQP, ptrAux->info.id);
@@ -642,7 +640,7 @@ int eliminarQueryProcessor(ptrListaQuery *lstHtml, ptrListaQuery *lstArchivos, c
     if (ptrAux != NULL)
     {
     		EliminarQuery(&listaHtml, ptrAux);
-        WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Query Processor sin vida se a eliminado de la lista de Html", "INFOFIN");
+        WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Query Processor sin vida se a eliminado de la lista de Html", "INFOFIN");
     }
     
     /*Si no encontro*/
@@ -658,7 +656,7 @@ int eliminarQueryProcessor(ptrListaQuery *lstHtml, ptrListaQuery *lstArchivos, c
 				if (ptrAux != NULL)
 				{
 						EliminarQuery(&listaArchivos, ptrAux);
-				    WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Query Processor sin vida se a eliminado de la lista de Archivos", "INFOFIN");
+				    WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Query Processor sin vida se a eliminado de la lista de Archivos", "INFOFIN");
 				}
 				else
 				{
@@ -686,7 +684,7 @@ int atenderQP (SOCKET sockCliente, void *datos, unsigned long respuestaLen, char
             cantidadRespuestas = respuestaLen / sizeof(so_URL_Archivos);
 
         /*Computo en ranking de recursos los recursos encontrados*/
-				WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Se computaran el recursos en el ranking", "INFO");
+				WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se computaran el recursos en el ranking", "INFO");
         for (i = 0; i < cantidadRespuestas; i++)
         {
             char palabras[MAX_PATH];
@@ -703,20 +701,20 @@ int atenderQP (SOCKET sockCliente, void *datos, unsigned long respuestaLen, char
 						}
         }
 				if (rankingError)
-					WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Error: no hay memoria, computar rakings incompleto", "ERROR");
+					WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Error: no hay memoria, computar rakings incompleto", "ERROR");
 				else
-					WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Computados OK", "INFOFIN");
+					WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Computados OK", "INFOFIN");
     }
 
     /*Re-Envio la respuesta al Cliente en Front-End*/
-    WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Se reenviaran respuestas al Front-end", "INFO");
+    WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Se reenviaran respuestas al Front-end", "INFO");
     if (ircResponse_send(sockCliente, descriptorID, datos, respuestaLen, mode) < 0)
     {
       printf("Error.\n");
       return -1;
     }
 
-    WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Respuesta enviada satisfactoriamente", "INFOFIN");
+    WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Respuesta enviada satisfactoriamente", "INFOFIN");
 
     return 0;    
 }
@@ -733,7 +731,7 @@ int chequeoDeVida(in_addr_t ip, in_port_t puerto)
 
     if (sockQP == INVALID_SOCKET)
     {
-        WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Error: conectar con el Query Processor", "ERROR");
+        WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Error: conectar con el Query Processor", "ERROR");
         close(sockQP);
         return -1;
     }
@@ -741,7 +739,7 @@ int chequeoDeVida(in_addr_t ip, in_port_t puerto)
     /*Envia al QP el permiso de peticion*/
     if (ircRequest_send(sockQP, NULL, 0, descIDQP, modeQPHandshake) < 0)
     {
-        WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Error: enviar consulta de vida al Query Processor", "ERROR");
+        WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Error: enviar consulta de vida al Query Processor", "ERROR");
         close(sockQP);
         return -1;
     }
@@ -751,7 +749,7 @@ int chequeoDeVida(in_addr_t ip, in_port_t puerto)
     /*Recibir respuesta del permiso por parte del QP*/
     if (ircResponse_recv(sockQP, &buff, descIDQP, &rtaLen, &modeQPHandshake) < 0)
     {
-        WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Error: recibir respuesta de vida del Query Processor", "ERROR");
+        WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Error: recibir respuesta de vida del Query Processor", "ERROR");
         close(sockQP);
         return -1;
     }
@@ -778,7 +776,7 @@ int conectarFrontEnd(in_addr_t nDireccionIP, in_port_t nPort)
 
     if (ircRequest_send(sockFrontEnd, buffer, sizeof(buffer), descID, IRC_HANDSHAKE_QM) < 0)
     {
-        WriteLog(config->log, "Query Manager", getpid(), thr_self(), "Error: recibir mensaje del Front-end al tratar de conectarse", "ERROR");
+        WriteLog(config.log, "Query Manager", getpid(), thr_self(), "Error: recibir mensaje del Front-end al tratar de conectarse", "ERROR");
         close(sockFrontEnd);
         return -1;
     }

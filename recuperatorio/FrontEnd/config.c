@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <arpa/inet.h> /* inet_addr */
+#include <sys/stat.h>
 #include "config.h"
 
 
@@ -27,8 +28,9 @@ int leerArchivoConfiguracion (configuracion *config)
     char *key, *value, *act, *primero, *lim;
     int buf_len;
     int fd;
+    mode_t modeOpen = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
-	config->log = 0;
+		config->log = 0;
 
     if( (fd = open("config.cfg", O_RDONLY)) < 0) {
             perror("No existe el archivo de configuracion\n");
