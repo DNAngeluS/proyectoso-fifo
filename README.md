@@ -8,6 +8,7 @@ El objetivo del mismo es meramente educativo y no pretende ser un proyecto produ
 -------------------------------------------------------
 
 This proyecto comes from a field work that I made while was taking the Operating Systems course, back there in 2009. The content is purely educational and is not meant to be some kind of productive project. Nevertheless between it's lines there's a lot of reference to programming sockets in C that it'd be very useful for someone starting with the subject.
+
 The goal it to simulate google tracking spiders and its index database.
 
 
